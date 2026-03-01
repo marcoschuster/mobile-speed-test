@@ -114,28 +114,6 @@ const SpeedTestScreen = () => {
         isTesting={isTestRunning}
       />
 
-      <View style={styles.graphContainer}>
-        <Text style={styles.graphTitle}>Speed History</Text>
-        <View style={styles.graph}>
-          {speedHistory.length > 0 ? (
-            speedHistory.slice(-20).map((point, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.graphBar,
-                  {
-                    height: Math.max(point.speed * 2, 5),
-                    backgroundColor: point.type === 'download' ? '#667eea' : '#764ba2',
-                  },
-                ]}
-              />
-            ))
-          ) : (
-            <Text style={styles.noDataText}>Run a test to see speed graph</Text>
-          )}
-        </View>
-      </View>
-
       <View style={styles.statsGrid}>
         <StatCard
           label="Download"
@@ -193,37 +171,6 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 20,
     alignItems: 'center',
-  },
-  graphContainer: {
-    width: '100%',
-    marginVertical: 20,
-    padding: 15,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-  },
-  graphTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  graph: {
-    height: 100,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    paddingHorizontal: 10,
-  },
-  graphBar: {
-    width: 8,
-    marginHorizontal: 1,
-    borderRadius: 2,
-  },
-  noDataText: {
-    fontSize: 14,
-    color: '#6c757d',
-    fontStyle: 'italic',
   },
   statsGrid: {
     flexDirection: 'row',

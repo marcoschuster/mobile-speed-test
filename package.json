@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@expo/metro-runtime": "^55.0.6",
+    "@m-lab/ndt7": "^0.1.4",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^6.5.8",
     "@react-navigation/native": "^6.1.7",

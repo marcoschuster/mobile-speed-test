@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
 import SpeedTestScreen from './src/screens/SpeedTestScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
+import GraphScreen from './src/screens/GraphScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -29,6 +30,13 @@ export default function App() {
           component={SpeedTestScreen}
           options={{
             tabBarLabel: 'Speed Test',
+          }}
+        />
+        <Tab.Screen 
+          name="Graphs" 
+          component={GraphScreen}
+          options={{
+            tabBarLabel: 'Graphs',
           }}
         />
         <Tab.Screen 
