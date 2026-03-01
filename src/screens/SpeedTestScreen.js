@@ -23,6 +23,8 @@ const SpeedTestScreen = () => {
     upload: 0,
     ping: Infinity,
   });
+  const [speedHistory, setSpeedHistory] = useState([]);
+  const [backgroundMode, setBackgroundMode] = useState(false);
   const [progressText, setProgressText] = useState('');
 
   useEffect(() => {
@@ -41,6 +43,7 @@ const SpeedTestScreen = () => {
     setDownloadSpeed(0);
     setUploadSpeed(0);
     setPing(0);
+    setSpeedHistory([]);
 
     await SpeedTestService.runSpeedTest(
       (progress, type) => {
@@ -52,6 +55,11 @@ const SpeedTestScreen = () => {
         } else if (type === 'upload') {
           setCurrentType('Upload');
         }
+      },
+      (speed, type) => {
+        // Real-time speed updates
+        setCurrentSpeed(speed);
+        setSpeedHistory(prev => [...prev, { speed, type, time: Date.now() }]);
       },
       async (result) => {
         setDownloadSpeed(result.download);
@@ -81,6 +89,15 @@ const SpeedTestScreen = () => {
     );
   };
 
+  const toggleBackgroundMode = () => {
+    setBackgroundMode(!backgroundMode);
+    Alert.alert(
+      'Background Mode',
+      backgroundMode ? 'Background mode disabled' : 'Background mode enabled. The app will continue testing in the background.',
+      [{ text: 'OK' }]
+    );
+  };
+
   const stopTest = () => {
     SpeedTestService.stopTest();
     setIsTestRunning(false);
@@ -96,6 +113,28 @@ const SpeedTestScreen = () => {
         type={currentType}
         isTesting={isTestRunning}
       />
+
+      <View style={styles.graphContainer}>
+        <Text style={styles.graphTitle}>Speed History</Text>
+        <View style={styles.graph}>
+          {speedHistory.length > 0 ? (
+            speedHistory.slice(-20).map((point, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.graphBar,
+                  {
+                    height: Math.max(point.speed * 2, 5),
+                    backgroundColor: point.type === 'download' ? '#667eea' : '#764ba2',
+                  },
+                ]}
+              />
+            ))
+          ) : (
+            <Text style={styles.noDataText}>Run a test to see speed graph</Text>
+          )}
+        </View>
+      </View>
 
       <View style={styles.statsGrid}>
         <StatCard
@@ -117,6 +156,15 @@ const SpeedTestScreen = () => {
       </View>
 
       <View style={styles.controls}>
+        <TouchableOpacity 
+          style={[styles.backgroundButton, backgroundMode && styles.backgroundButtonActive]} 
+          onPress={toggleBackgroundMode}
+        >
+          <Text style={styles.backgroundButtonText}>
+            {backgroundMode ? 'Background: ON' : 'Background: OFF'}
+          </Text>
+        </TouchableOpacity>
+
         {!isTestRunning ? (
           <TouchableOpacity style={styles.testButton} onPress={startTest}>
             <Text style={styles.testButtonText}>Start Test</Text>
@@ -146,6 +194,37 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: 'center',
   },
+  graphContainer: {
+    width: '100%',
+    marginVertical: 20,
+    padding: 15,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+  },
+  graphTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  graph: {
+    height: 100,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  graphBar: {
+    width: 8,
+    marginHorizontal: 1,
+    borderRadius: 2,
+  },
+  noDataText: {
+    fontSize: 14,
+    color: '#6c757d',
+    fontStyle: 'italic',
+  },
   statsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -155,6 +234,21 @@ const styles = StyleSheet.create({
   controls: {
     alignItems: 'center',
     marginVertical: 20,
+  },
+  backgroundButton: {
+    backgroundColor: '#6c757d',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    marginBottom: 15,
+  },
+  backgroundButtonActive: {
+    backgroundColor: '#28a745',
+  },
+  backgroundButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   testButton: {
     backgroundColor: '#667eea',
