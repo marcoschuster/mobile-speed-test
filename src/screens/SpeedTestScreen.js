@@ -7,7 +7,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import SpeedCircle from '../components/SpeedCircle';
+import Speedometer from '../components/Speedometer';
 import StatCard from '../components/StatCard';
 import SpeedTestService from '../services/SpeedTestService';
 
@@ -22,17 +22,14 @@ const INTERVALS = [
 
 const SpeedTestScreen = () => {
   const [isTestRunning, setIsTestRunning] = useState(false);
-  const [currentSpeed, setCurrentSpeed] = useState(0);
   const [currentType, setCurrentType] = useState('Ready');
   const [downloadSpeed, setDownloadSpeed] = useState(0);
   const [uploadSpeed, setUploadSpeed] = useState(0);
   const [ping, setPing] = useState(0);
-  const [peaks, setPeaks] = useState({
-    download: 0,
-    upload: 0,
-    ping: Infinity,
-  });
-  const [speedHistory, setSpeedHistory] = useState([]);
+  const [liveDownload, setLiveDownload] = useState(0);
+  const [liveUpload, setLiveUpload] = useState(0);
+  const [livePing, setLivePing] = useState(0);
+  const [peaks, setPeaks] = useState({ download: 0, upload: 0, ping: 0 });
   const [backgroundMode, setBackgroundMode] = useState(false);
   const [backgroundInterval, setBackgroundInterval] = useState(null);
   const [showIntervalOptions, setShowIntervalOptions] = useState(false);
@@ -43,10 +40,7 @@ const SpeedTestScreen = () => {
   useEffect(() => {
     loadPeaks();
     return () => {
-      // Cleanup background timer on unmount
-      if (backgroundTimerRef.current) {
-        clearInterval(backgroundTimerRef.current);
-      }
+      if (backgroundTimerRef.current) clearInterval(backgroundTimerRef.current);
     };
   }, []);
 
@@ -57,33 +51,32 @@ const SpeedTestScreen = () => {
 
   const runTest = async () => {
     setIsTestRunning(true);
-    setCurrentSpeed(0);
     setCurrentType('Testing');
     setDownloadSpeed(0);
     setUploadSpeed(0);
     setPing(0);
-    setSpeedHistory([]);
+    setLiveDownload(0);
+    setLiveUpload(0);
+    setLivePing(0);
 
     await SpeedTestService.runSpeedTest(
       (progress, type) => {
         setProgressText(progress);
-        if (type === 'ping') {
-          setCurrentType('Ping');
-        } else if (type === 'download') {
-          setCurrentType('Download');
-        } else if (type === 'upload') {
-          setCurrentType('Upload');
-        }
+        if (type === 'ping') setCurrentType('Ping');
+        else if (type === 'download') setCurrentType('Download');
+        else if (type === 'upload') setCurrentType('Upload');
       },
       (speed, type) => {
-        setCurrentSpeed(speed);
-        setSpeedHistory((prev) => [...prev, { speed, type, time: Date.now() }]);
+        if (type === 'download') setLiveDownload(speed);
+        else if (type === 'upload') setLiveUpload(speed);
       },
       async (result) => {
         setDownloadSpeed(result.download);
         setUploadSpeed(result.upload);
         setPing(result.ping);
-        setCurrentSpeed(result.download);
+        setLivePing(result.ping);
+        setLiveDownload(result.download);
+        setLiveUpload(result.upload);
         setCurrentType('Complete');
 
         await SpeedTestService.loadPeaks();
@@ -91,36 +84,42 @@ const SpeedTestScreen = () => {
 
         setTimeout(() => {
           setIsTestRunning(false);
-          setCurrentSpeed(0);
           setCurrentType('Ready');
           setProgressText('');
-        }, 3000);
+          setLiveDownload(0);
+          setLiveUpload(0);
+          setLivePing(0);
+        }, 4000);
       },
       (error) => {
         Alert.alert('Test Failed', error);
         setIsTestRunning(false);
-        setCurrentSpeed(0);
         setCurrentType('Error');
         setProgressText('');
+        setLiveDownload(0);
+        setLiveUpload(0);
+        setLivePing(0);
+      },
+      (pingSample) => {
+        setLivePing(pingSample);
       }
     );
   };
 
-  const startTest = () => {
-    runTest();
-  };
+  const startTest = () => runTest();
 
   const stopTest = () => {
     SpeedTestService.stopTest();
     setIsTestRunning(false);
-    setCurrentSpeed(0);
     setCurrentType('Ready');
     setProgressText('');
+    setLiveDownload(0);
+    setLiveUpload(0);
+    setLivePing(0);
   };
 
   const toggleBackgroundMode = () => {
     if (backgroundMode) {
-      // Turn off background mode
       if (backgroundTimerRef.current) {
         clearInterval(backgroundTimerRef.current);
         backgroundTimerRef.current = null;
@@ -130,35 +129,22 @@ const SpeedTestScreen = () => {
       setShowIntervalOptions(false);
       Alert.alert('Background Testing', 'Background testing disabled.');
     } else {
-      // Show interval options
       setShowIntervalOptions(!showIntervalOptions);
     }
   };
 
   const selectInterval = (interval) => {
-    // Clear existing timer
     if (backgroundTimerRef.current) {
       clearInterval(backgroundTimerRef.current);
       backgroundTimerRef.current = null;
     }
-
     setBackgroundInterval(interval.key);
     setBackgroundMode(true);
     setShowIntervalOptions(false);
-
-    // Start the background timer
     backgroundTimerRef.current = setInterval(() => {
-      // Only run if not already running a test
-      if (!SpeedTestService.isTestRunning) {
-        runTest();
-      }
+      if (!SpeedTestService.isTestRunning) runTest();
     }, interval.ms);
-
-    Alert.alert(
-      'Background Testing',
-      `Background testing enabled.\nInterval: every ${interval.label}\nThe speed test will run automatically.`,
-      [{ text: 'OK' }]
-    );
+    Alert.alert('Background Testing', `Enabled — every ${interval.label}`, [{ text: 'OK' }]);
   };
 
   const getIntervalLabel = () => {
@@ -167,35 +153,76 @@ const SpeedTestScreen = () => {
     return found ? found.label : '';
   };
 
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <SpeedCircle
-        speed={currentSpeed}
-        type={currentType}
-        isTesting={isTestRunning}
-      />
+  // ── Speedometer props based on current phase ──
+  const getNeedleColor = () => {
+    switch (currentType) {
+      case 'Download': return '#EAB308'; // yellow
+      case 'Upload':   return '#3B82F6'; // blue
+      case 'Ping':     return '#EF4444'; // red
+      case 'Complete': return '#667eea';
+      default:         return '#ccc';
+    }
+  };
 
-      <View style={styles.statsGrid}>
-        <StatCard
-          label="Download"
-          value={downloadSpeed}
-          peak={peaks.download}
-        />
-        <StatCard
-          label="Upload"
-          value={uploadSpeed}
-          peak={peaks.upload}
-        />
-        <StatCard
-          label="Ping"
-          value={ping}
-          peak={peaks.ping === Infinity ? 'N/A' : peaks.ping}
-          unit="ms"
+  const getSpeedValue = () => {
+    switch (currentType) {
+      case 'Download': return liveDownload;
+      case 'Upload':   return liveUpload;
+      case 'Ping':     return livePing;
+      case 'Complete': return downloadSpeed;
+      default:         return 0;
+    }
+  };
+
+  const getMaxValue = () => {
+    if (currentType === 'Ping') return 1500;
+    return 200;
+  };
+
+  const getSpeedLabel = () => {
+    switch (currentType) {
+      case 'Download': return 'DOWNLOAD';
+      case 'Upload':   return 'UPLOAD';
+      case 'Ping':     return 'PING';
+      case 'Complete': return 'COMPLETE';
+      case 'Testing':  return 'CONNECTING';
+      default:         return '';
+    }
+  };
+
+  const getSpeedUnit = () => {
+    if (currentType === 'Ping') return 'ms';
+    return 'Mbps';
+  };
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+
+      {/* ── Speedometer ── */}
+      <View style={styles.speedoWrap}>
+        <Speedometer
+          speed={getSpeedValue()}
+          maxValue={getMaxValue()}
+          label={getSpeedLabel()}
+          unit={getSpeedUnit()}
+          needleColor={getNeedleColor()}
         />
       </View>
 
+      {/* ── Progress ── */}
+      {progressText ? (
+        <Text style={styles.progressText}>{progressText}</Text>
+      ) : null}
+
+      {/* ── Stat Cards ── */}
+      <View style={styles.statsGrid}>
+        <StatCard label="Download" value={downloadSpeed} peak={peaks.download} />
+        <StatCard label="Upload" value={uploadSpeed} peak={peaks.upload} />
+        <StatCard label="Ping" value={ping} peak={peaks.ping === 0 ? 'N/A' : peaks.ping} unit="ms" />
+      </View>
+
+      {/* ── Controls ── */}
       <View style={styles.controls}>
-        {/* Speed Test button first */}
         {!isTestRunning ? (
           <TouchableOpacity style={styles.testButton} onPress={startTest}>
             <Text style={styles.testButtonText}>Start Test</Text>
@@ -206,42 +233,28 @@ const SpeedTestScreen = () => {
           </TouchableOpacity>
         )}
 
-        {/* Background testing button below */}
         <TouchableOpacity
-          style={[styles.backgroundButton, backgroundMode && styles.backgroundButtonActive]}
+          style={[styles.bgButton, backgroundMode && styles.bgButtonActive]}
           onPress={toggleBackgroundMode}
         >
-          <Text style={styles.backgroundButtonText}>
-            {backgroundMode
-              ? `Background: ON (${getIntervalLabel()})`
-              : 'Background Testing'}
+          <Text style={[styles.bgButtonText, backgroundMode && styles.bgButtonTextActive]}>
+            {backgroundMode ? `Background: ON (${getIntervalLabel()})` : 'Background Testing'}
           </Text>
         </TouchableOpacity>
 
-        {/* Interval options */}
         {showIntervalOptions && !backgroundMode && (
-          <View style={styles.intervalContainer}>
+          <View style={styles.intervalBox}>
             <Text style={styles.intervalTitle}>Select Interval</Text>
             <View style={styles.intervalGrid}>
-              {INTERVALS.map((interval) => (
-                <TouchableOpacity
-                  key={interval.key}
-                  style={styles.intervalButton}
-                  onPress={() => selectInterval(interval)}
-                >
-                  <Text style={styles.intervalButtonText}>{interval.label}</Text>
+              {INTERVALS.map((iv) => (
+                <TouchableOpacity key={iv.key} style={styles.intervalBtn} onPress={() => selectInterval(iv)}>
+                  <Text style={styles.intervalBtnText}>{iv.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
         )}
       </View>
-
-      {progressText ? (
-        <View style={styles.progressContainer}>
-          <Text style={styles.progressText}>{progressText}</Text>
-        </View>
-      ) : null}
     </ScrollView>
   );
 };
@@ -251,56 +264,80 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  contentContainer: {
+  content: {
     padding: 20,
     alignItems: 'center',
+    paddingBottom: 34,
   },
+
+  /* Speedometer */
+  speedoWrap: {
+    marginTop: 4,
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+
+  /* Progress */
+  progressText: {
+    fontSize: 13,
+    color: '#999',
+    fontStyle: 'italic',
+    marginBottom: 8,
+  },
+
+  /* Stats */
   statsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
-    marginVertical: 30,
+    marginVertical: 16,
   },
+
+  /* Controls */
   controls: {
     alignItems: 'center',
-    marginVertical: 20,
+    marginVertical: 8,
     width: '100%',
   },
   testButton: {
     backgroundColor: '#667eea',
     paddingVertical: 15,
-    paddingHorizontal: 40,
+    paddingHorizontal: 44,
     borderRadius: 25,
     elevation: 4,
-    shadowColor: '#000',
+    shadowColor: '#667eea',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    marginBottom: 15,
+    marginBottom: 14,
   },
   stopButton: {
     backgroundColor: '#dc3545',
+    shadowColor: '#dc3545',
   },
   testButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
-  backgroundButton: {
+  bgButton: {
     backgroundColor: '#6c757d',
     paddingVertical: 10,
     paddingHorizontal: 24,
     borderRadius: 20,
   },
-  backgroundButtonActive: {
+  bgButtonActive: {
     backgroundColor: '#28a745',
   },
-  backgroundButtonText: {
+  bgButtonText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
   },
-  intervalContainer: {
+  bgButtonTextActive: {
+    color: '#fff',
+  },
+  intervalBox: {
     marginTop: 14,
     width: '100%',
     backgroundColor: '#f8f9fa',
@@ -322,27 +359,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
   },
-  intervalButton: {
+  intervalBtn: {
     backgroundColor: '#667eea',
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 20,
-    minWidth: 70,
+    minWidth: 68,
     alignItems: 'center',
   },
-  intervalButtonText: {
+  intervalBtnText: {
     color: '#fff',
     fontSize: 13,
     fontWeight: '600',
-  },
-  progressContainer: {
-    marginTop: 20,
-    alignItems: 'center',
-  },
-  progressText: {
-    fontSize: 14,
-    color: '#6c757d',
-    fontStyle: 'italic',
   },
 });
 

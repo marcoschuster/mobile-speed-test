@@ -18,33 +18,34 @@ const StatCard = ({ label, value, peak, unit = 'Mbps' }) => {
 const styles = StyleSheet.create({
   statCard: {
     backgroundColor: '#f8f9fa',
-    padding: 20,
+    padding: 14,
     borderRadius: 12,
     alignItems: 'center',
     flex: 1,
-    marginHorizontal: 5,
+    marginHorizontal: 4,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 4,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     textTransform: 'uppercase',
     color: '#6c757d',
-    fontWeight: '600',
-    marginBottom: 8,
+    fontWeight: '700',
+    marginBottom: 6,
+    letterSpacing: 0.5,
   },
   statValue: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 4,
   },
   statPeak: {
-    fontSize: 11,
-    color: '#6c757d',
+    fontSize: 10,
+    color: '#adb5bd',
   },
 });
 

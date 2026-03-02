@@ -8,7 +8,7 @@ class SpeedTestService {
     this.peaks = {
       download: 0,
       upload: 0,
-      ping: Infinity
+      ping: 0
     };
     this.selectedServer = null;
   }
@@ -17,7 +17,12 @@ class SpeedTestService {
     try {
       const stored = await AsyncStorage.getItem('speedTestPeaks');
       if (stored) {
-        this.peaks = JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        this.peaks = {
+          download: parsed.download || 0,
+          upload: parsed.upload || 0,
+          ping: parsed.ping || 0,
+        };
       }
     } catch (error) {
       console.error('Error loading peaks:', error);
@@ -105,7 +110,7 @@ class SpeedTestService {
   }
 
   // NDT7 ping test with reliable servers
-  async runPingTest() {
+  async runPingTest(onPingSample) {
     const pings = [];
     
     // Use reliable servers for ping testing
@@ -132,7 +137,9 @@ class SpeedTestService {
         
         if (response.ok) {
           const end = Date.now();
-          pings.push(end - start);
+          const sample = end - start;
+          pings.push(sample);
+          if (onPingSample) onPingSample(sample);
         }
       } catch (error) {
         console.log('Ping request failed:', error.message);
@@ -151,265 +158,200 @@ class SpeedTestService {
     return averagePing;
   }
 
-  // NDT7-compatible download test using HTTP
+  // Download speed test using Cloudflare speed endpoint
   async runDownloadTest(onSpeedUpdate) {
-    if (!this.selectedServer) {
-      await this.selectBestServer();
-    }
-    
-    const testDuration = 10000; // 10 seconds for better measurements
+    const testDuration = 12000; // 12 seconds
     const startTime = Date.now();
-    const sharedState = { totalBytes: 0 }; // Shared across all connections
-    
-    // Use highly reliable speed test endpoints
-    const testUrls = [
-      'https://speed.cloudflare.com/__down?bytes=5242880', // 5MB
-      'https://speed.cloudflare.com/__down?bytes=10485760', // 10MB
-      'https://speedtest.net/files/10MB.zip',
-      'https://proof.ovh.net/files/10Mb.dat',
-      'https://www.thinkbroadband.com/10MB.zip'
+    const shared = { totalBytes: 0, measuring: false, measureStart: 0 };
+
+    // Use only Cloudflare — fast, reliable, supports any size via query param
+    // Use smaller chunks so we get many sequential fetches (more data points, saturates pipe)
+    const chunkSizes = [
+      1048576,   // 1 MB
+      2097152,   // 2 MB
+      4194304,   // 4 MB
     ];
-    
-    console.log(`Starting download test with ${testUrls.length} URLs for ${testDuration/1000}s`);
-    
-    // Start a periodic updater for smooth progress
+
+    // Warm-up: single small request to establish connection
+    try {
+      await fetch(`https://speed.cloudflare.com/__down?bytes=4096&_=${Date.now()}`, {
+        method: 'GET', cache: 'no-store',
+      });
+    } catch (_) { /* ignore */ }
+
+    shared.measureStart = Date.now();
+    shared.measuring = true;
+
+    console.log(`Starting download test — 6 connections for ${testDuration / 1000}s`);
+
+    // Periodic speed reporter
     const updateInterval = setInterval(() => {
-      if (onSpeedUpdate && sharedState.totalBytes > 0) {
-        const elapsed = (Date.now() - startTime) / 1000;
-        const currentSpeed = elapsed > 0 ? (sharedState.totalBytes * 8) / (elapsed * 1000000) : 0;
-        onSpeedUpdate(Math.max(currentSpeed, 0.1), 'download');
+      if (onSpeedUpdate && shared.totalBytes > 0 && shared.measuring) {
+        const elapsed = (Date.now() - shared.measureStart) / 1000;
+        if (elapsed > 0.3) {
+          const speed = (shared.totalBytes * 8) / (elapsed * 1000000);
+          onSpeedUpdate(Math.max(speed, 0.1), 'download');
+        }
       }
-    }, 500); // Update every 500ms for smooth progress
-    
-    // Run multiple parallel downloads with better error handling
+    }, 300);
+
+    // 6 parallel connections all hitting Cloudflare
     const promises = [];
-    for (let i = 0; i < 4; i++) {
-      promises.push(this.runSingleDownload(testUrls, startTime, testDuration, sharedState, i));
+    for (let i = 0; i < 6; i++) {
+      promises.push(this._downloadWorker(chunkSizes, startTime, testDuration, shared, i));
     }
-    
+
     const results = await Promise.allSettled(promises);
-    clearInterval(updateInterval); // Stop the updater
-    
-    let totalBytesAll = 0;
-    
-    results.forEach((result, index) => {
-      if (result.status === 'fulfilled') {
-        totalBytesAll += result.value;
-        console.log(`Download connection ${index + 1}: ${(result.value / 1048576).toFixed(2)} MB`);
-      } else {
-        console.log(`Download connection ${index + 1} failed:`, result.reason);
+    clearInterval(updateInterval);
+
+    let totalBytes = 0;
+    results.forEach((r, i) => {
+      if (r.status === 'fulfilled') {
+        totalBytes += r.value;
+        console.log(`DL conn ${i + 1}: ${(r.value / 1048576).toFixed(2)} MB`);
       }
     });
-    
-    const totalElapsed = (Date.now() - startTime) / 1000;
-    const finalSpeed = totalElapsed > 0 ? (totalBytesAll * 8) / (totalElapsed * 1000000) : 0;
-    
-    // Send final update
-    if (onSpeedUpdate) {
-      onSpeedUpdate(Math.max(finalSpeed, 0.1), 'download');
-    }
-    
-    console.log(`Download test completed: ${(totalBytesAll / 1048576).toFixed(2)} MB total in ${totalElapsed.toFixed(1)}s = ${finalSpeed.toFixed(2)} Mbps`);
+
+    const elapsed = (Date.now() - shared.measureStart) / 1000;
+    const finalSpeed = elapsed > 0 ? (totalBytes * 8) / (elapsed * 1000000) : 0;
+
+    if (onSpeedUpdate) onSpeedUpdate(Math.max(finalSpeed, 0.1), 'download');
+    console.log(`Download done: ${(totalBytes / 1048576).toFixed(1)} MB in ${elapsed.toFixed(1)}s = ${finalSpeed.toFixed(2)} Mbps`);
     return Math.max(finalSpeed, 0.1);
   }
 
-  async runSingleDownload(testUrls, startTime, testDuration, sharedState, connectionIndex) {
+  async _downloadWorker(chunkSizes, startTime, testDuration, shared, idx) {
     let bytes = 0;
-    let lastLogTime = startTime;
-    let measurementCount = 0;
-    let consecutiveErrors = 0;
-    const maxConsecutiveErrors = 2; // Give up after 2 consecutive errors
-    
-    // Each connection uses a specific URL to avoid conflicts
-    const urlIndex = connectionIndex % testUrls.length;
-    
-    while (Date.now() - startTime < testDuration && consecutiveErrors < maxConsecutiveErrors) {
+    let errors = 0;
+    // Rotate through chunk sizes — start small, ramp up
+    let sizeIdx = 0;
+
+    while (Date.now() - startTime < testDuration && errors < 3) {
       try {
-        const url = testUrls[urlIndex];
-        // Properly append timestamp (handle existing ? or not)
-        const separator = url.includes('?') ? '&' : '?';
-        const finalUrl = `${url}${separator}nocache=${Date.now()}`;
-        
-        const response = await fetch(finalUrl, {
+        const size = chunkSizes[Math.min(sizeIdx, chunkSizes.length - 1)];
+        const url = `https://speed.cloudflare.com/__down?bytes=${size}&_=${Date.now()}_${idx}`;
+
+        const response = await fetch(url, {
           method: 'GET',
           cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-          }
+          headers: { 'Cache-Control': 'no-cache' },
         });
-        
-        if (response.ok) {
-          const blob = await response.blob();
-          bytes += blob.size;
-          sharedState.totalBytes += blob.size; // Update shared state
-          measurementCount++;
-          consecutiveErrors = 0; // Reset error count on success
-          
-          if (Date.now() - lastLogTime > 1500) {
-            const elapsed = (Date.now() - startTime) / 1000;
-            const currentSpeed = elapsed > 0 ? (bytes * 8) / (elapsed * 1000000) : 0;
-            console.log(`Connection ${connectionIndex + 1}: ${(bytes / 1048576).toFixed(2)} MB downloaded, current speed: ${currentSpeed.toFixed(2)} Mbps`);
-            lastLogTime = Date.now();
-          }
-          
-          // Small delay to prevent overwhelming the server
-          await new Promise(resolve => setTimeout(resolve, 50));
-        } else {
-          throw new Error(`HTTP ${response.status}`);
-        }
-      } catch (error) {
-        consecutiveErrors++;
-        console.log(`Download error on connection ${connectionIndex + 1} (attempt ${consecutiveErrors}):`, error.message);
-        
-        if (consecutiveErrors >= maxConsecutiveErrors) {
-          console.log(`Connection ${connectionIndex + 1} stopping after ${consecutiveErrors} consecutive errors`);
-          break;
-        }
-        
-        // Short wait before retry
-        await new Promise(resolve => setTimeout(resolve, 300));
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const blob = await response.blob();
+        bytes += blob.size;
+        shared.totalBytes += blob.size;
+        errors = 0;
+        sizeIdx++; // next iteration use bigger chunk
+      } catch (e) {
+        errors++;
+        console.log(`DL worker ${idx + 1} error (${errors}): ${e.message}`);
+        if (errors < 3) await new Promise(r => setTimeout(r, 200));
       }
     }
-    
-    console.log(`Connection ${connectionIndex + 1} finished: ${(bytes / 1048576).toFixed(2)} MB total, ${measurementCount} measurements`);
     return bytes;
   }
 
-  // NDT7-compatible upload test using HTTP
+  // Upload speed test using Cloudflare speed endpoint
   async runUploadTest(onSpeedUpdate) {
-    if (!this.selectedServer) {
-      await this.selectBestServer();
-    }
-    
-    const testDuration = 10000; // 10 seconds for better measurements
+    const testDuration = 12000; // 12 seconds
     const startTime = Date.now();
-    const sharedState = { totalBytes: 0 }; // Shared across all connections
-    
-    // Create test payload as a string (React Native compatible)
-    const payloadSize = 256 * 1024; // 256KB chunks
-    let payload = '';
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    for (let i = 0; i < payloadSize; i++) {
-      payload += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    
-    // Use endpoints that accept POST data
-    const uploadEndpoints = [
-      { url: 'https://httpbin.org/post', method: 'POST', type: 'json' },
-      { url: 'https://postman-echo.com/post', method: 'POST', type: 'json' },
-      { url: 'https://httpbin.org/anything', method: 'POST', type: 'json' }
+    const shared = { totalBytes: 0, measureStart: 0 };
+
+    // Build payloads of increasing size (binary-like strings)
+    const makePayload = (size) => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let s = '';
+      for (let i = 0; i < size; i++) s += chars.charAt(i % chars.length);
+      return s;
+    };
+
+    const payloads = [
+      makePayload(256 * 1024),   // 256 KB
+      makePayload(512 * 1024),   // 512 KB
+      makePayload(1024 * 1024),  // 1 MB
     ];
-    
-    console.log(`Starting upload test with ${uploadEndpoints.length} endpoints for ${testDuration/1000}s`);
-    
-    // Start a periodic updater for smooth progress
+
+    // Warm-up
+    try {
+      await fetch('https://speed.cloudflare.com/__up', {
+        method: 'POST', cache: 'no-store',
+        body: 'warmup',
+      });
+    } catch (_) { /* ignore */ }
+
+    shared.measureStart = Date.now();
+
+    console.log(`Starting upload test — 4 connections for ${testDuration / 1000}s`);
+
     const updateInterval = setInterval(() => {
-      if (onSpeedUpdate && sharedState.totalBytes > 0) {
-        const elapsed = (Date.now() - startTime) / 1000;
-        const currentSpeed = elapsed > 0 ? (sharedState.totalBytes * 8) / (elapsed * 1000000) : 0;
-        onSpeedUpdate(Math.max(currentSpeed, 0.1), 'upload');
+      if (onSpeedUpdate && shared.totalBytes > 0) {
+        const elapsed = (Date.now() - shared.measureStart) / 1000;
+        if (elapsed > 0.3) {
+          const speed = (shared.totalBytes * 8) / (elapsed * 1000000);
+          onSpeedUpdate(Math.max(speed, 0.1), 'upload');
+        }
       }
-    }, 500); // Update every 500ms for smooth progress
-    
-    // Run multiple parallel uploads with better error handling
+    }, 300);
+
     const promises = [];
-    for (let i = 0; i < 3; i++) { // 3 parallel connections
-      promises.push(this.runSingleUpload(uploadEndpoints, payload, startTime, testDuration, sharedState, i));
+    for (let i = 0; i < 4; i++) {
+      promises.push(this._uploadWorker(payloads, startTime, testDuration, shared, i));
     }
-    
+
     const results = await Promise.allSettled(promises);
-    clearInterval(updateInterval); // Stop the updater
-    
-    let totalBytesAll = 0;
-    
-    results.forEach((result, index) => {
-      if (result.status === 'fulfilled') {
-        totalBytesAll += result.value;
-        console.log(`Upload connection ${index + 1}: ${(result.value / 1048576).toFixed(2)} MB`);
-      } else {
-        console.log(`Upload connection ${index + 1} failed:`, result.reason);
+    clearInterval(updateInterval);
+
+    let totalBytes = 0;
+    results.forEach((r, i) => {
+      if (r.status === 'fulfilled') {
+        totalBytes += r.value;
+        console.log(`UL conn ${i + 1}: ${(r.value / 1048576).toFixed(2)} MB`);
       }
     });
-    
-    const totalElapsed = (Date.now() - startTime) / 1000;
-    const finalSpeed = totalElapsed > 0 ? (totalBytesAll * 8) / (totalElapsed * 1000000) : 0;
-    
-    // Send final update
-    if (onSpeedUpdate) {
-      onSpeedUpdate(Math.max(finalSpeed, 0.1), 'upload');
-    }
-    
-    console.log(`Upload test completed: ${(totalBytesAll / 1048576).toFixed(2)} MB total in ${totalElapsed.toFixed(1)}s = ${finalSpeed.toFixed(2)} Mbps`);
+
+    const elapsed = (Date.now() - shared.measureStart) / 1000;
+    const finalSpeed = elapsed > 0 ? (totalBytes * 8) / (elapsed * 1000000) : 0;
+
+    if (onSpeedUpdate) onSpeedUpdate(Math.max(finalSpeed, 0.1), 'upload');
+    console.log(`Upload done: ${(totalBytes / 1048576).toFixed(1)} MB in ${elapsed.toFixed(1)}s = ${finalSpeed.toFixed(2)} Mbps`);
     return Math.max(finalSpeed, 0.1);
   }
 
-  async runSingleUpload(uploadEndpoints, payload, startTime, testDuration, sharedState, connectionIndex) {
+  async _uploadWorker(payloads, startTime, testDuration, shared, idx) {
     let bytes = 0;
-    let lastLogTime = startTime;
-    let measurementCount = 0;
-    let retryCount = 0;
-    const maxRetries = 3;
-    
-    while (Date.now() - startTime < testDuration && retryCount < maxRetries) {
+    let errors = 0;
+    let payloadIdx = 0;
+
+    while (Date.now() - startTime < testDuration && errors < 3) {
       try {
-        const endpointIndex = connectionIndex % uploadEndpoints.length;
-        const endpoint = uploadEndpoints[endpointIndex];
-        
-        // Send as JSON POST (React Native compatible)
-        const response = await fetch(endpoint.url, {
-          method: endpoint.method,
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            data: payload,
-            timestamp: Date.now(),
-            size: payload.length
-          }),
-          timeout: 8000
+        const payload = payloads[Math.min(payloadIdx, payloads.length - 1)];
+
+        const response = await fetch('https://speed.cloudflare.com/__up', {
+          method: 'POST',
+          cache: 'no-store',
+          headers: { 'Content-Type': 'application/octet-stream' },
+          body: payload,
         });
-        
-        if (response && (response.ok || response.status === 200 || response.status === 201)) {
-          bytes += payload.length;
-          sharedState.totalBytes += payload.length; // Update shared state
-          measurementCount++;
-          retryCount = 0; // Reset on success
-          
-          if (Date.now() - lastLogTime > 1500) {
-            const elapsed = (Date.now() - startTime) / 1000;
-            const currentSpeed = elapsed > 0 ? (bytes * 8) / (elapsed * 1000000) : 0;
-            console.log(`Connection ${connectionIndex + 1}: ${(bytes / 1048576).toFixed(2)} MB uploaded, current speed: ${currentSpeed.toFixed(2)} Mbps`);
-            lastLogTime = Date.now();
-          }
-          
-          // Small delay between uploads to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 100));
-        } else {
-          throw new Error(`HTTP ${response?.status || 'Unknown'}`);
-        }
-      } catch (error) {
-        retryCount++;
-        console.log(`Upload error on connection ${connectionIndex + 1} (retry ${retryCount}):`, error.message);
-        
-        if (retryCount >= maxRetries) {
-          console.log(`Connection ${connectionIndex + 1} max retries reached`);
-          break;
-        }
-        
-        // Wait before retry with exponential backoff
-        await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        bytes += payload.length;
+        shared.totalBytes += payload.length;
+        errors = 0;
+        payloadIdx++; // ramp up payload size
+      } catch (e) {
+        errors++;
+        console.log(`UL worker ${idx + 1} error (${errors}): ${e.message}`);
+        if (errors < 3) await new Promise(r => setTimeout(r, 200));
       }
     }
-    
-    console.log(`Connection ${connectionIndex + 1} finished: ${(bytes / 1048576).toFixed(2)} MB total, ${measurementCount} measurements`);
     return bytes;
   }
 
   // Main test runner using NDT7-compatible methodology
-  async runSpeedTest(onProgress, onSpeedUpdate, onComplete, onError) {
+  async runSpeedTest(onProgress, onSpeedUpdate, onComplete, onError, onPingSample) {
     if (this.isTestRunning) return;
     
     this.isTestRunning = true;
@@ -428,7 +370,7 @@ class SpeedTestService {
       
       // Phase 2: Ping test
       onProgress('Testing ping...', 'ping');
-      const pingResult = await this.runPingTest();
+      const pingResult = await this.runPingTest(onPingSample);
       this.currentTest.ping = pingResult;
       
       // Phase 3: Download test with NDT7-compatible methodology
@@ -453,8 +395,8 @@ class SpeedTestService {
         await this.savePeaks();
       }
       
-      // Update ping peak
-      if (pingResult < this.peaks.ping) {
+      // Update ping peak (lower is better; 0 means no previous peak stored)
+      if (this.peaks.ping === 0 || pingResult < this.peaks.ping) {
         this.peaks.ping = pingResult;
         await this.savePeaks();
       }
