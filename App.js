@@ -2,6 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
+import { Text } from 'react-native';
 import SpeedTestScreen from './src/screens/SpeedTestScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import GraphScreen from './src/screens/GraphScreen';
@@ -18,7 +19,7 @@ export default function App() {
             backgroundColor: '#667eea',
           },
           tabBarActiveTintColor: '#fff',
-          tabBarInactiveTintColor: '#rgba(255, 255, 255, 0.7)',
+          tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.5)',
           headerStyle: {
             backgroundColor: '#667eea',
           },
@@ -30,13 +31,9 @@ export default function App() {
           component={SpeedTestScreen}
           options={{
             tabBarLabel: 'Speed Test',
-          }}
-        />
-        <Tab.Screen 
-          name="Graphs" 
-          component={GraphScreen}
-          options={{
-            tabBarLabel: 'Graphs',
+            tabBarIcon: ({ color, size }) => (
+              <Text style={{ color, fontSize: size }}>⚡</Text>
+            ),
           }}
         />
         <Tab.Screen 
@@ -44,6 +41,19 @@ export default function App() {
           component={HistoryScreen}
           options={{
             tabBarLabel: 'History',
+            tabBarIcon: ({ color, size }) => (
+              <Text style={{ color, fontSize: size }}>📋</Text>
+            ),
+          }}
+        />
+        <Tab.Screen 
+          name="Graphs" 
+          component={GraphScreen}
+          options={{
+            tabBarLabel: 'Graphs',
+            tabBarIcon: ({ color, size }) => (
+              <Text style={{ color, fontSize: size }}>📊</Text>
+            ),
           }}
         />
       </Tab.Navigator>

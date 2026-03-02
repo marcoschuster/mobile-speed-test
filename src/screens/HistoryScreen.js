@@ -63,6 +63,66 @@ const HistoryScreen = () => {
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const renderLatestResults = () => {
+    if (history.length === 0) return null;
+
+    const latestTest = history[0];
+    const maxSpeed = Math.max(latestTest.download, latestTest.upload, 100);
+
+    return (
+      <View style={styles.latestResultsContainer}>
+        <Text style={styles.latestResultsTitle}>Latest Speed Test Results</Text>
+
+        <View style={styles.speedBars}>
+          <View style={styles.speedBarContainer}>
+            <Text style={styles.speedLabel}>Download: {latestTest.download.toFixed(1)} Mbps</Text>
+            <View style={styles.speedBarBackground}>
+              <View
+                style={[
+                  styles.speedBar,
+                  {
+                    width: `${(latestTest.download / maxSpeed) * 100}%`,
+                    backgroundColor: '#667eea',
+                  },
+                ]}
+              />
+            </View>
+          </View>
+
+          <View style={styles.speedBarContainer}>
+            <Text style={styles.speedLabel}>Upload: {latestTest.upload.toFixed(1)} Mbps</Text>
+            <View style={styles.speedBarBackground}>
+              <View
+                style={[
+                  styles.speedBar,
+                  {
+                    width: `${(latestTest.upload / maxSpeed) * 100}%`,
+                    backgroundColor: '#764ba2',
+                  },
+                ]}
+              />
+            </View>
+          </View>
+
+          <View style={styles.speedBarContainer}>
+            <Text style={styles.speedLabel}>Ping: {latestTest.ping} ms</Text>
+            <View style={styles.speedBarBackground}>
+              <View
+                style={[
+                  styles.speedBar,
+                  {
+                    width: `${Math.min((latestTest.ping / 200) * 100, 100)}%`,
+                    backgroundColor: '#28a745',
+                  },
+                ]}
+              />
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
   const renderHistoryItem = ({ item }) => (
     <View style={styles.historyItem}>
       <Text style={styles.historyDate}>{formatDate(item.date)}</Text>
@@ -82,6 +142,8 @@ const HistoryScreen = () => {
       </View>
     </View>
   );
+
+  const renderHeader = () => renderLatestResults();
 
   return (
     <View style={styles.container}>
@@ -105,6 +167,7 @@ const HistoryScreen = () => {
           renderItem={renderHistoryItem}
           keyExtractor={(item, index) => index.toString()}
           contentContainerStyle={styles.listContainer}
+          ListHeaderComponent={renderHeader}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
@@ -143,6 +206,43 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: '600',
+  },
+  latestResultsContainer: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  latestResultsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  speedBars: {
+    marginBottom: 5,
+  },
+  speedBarContainer: {
+    marginBottom: 12,
+  },
+  speedLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 5,
+  },
+  speedBarBackground: {
+    height: 20,
+    backgroundColor: '#e9ecef',
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  speedBar: {
+    height: '100%',
+    borderRadius: 10,
   },
   listContainer: {
     padding: 20,

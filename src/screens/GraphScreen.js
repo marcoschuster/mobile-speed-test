@@ -1,27 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  Alert,
+  ScrollView,
+  Dimensions,
   RefreshControl,
+  TouchableOpacity,
 } from 'react-native';
+import Svg, { Line, Polyline, Circle, Text as SvgText, G } from 'react-native-svg';
 import SpeedTestService from '../services/SpeedTestService';
 
+const screenWidth = Dimensions.get('window').width;
+
+const TIME_FILTERS = [
+  { key: 'day', label: '1 Day' },
+  { key: 'week', label: '1 Week' },
+  { key: 'month', label: '1 Month' },
+];
+
 const GraphScreen = () => {
-  const [speedHistory, setSpeedHistory] = useState([]);
+  const [allHistory, setAllHistory] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [timeFilter, setTimeFilter] = useState('month');
 
   useEffect(() => {
     loadSpeedHistory();
   }, []);
 
   const loadSpeedHistory = async () => {
-    // This would load from storage or service
     const history = await SpeedTestService.getHistory();
-    setSpeedHistory(history);
+    setAllHistory(history);
   };
 
   const onRefresh = async () => {
@@ -30,8 +39,252 @@ const GraphScreen = () => {
     setRefreshing(false);
   };
 
-  const renderSpeedGraph = () => {
-    if (speedHistory.length === 0) {
+  const getFilteredData = useCallback(() => {
+    if (allHistory.length === 0) return [];
+
+    const now = new Date();
+    let cutoff;
+
+    switch (timeFilter) {
+      case 'day':
+        cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case 'week':
+        cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'month':
+      default:
+        cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+    }
+
+    const filtered = allHistory.filter((item) => new Date(item.date) >= cutoff);
+    // Reverse so oldest is first (left side of chart)
+    return [...filtered].reverse();
+  }, [allHistory, timeFilter]);
+
+  const formatXLabel = (dateString) => {
+    const date = new Date(dateString);
+    const hours = date.getHours().toString().padStart(2, '0');
+    const mins = date.getMinutes().toString().padStart(2, '0');
+
+    if (timeFilter === 'day') {
+      return `${hours}:${mins}`;
+    }
+
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+
+    if (timeFilter === 'week') {
+      return `${month}/${day} ${hours}:${mins}`;
+    }
+
+    return `${month}/${day}`;
+  };
+
+  // Compute nice integer tick values for a given max
+  const getNiceTicks = (maxVal, tickCount = 5) => {
+    if (maxVal <= 0) maxVal = 10;
+    const rawStep = maxVal / tickCount;
+    const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const residual = rawStep / magnitude;
+
+    let niceStep;
+    if (residual <= 1.5) niceStep = 1 * magnitude;
+    else if (residual <= 3) niceStep = 2 * magnitude;
+    else if (residual <= 7) niceStep = 5 * magnitude;
+    else niceStep = 10 * magnitude;
+
+    // Ensure step is at least 1
+    niceStep = Math.max(1, Math.round(niceStep));
+
+    const niceMax = Math.ceil(maxVal / niceStep) * niceStep;
+    const ticks = [];
+    for (let v = 0; v <= niceMax; v += niceStep) {
+      ticks.push(Math.round(v));
+    }
+    return { ticks, max: niceMax };
+  };
+
+  const renderCustomChart = ({ dataPoints, datasets, yAxisSuffix, title, legends }) => {
+    if (dataPoints.length === 0) return null;
+
+    // Chart dimensions
+    const yLabelWidth = 55;
+    const xLabelHeight = 50;
+    const paddingTop = 16;
+    const paddingRight = 16;
+    const paddingBottom = 8;
+    const chartAreaWidth = Math.max(screenWidth - 32 - yLabelWidth - paddingRight, dataPoints.length * 60);
+    const chartHeight = 220;
+    const totalWidth = yLabelWidth + chartAreaWidth + paddingRight;
+    const totalHeight = paddingTop + chartHeight + xLabelHeight + paddingBottom;
+
+    // Compute y-axis max across all datasets
+    let globalMax = 0;
+    datasets.forEach((ds) => {
+      ds.values.forEach((v) => {
+        if (v > globalMax) globalMax = v;
+      });
+    });
+
+    const { ticks, max: yMax } = getNiceTicks(globalMax);
+
+    // Mapping functions
+    const xPos = (index) => {
+      if (dataPoints.length === 1) return yLabelWidth + chartAreaWidth / 2;
+      return yLabelWidth + (index / (dataPoints.length - 1)) * chartAreaWidth;
+    };
+    const yPos = (value) => {
+      return paddingTop + chartHeight - (value / yMax) * chartHeight;
+    };
+
+    // Determine which x labels to show
+    const maxXLabels = 6;
+    const step = Math.max(1, Math.ceil(dataPoints.length / maxXLabels));
+
+    return (
+      <View style={styles.chartCard}>
+        <Text style={styles.chartTitle}>{title}</Text>
+        <View style={styles.legendRow}>
+          {legends.map((leg, i) => (
+            <View key={i} style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: leg.color }]} />
+              <Text style={styles.legendText}>{leg.label}</Text>
+            </View>
+          ))}
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+          <Svg width={totalWidth} height={totalHeight}>
+            {/* Y-axis gridlines and labels */}
+            {ticks.map((tick, i) => {
+              const y = yPos(tick);
+              return (
+                <G key={`ytick-${i}`}>
+                  <Line
+                    x1={yLabelWidth}
+                    y1={y}
+                    x2={yLabelWidth + chartAreaWidth}
+                    y2={y}
+                    stroke="#e0e0e0"
+                    strokeWidth="1"
+                    strokeDasharray={tick === 0 ? '' : '4,3'}
+                  />
+                  <SvgText
+                    x={yLabelWidth - 6}
+                    y={y + 4}
+                    fontSize="11"
+                    fill="#666"
+                    textAnchor="end"
+                  >
+                    {tick}{yAxisSuffix}
+                  </SvgText>
+                </G>
+              );
+            })}
+
+            {/* Y axis line */}
+            <Line
+              x1={yLabelWidth}
+              y1={paddingTop}
+              x2={yLabelWidth}
+              y2={paddingTop + chartHeight}
+              stroke="#999"
+              strokeWidth="1.5"
+            />
+
+            {/* X axis line */}
+            <Line
+              x1={yLabelWidth}
+              y1={paddingTop + chartHeight}
+              x2={yLabelWidth + chartAreaWidth}
+              y2={paddingTop + chartHeight}
+              stroke="#999"
+              strokeWidth="1.5"
+            />
+
+            {/* X-axis labels */}
+            {dataPoints.map((item, i) => {
+              if (i % step !== 0 && i !== dataPoints.length - 1) return null;
+              const x = xPos(i);
+              const label = formatXLabel(item.date);
+              const parts = label.split(' ');
+              return (
+                <G key={`xlabel-${i}`}>
+                  {/* Tick mark */}
+                  <Line
+                    x1={x}
+                    y1={paddingTop + chartHeight}
+                    x2={x}
+                    y2={paddingTop + chartHeight + 5}
+                    stroke="#999"
+                    strokeWidth="1"
+                  />
+                  <SvgText
+                    x={x}
+                    y={paddingTop + chartHeight + 18}
+                    fontSize="10"
+                    fill="#666"
+                    textAnchor="middle"
+                  >
+                    {parts[0]}
+                  </SvgText>
+                  {parts[1] && (
+                    <SvgText
+                      x={x}
+                      y={paddingTop + chartHeight + 31}
+                      fontSize="10"
+                      fill="#999"
+                      textAnchor="middle"
+                    >
+                      {parts[1]}
+                    </SvgText>
+                  )}
+                </G>
+              );
+            })}
+
+            {/* Dataset lines and dots */}
+            {datasets.map((ds, dsIndex) => {
+              // Build polyline points string
+              const points = ds.values
+                .map((val, i) => `${xPos(i)},${yPos(val)}`)
+                .join(' ');
+
+              return (
+                <G key={`ds-${dsIndex}`}>
+                  <Polyline
+                    points={points}
+                    fill="none"
+                    stroke={ds.color}
+                    strokeWidth="2.5"
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                  />
+                  {ds.values.map((val, i) => (
+                    <Circle
+                      key={`dot-${dsIndex}-${i}`}
+                      cx={xPos(i)}
+                      cy={yPos(val)}
+                      r="3.5"
+                      fill={ds.color}
+                      stroke="#fff"
+                      strokeWidth="1.5"
+                    />
+                  ))}
+                </G>
+              );
+            })}
+          </Svg>
+        </ScrollView>
+      </View>
+    );
+  };
+
+  const renderCharts = () => {
+    const data = getFilteredData();
+
+    if (allHistory.length === 0) {
       return (
         <View style={styles.noDataContainer}>
           <Text style={styles.noDataText}>No speed data available</Text>
@@ -40,81 +293,53 @@ const GraphScreen = () => {
       );
     }
 
-    const latestTest = speedHistory[0];
-    const maxSpeed = Math.max(latestTest.download, latestTest.upload, 100);
+    if (data.length === 0) {
+      return (
+        <View style={styles.noDataContainer}>
+          <Text style={styles.noDataText}>No data for this time period</Text>
+          <Text style={styles.noDataSubtext}>Try selecting a longer time range</Text>
+        </View>
+      );
+    }
 
     return (
-      <View style={styles.graphContainer}>
-        <Text style={styles.graphTitle}>Latest Speed Test Results</Text>
-        
-        <View style={styles.speedBars}>
-          <View style={styles.speedBarContainer}>
-            <Text style={styles.speedLabel}>Download: {latestTest.download.toFixed(1)} Mbps</Text>
-            <View style={styles.speedBarBackground}>
-              <View 
-                style={[
-                  styles.speedBar, 
-                  { 
-                    width: `${(latestTest.download / maxSpeed) * 100}%`,
-                    backgroundColor: '#667eea'
-                  }
-                ]} 
-              />
-            </View>
-          </View>
+      <>
+        {renderCustomChart({
+          dataPoints: data,
+          datasets: [
+            {
+              values: data.map((d) => d.download),
+              color: '#f5c542',
+              label: 'Download',
+            },
+            {
+              values: data.map((d) => d.upload),
+              color: '#4a90d9',
+              label: 'Upload',
+            },
+          ],
+          yAxisSuffix: '',
+          title: 'Download & Upload Speed (Mbps)',
+          legends: [
+            { color: '#f5c542', label: 'Download (Mbps)' },
+            { color: '#4a90d9', label: 'Upload (Mbps)' },
+          ],
+        })}
 
-          <View style={styles.speedBarContainer}>
-            <Text style={styles.speedLabel}>Upload: {latestTest.upload.toFixed(1)} Mbps</Text>
-            <View style={styles.speedBarBackground}>
-              <View 
-                style={[
-                  styles.speedBar, 
-                  { 
-                    width: `${(latestTest.upload / maxSpeed) * 100}%`,
-                    backgroundColor: '#764ba2'
-                  }
-                ]} 
-              />
-            </View>
-          </View>
-
-          <View style={styles.speedBarContainer}>
-            <Text style={styles.speedLabel}>Ping: {latestTest.ping} ms</Text>
-            <View style={styles.speedBarBackground}>
-              <View 
-                style={[
-                  styles.speedBar, 
-                  { 
-                    width: `${Math.min((latestTest.ping / 200) * 100, 100)}%`,
-                    backgroundColor: '#28a745'
-                  }
-                ]} 
-              />
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.historySection}>
-          <Text style={styles.historyTitle}>Recent Tests</Text>
-          <FlatList
-            data={speedHistory.slice(0, 10)}
-            renderItem={({ item }) => (
-              <View style={styles.historyItem}>
-                <Text style={styles.historyDate}>
-                  {new Date(item.date).toLocaleDateString()} {new Date(item.date).toLocaleTimeString()}
-                </Text>
-                <View style={styles.historyStats}>
-                  <Text style={styles.historyStat}>↓ {item.download.toFixed(1)} Mbps</Text>
-                  <Text style={styles.historyStat}>↑ {item.upload.toFixed(1)} Mbps</Text>
-                  <Text style={styles.historyStat}>Ping: {item.ping} ms</Text>
-                </View>
-              </View>
-            )}
-            keyExtractor={(item, index) => index.toString()}
-            showsVerticalScrollIndicator={false}
-          />
-        </View>
-      </View>
+        {renderCustomChart({
+          dataPoints: data,
+          datasets: [
+            {
+              values: data.map((d) => d.ping),
+              color: '#28a745',
+              label: 'Ping',
+            },
+          ],
+          yAxisSuffix: '',
+          title: 'Ping / Latency (ms)',
+          legends: [{ color: '#28a745', label: 'Ping (ms)' }],
+        })}
+      </>
     );
   };
 
@@ -122,30 +347,41 @@ const GraphScreen = () => {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Speed Graphs</Text>
-        <TouchableOpacity style={styles.clearButton} onPress={() => {
-          Alert.alert(
-            'Clear History',
-            'Clear all speed test history?',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Clear',
-                style: 'destructive',
-                onPress: async () => {
-                  await SpeedTestService.clearHistory();
-                  setSpeedHistory([]);
-                }
-              }
-            ]
-          );
-        }}>
-          <Text style={styles.clearButtonText}>Clear All</Text>
-        </TouchableOpacity>
       </View>
 
-      <View style={styles.content}>
-        {renderSpeedGraph()}
+      {/* Time filter buttons */}
+      <View style={styles.filterRow}>
+        {TIME_FILTERS.map((f) => (
+          <TouchableOpacity
+            key={f.key}
+            style={[
+              styles.filterButton,
+              timeFilter === f.key && styles.filterButtonActive,
+            ]}
+            onPress={() => setTimeFilter(f.key)}
+          >
+            <Text
+              style={[
+                styles.filterButtonText,
+                timeFilter === f.key && styles.filterButtonTextActive,
+              ]}
+            >
+              {f.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
+
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {renderCharts()}
+      </ScrollView>
     </View>
   );
 };
@@ -159,7 +395,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
   },
@@ -168,88 +406,85 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  clearButton: {
-    backgroundColor: '#dc3545',
+  filterRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingVertical: 12,
     paddingHorizontal: 16,
+    gap: 10,
+  },
+  filterButton: {
+    paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
+    borderColor: '#ddd',
   },
-  clearButtonText: {
-    color: '#fff',
-    fontSize: 12,
+  filterButtonActive: {
+    backgroundColor: '#667eea',
+    borderColor: '#667eea',
+  },
+  filterButtonText: {
+    fontSize: 13,
     fontWeight: '600',
+    color: '#666',
+  },
+  filterButtonTextActive: {
+    color: '#fff',
   },
   content: {
     flex: 1,
   },
-  graphContainer: {
-    flex: 1,
-    padding: 20,
+  contentContainer: {
+    padding: 16,
+    paddingBottom: 30,
   },
-  graphTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+  chartCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  chartTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 8,
     textAlign: 'center',
   },
-  speedBars: {
-    marginBottom: 30,
+  legendRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 12,
+    gap: 20,
   },
-  speedBarContainer: {
-    marginBottom: 15,
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  speedLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 5,
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 6,
   },
-  speedBarBackground: {
-    height: 20,
-    backgroundColor: '#e9ecef',
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  speedBar: {
-    height: '100%',
-    borderRadius: 10,
-  },
-  historySection: {
-    flex: 1,
-  },
-  historyTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 15,
-  },
-  historyItem: {
-    backgroundColor: '#f8f9fa',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: '#667eea',
-  },
-  historyDate: {
+  legendText: {
     fontSize: 12,
     color: '#6c757d',
-    marginBottom: 5,
-  },
-  historyStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  historyStat: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#333',
   },
   noDataContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: 100,
   },
   noDataText: {
     fontSize: 16,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,15 @@ import {
 import SpeedCircle from '../components/SpeedCircle';
 import StatCard from '../components/StatCard';
 import SpeedTestService from '../services/SpeedTestService';
+
+const INTERVALS = [
+  { key: '30m', label: '30 min', ms: 30 * 60 * 1000 },
+  { key: '1h', label: '1 h', ms: 60 * 60 * 1000 },
+  { key: '3h', label: '3 h', ms: 3 * 60 * 60 * 1000 },
+  { key: '6h', label: '6 h', ms: 6 * 60 * 60 * 1000 },
+  { key: '12h', label: '12 h', ms: 12 * 60 * 60 * 1000 },
+  { key: '24h', label: '24 h', ms: 24 * 60 * 60 * 1000 },
+];
 
 const SpeedTestScreen = () => {
   const [isTestRunning, setIsTestRunning] = useState(false);
@@ -25,10 +34,20 @@ const SpeedTestScreen = () => {
   });
   const [speedHistory, setSpeedHistory] = useState([]);
   const [backgroundMode, setBackgroundMode] = useState(false);
+  const [backgroundInterval, setBackgroundInterval] = useState(null);
+  const [showIntervalOptions, setShowIntervalOptions] = useState(false);
   const [progressText, setProgressText] = useState('');
+
+  const backgroundTimerRef = useRef(null);
 
   useEffect(() => {
     loadPeaks();
+    return () => {
+      // Cleanup background timer on unmount
+      if (backgroundTimerRef.current) {
+        clearInterval(backgroundTimerRef.current);
+      }
+    };
   }, []);
 
   const loadPeaks = async () => {
@@ -36,7 +55,7 @@ const SpeedTestScreen = () => {
     setPeaks(SpeedTestService.getPeaks());
   };
 
-  const startTest = async () => {
+  const runTest = async () => {
     setIsTestRunning(true);
     setCurrentSpeed(0);
     setCurrentType('Testing');
@@ -57,9 +76,8 @@ const SpeedTestScreen = () => {
         }
       },
       (speed, type) => {
-        // Real-time speed updates
         setCurrentSpeed(speed);
-        setSpeedHistory(prev => [...prev, { speed, type, time: Date.now() }]);
+        setSpeedHistory((prev) => [...prev, { speed, type, time: Date.now() }]);
       },
       async (result) => {
         setDownloadSpeed(result.download);
@@ -67,11 +85,10 @@ const SpeedTestScreen = () => {
         setPing(result.ping);
         setCurrentSpeed(result.download);
         setCurrentType('Complete');
-        
-        // Reload peaks
+
         await SpeedTestService.loadPeaks();
         setPeaks(SpeedTestService.getPeaks());
-        
+
         setTimeout(() => {
           setIsTestRunning(false);
           setCurrentSpeed(0);
@@ -89,13 +106,8 @@ const SpeedTestScreen = () => {
     );
   };
 
-  const toggleBackgroundMode = () => {
-    setBackgroundMode(!backgroundMode);
-    Alert.alert(
-      'Background Mode',
-      backgroundMode ? 'Background mode disabled' : 'Background mode enabled. The app will continue testing in the background.',
-      [{ text: 'OK' }]
-    );
+  const startTest = () => {
+    runTest();
   };
 
   const stopTest = () => {
@@ -104,6 +116,55 @@ const SpeedTestScreen = () => {
     setCurrentSpeed(0);
     setCurrentType('Ready');
     setProgressText('');
+  };
+
+  const toggleBackgroundMode = () => {
+    if (backgroundMode) {
+      // Turn off background mode
+      if (backgroundTimerRef.current) {
+        clearInterval(backgroundTimerRef.current);
+        backgroundTimerRef.current = null;
+      }
+      setBackgroundMode(false);
+      setBackgroundInterval(null);
+      setShowIntervalOptions(false);
+      Alert.alert('Background Testing', 'Background testing disabled.');
+    } else {
+      // Show interval options
+      setShowIntervalOptions(!showIntervalOptions);
+    }
+  };
+
+  const selectInterval = (interval) => {
+    // Clear existing timer
+    if (backgroundTimerRef.current) {
+      clearInterval(backgroundTimerRef.current);
+      backgroundTimerRef.current = null;
+    }
+
+    setBackgroundInterval(interval.key);
+    setBackgroundMode(true);
+    setShowIntervalOptions(false);
+
+    // Start the background timer
+    backgroundTimerRef.current = setInterval(() => {
+      // Only run if not already running a test
+      if (!SpeedTestService.isTestRunning) {
+        runTest();
+      }
+    }, interval.ms);
+
+    Alert.alert(
+      'Background Testing',
+      `Background testing enabled.\nInterval: every ${interval.label}\nThe speed test will run automatically.`,
+      [{ text: 'OK' }]
+    );
+  };
+
+  const getIntervalLabel = () => {
+    if (!backgroundInterval) return '';
+    const found = INTERVALS.find((i) => i.key === backgroundInterval);
+    return found ? found.label : '';
   };
 
   return (
@@ -134,15 +195,7 @@ const SpeedTestScreen = () => {
       </View>
 
       <View style={styles.controls}>
-        <TouchableOpacity 
-          style={[styles.backgroundButton, backgroundMode && styles.backgroundButtonActive]} 
-          onPress={toggleBackgroundMode}
-        >
-          <Text style={styles.backgroundButtonText}>
-            {backgroundMode ? 'Background: ON' : 'Background: OFF'}
-          </Text>
-        </TouchableOpacity>
-
+        {/* Speed Test button first */}
         {!isTestRunning ? (
           <TouchableOpacity style={styles.testButton} onPress={startTest}>
             <Text style={styles.testButtonText}>Start Test</Text>
@@ -151,6 +204,36 @@ const SpeedTestScreen = () => {
           <TouchableOpacity style={[styles.testButton, styles.stopButton]} onPress={stopTest}>
             <Text style={styles.testButtonText}>Stop Test</Text>
           </TouchableOpacity>
+        )}
+
+        {/* Background testing button below */}
+        <TouchableOpacity
+          style={[styles.backgroundButton, backgroundMode && styles.backgroundButtonActive]}
+          onPress={toggleBackgroundMode}
+        >
+          <Text style={styles.backgroundButtonText}>
+            {backgroundMode
+              ? `Background: ON (${getIntervalLabel()})`
+              : 'Background Testing'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Interval options */}
+        {showIntervalOptions && !backgroundMode && (
+          <View style={styles.intervalContainer}>
+            <Text style={styles.intervalTitle}>Select Interval</Text>
+            <View style={styles.intervalGrid}>
+              {INTERVALS.map((interval) => (
+                <TouchableOpacity
+                  key={interval.key}
+                  style={styles.intervalButton}
+                  onPress={() => selectInterval(interval)}
+                >
+                  <Text style={styles.intervalButtonText}>{interval.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
         )}
       </View>
 
@@ -181,21 +264,7 @@ const styles = StyleSheet.create({
   controls: {
     alignItems: 'center',
     marginVertical: 20,
-  },
-  backgroundButton: {
-    backgroundColor: '#6c757d',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    marginBottom: 15,
-  },
-  backgroundButtonActive: {
-    backgroundColor: '#28a745',
-  },
-  backgroundButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
+    width: '100%',
   },
   testButton: {
     backgroundColor: '#667eea',
@@ -207,6 +276,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+    marginBottom: 15,
   },
   stopButton: {
     backgroundColor: '#dc3545',
@@ -214,6 +284,55 @@ const styles = StyleSheet.create({
   testButtonText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  backgroundButton: {
+    backgroundColor: '#6c757d',
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 20,
+  },
+  backgroundButtonActive: {
+    backgroundColor: '#28a745',
+  },
+  backgroundButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  intervalContainer: {
+    marginTop: 14,
+    width: '100%',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  intervalTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  intervalGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  intervalButton: {
+    backgroundColor: '#667eea',
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 20,
+    minWidth: 70,
+    alignItems: 'center',
+  },
+  intervalButtonText: {
+    color: '#fff',
+    fontSize: 13,
     fontWeight: '600',
   },
   progressContainer: {
