@@ -1,15 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-const StatCard = ({ label, value, peak, unit = 'Mbps' }) => {
+const StatCard = ({ label, value, unit = 'Mbps' }) => {
   return (
     <View style={styles.statCard}>
       <Text style={styles.statLabel}>{label}</Text>
       <Text style={styles.statValue}>
         {typeof value === 'number' ? value.toFixed(2) : value} {unit}
-      </Text>
-      <Text style={styles.statPeak}>
-        {label === 'Ping' ? 'Best' : 'Peak'}: {typeof peak === 'number' ? peak.toFixed(2) : peak} {unit}
       </Text>
     </View>
   );
@@ -41,11 +38,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 4,
-  },
-  statPeak: {
-    fontSize: 10,
-    color: '#adb5bd',
   },
 });
 

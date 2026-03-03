@@ -29,7 +29,7 @@ const SpeedTestScreen = () => {
   const [liveDownload, setLiveDownload] = useState(0);
   const [liveUpload, setLiveUpload] = useState(0);
   const [livePing, setLivePing] = useState(0);
-  const [peaks, setPeaks] = useState({ download: 0, upload: 0, ping: 0 });
+
   const [backgroundMode, setBackgroundMode] = useState(false);
   const [backgroundInterval, setBackgroundInterval] = useState(null);
   const [showIntervalOptions, setShowIntervalOptions] = useState(false);
@@ -38,16 +38,10 @@ const SpeedTestScreen = () => {
   const backgroundTimerRef = useRef(null);
 
   useEffect(() => {
-    loadPeaks();
     return () => {
       if (backgroundTimerRef.current) clearInterval(backgroundTimerRef.current);
     };
   }, []);
-
-  const loadPeaks = async () => {
-    await SpeedTestService.loadPeaks();
-    setPeaks(SpeedTestService.getPeaks());
-  };
 
   const runTest = async () => {
     setIsTestRunning(true);
@@ -78,9 +72,6 @@ const SpeedTestScreen = () => {
         setLiveDownload(result.download);
         setLiveUpload(result.upload);
         setCurrentType('Complete');
-
-        await SpeedTestService.loadPeaks();
-        setPeaks(SpeedTestService.getPeaks());
 
         setTimeout(() => {
           setIsTestRunning(false);
@@ -216,9 +207,9 @@ const SpeedTestScreen = () => {
 
       {/* ── Stat Cards ── */}
       <View style={styles.statsGrid}>
-        <StatCard label="Download" value={downloadSpeed} peak={peaks.download} />
-        <StatCard label="Upload" value={uploadSpeed} peak={peaks.upload} />
-        <StatCard label="Ping" value={ping} peak={peaks.ping === 0 ? 'N/A' : peaks.ping} unit="ms" />
+        <StatCard label="Download" value={downloadSpeed} />
+        <StatCard label="Upload" value={uploadSpeed} />
+        <StatCard label="Ping" value={ping} unit="ms" />
       </View>
 
       {/* ── Controls ── */}
