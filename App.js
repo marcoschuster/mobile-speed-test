@@ -1,58 +1,197 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
-import { Text } from 'react-native';
+import { View, Text, Animated, StyleSheet } from 'react-native';
+import Svg, { Path, Polygon } from 'react-native-svg';
 import SpeedTestScreen from './src/screens/SpeedTestScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import GraphScreen from './src/screens/GraphScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
+import { COLORS, ThemeProvider, useTheme } from './src/utils/theme';
 
 const Tab = createBottomTabNavigator();
 
-export default function App() {
+// ── Lightning Bolt SVG Logo ─────────────────────────────────────────────────
+const LightningLogo = ({ size = 22 }) => (
+  <Svg width={size} height={size * 1.4} viewBox="0 0 24 34">
+    <Polygon
+      points="14,0 4,18 12,18 10,34 20,14 12,14"
+      fill={COLORS.accent}
+    />
+  </Svg>
+);
+
+// ── Tab Bar Icon with scale animation ───────────────────────────────────────
+const TabIcon = ({ focused, iconType, color }) => {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (focused) {
+      Animated.sequence([
+        Animated.spring(scale, {
+          toValue: 1.15,
+          tension: 300,
+          friction: 10,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scale, {
+          toValue: 1.0,
+          tension: 200,
+          friction: 12,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      scale.setValue(1.0);
+    }
+  }, [focused]);
+
+  const getIcon = () => {
+    switch (iconType) {
+      case 'speed':
+        return (
+          <Svg width={22} height={22} viewBox="0 0 24 24">
+            <Polygon points="13,2 5,14 11,14 9,22 17,10 11,10" fill={color} />
+          </Svg>
+        );
+      case 'history':
+        return (
+          <Svg width={22} height={22} viewBox="0 0 24 24">
+            <Path
+              d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"
+              fill={color}
+            />
+          </Svg>
+        );
+      case 'graph':
+        return (
+          <Svg width={22} height={22} viewBox="0 0 24 24">
+            <Path
+              d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"
+              fill={color}
+            />
+          </Svg>
+        );
+      case 'settings':
+        return (
+          <Svg width={22} height={22} viewBox="0 0 24 24">
+            <Path
+              d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
+              fill={color}
+            />
+          </Svg>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <View style={{ alignItems: 'center' }}>
+      {focused && <View style={tabStyles.activeIndicator} />}
+      <Animated.View style={{ transform: [{ scale }] }}>
+        {getIcon()}
+      </Animated.View>
+    </View>
+  );
+};
+
+// ── Custom Header ───────────────────────────────────────────────────────────
+const CustomHeader = ({ title }) => (
+  <View style={tabStyles.header}>
+    <View style={tabStyles.headerLeft}>
+      <LightningLogo size={18} />
+      <Text style={tabStyles.headerBrand}>ZOLT</Text>
+    </View>
+    <Text style={tabStyles.headerTitle}>{title}</Text>
+    <View style={tabStyles.headerRight} />
+  </View>
+);
+
+// ── Inner app that can read theme ───────────────────────────────────────────
+function AppInner() {
+  const { t } = useTheme();
+  const isDark = t.mode === 'dark';
+
   return (
     <NavigationContainer>
       <StatusBar style="light" />
       <Tab.Navigator
         screenOptions={{
           tabBarStyle: {
-            backgroundColor: '#667eea',
+            backgroundColor: COLORS.navBar,
+            borderTopWidth: 0,
+            height: 64,
+            paddingBottom: 8,
+            paddingTop: 4,
+            elevation: 0,
+            shadowOpacity: 0,
           },
-          tabBarActiveTintColor: '#fff',
-          tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.5)',
+          tabBarActiveTintColor: COLORS.navActive,
+          tabBarInactiveTintColor: COLORS.navInactive,
+          tabBarLabelStyle: {
+            fontSize: 10,
+            fontWeight: '600',
+            letterSpacing: 0.3,
+            marginTop: 2,
+          },
           headerStyle: {
-            backgroundColor: '#667eea',
+            backgroundColor: COLORS.headerBg,
+            elevation: 0,
+            shadowOpacity: 0,
+            borderBottomWidth: 0,
+            height: 96,
           },
-          headerTintColor: '#fff',
+          headerTintColor: COLORS.headerText,
+          headerTitleStyle: {
+            fontWeight: '700',
+            fontSize: 17,
+            letterSpacing: 0.5,
+          },
         }}
       >
-        <Tab.Screen 
-          name="Speed Test" 
+        <Tab.Screen
+          name="Speed Test"
           component={SpeedTestScreen}
           options={{
-            tabBarLabel: 'Speed Test',
-            tabBarIcon: ({ color, size }) => (
-              <Text style={{ color, fontSize: size }}>⚡</Text>
+            tabBarLabel: 'Speed',
+            header: () => <CustomHeader title="Speed Test" />,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon focused={focused} iconType="speed" color={color} />
             ),
           }}
         />
-        <Tab.Screen 
-          name="History" 
+        <Tab.Screen
+          name="History"
           component={HistoryScreen}
           options={{
             tabBarLabel: 'History',
-            tabBarIcon: ({ color, size }) => (
-              <Text style={{ color, fontSize: size }}>📋</Text>
+            header: () => <CustomHeader title="History" />,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon focused={focused} iconType="history" color={color} />
             ),
           }}
         />
-        <Tab.Screen 
-          name="Graphs" 
+        <Tab.Screen
+          name="Graphs"
           component={GraphScreen}
           options={{
             tabBarLabel: 'Graphs',
-            tabBarIcon: ({ color, size }) => (
-              <Text style={{ color, fontSize: size }}>📊</Text>
+            header: () => <CustomHeader title="Graphs" />,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon focused={focused} iconType="graph" color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{
+            tabBarLabel: 'Settings',
+            header: () => <CustomHeader title="Settings" />,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon focused={focused} iconType="settings" color={color} />
             ),
           }}
         />
@@ -60,3 +199,55 @@ export default function App() {
     </NavigationContainer>
   );
 }
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppInner />
+    </ThemeProvider>
+  );
+}
+
+const tabStyles = StyleSheet.create({
+  header: {
+    backgroundColor: COLORS.headerBg,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    paddingTop: 48,
+    height: 96,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  headerBrand: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 3,
+    marginLeft: 8,
+  },
+  headerTitle: {
+    color: '#F0F0F0',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textAlign: 'center',
+    flex: 1,
+  },
+  headerRight: {
+    flex: 1,
+  },
+  activeIndicator: {
+    position: 'absolute',
+    top: -8,
+    width: 24,
+    height: 2,
+    backgroundColor: COLORS.accent,
+    borderRadius: 1,
+  },
+});

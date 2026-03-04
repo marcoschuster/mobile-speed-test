@@ -1,4 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+const fs = require('fs');
+const path = require('path');
+
+const files = {};
+
+// ── StatCard.js ─────────────────────────────────────────────────────────────
+files['src/components/StatCard.js'] = `import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { COLORS, RADIUS, useTheme } from '../utils/theme';
@@ -170,3 +176,104 @@ const styles = StyleSheet.create({
 });
 
 export default StatCard;
+`;
+
+// ── SpeedTestScreen.js — remove background speed lines, pass activePhase to StatCard
+files['src/screens/SpeedTestScreen.js'] = fs.readFileSync(path.join(__dirname, 'src/screens/SpeedTestScreen.js'), 'utf8');
+
+// Write StatCard first
+Object.entries(files).forEach(([rel, content]) => {
+  if (rel !== 'src/screens/SpeedTestScreen.js') {
+    fs.writeFileSync(path.join(__dirname, rel), content, 'utf8');
+    console.log('Wrote', rel);
+  }
+});
+
+// Now patch SpeedTestScreen: remove full-screen speed lines, pass activePhase to StatCard
+let sst = files['src/screens/SpeedTestScreen.js'];
+
+// 1. Remove the SpeedLine component definition entirely (lines with SpeedLine and NUM_LINES)
+sst = sst.replace(/const NUM_LINES = 5;[\s\S]*?<\/Animated\.View>\s*\);\s*\n\};/m, '');
+
+// Actually let me just do targeted replacements:
+// Remove the speed lines overlay from the render
+const oldSpeedLinesBlock = `      {isTestRunning && (
+        <View style={styles.speedLinesContainer} pointerEvents="none">
+          {Array.from({ length: NUM_LINES }).map((_, i) => (<SpeedLine key={i} index={i} isRunning={isTestRunning} />))}
+        </View>
+      )}`;
+sst = sst.replace(oldSpeedLinesBlock, '');
+
+// Remove speedLinesContainer style
+sst = sst.replace(`  speedLinesContainer: { ...StyleSheet.absoluteFillObject, overflow: 'hidden', zIndex: 1 },\n`, '');
+
+// Pass activePhase (currentType) to each StatCard
+sst = sst.replace(
+  `<StatCard label="Download" value={downloadSpeed} peak={peaks.download} />`,
+  `<StatCard label="Download" value={downloadSpeed} peak={peaks.download} activePhase={currentType} />`
+);
+sst = sst.replace(
+  `<StatCard label="Upload" value={uploadSpeed} peak={peaks.upload} />`,
+  `<StatCard label="Upload" value={uploadSpeed} peak={peaks.upload} activePhase={currentType} />`
+);
+sst = sst.replace(
+  `<StatCard label="Ping" value={ping} peak={peaks.ping === 0 ? 'N/A' : peaks.ping} unit="ms" />`,
+  `<StatCard label="Ping" value={ping} peak={peaks.ping === 0 ? 'N/A' : peaks.ping} unit="ms" activePhase={currentType} />`
+);
+
+fs.writeFileSync(path.join(__dirname, 'src/screens/SpeedTestScreen.js'), sst, 'utf8');
+console.log('Wrote src/screens/SpeedTestScreen.js');
+
+// ── HistoryScreen.js — remove accentBar, add box shadow + gradient tint
+let hist = fs.readFileSync(path.join(__dirname, 'src/screens/HistoryScreen.js'), 'utf8');
+
+// Remove the accentBar element
+hist = hist.replace(`      <View style={styles.accentBar} />\n`, '');
+
+// Remove accentBar style
+hist = hist.replace(/\s*accentBar:.*?\n/g, '');
+
+// Update historyItem style: remove flexDirection row (was for the accent bar), add shadow
+hist = hist.replace(
+  `borderWidth: 1, flexDirection: 'row', ...SHADOWS.cardLight`,
+  `shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4`
+);
+
+// Add a gradient tint inside the card — insert right after historyContent opens
+hist = hist.replace(
+  `      <View style={styles.historyContent}>`,
+  `      <View style={[styles.gradientTint, { backgroundColor: t.mode === 'dark' ? 'rgba(245, 196, 0, 0.04)' : 'rgba(245, 196, 0, 0.02)' }]} />
+      <View style={styles.historyContent}>`
+);
+
+// Add gradientTint style (insert before historyContent style)
+hist = hist.replace(
+  `  historyContent:`,
+  `  gradientTint: { ...StyleSheet.absoluteFillObject, borderRadius: 16 },
+  historyContent:`
+);
+
+// Update historyItem to use surface bg instead of glass, remove border
+hist = hist.replace(
+  `backgroundColor: t.glass,
+          borderColor: t.glassBorder,
+          borderTopColor: t.glassBorderTop,`,
+  `backgroundColor: t.surface,`
+);
+
+fs.writeFileSync(path.join(__dirname, 'src/screens/HistoryScreen.js'), hist, 'utf8');
+console.log('Wrote src/screens/HistoryScreen.js');
+
+// Verify
+['src/components/StatCard.js', 'src/screens/SpeedTestScreen.js', 'src/screens/HistoryScreen.js'].forEach(f => {
+  const c = fs.readFileSync(path.join(__dirname, f), 'utf8');
+  console.log(f, ':', c.length, 'bytes',
+    'accentStrip:', c.includes('accentStrip'),
+    'accentBar:', c.includes('accentBar'),
+    'bgSpeedLines:', c.includes('speedLinesContainer'),
+    'activePhase:', c.includes('activePhase'),
+    'gradientTint:', c.includes('gradientTint')
+  );
+});
+
+console.log('All done!');
