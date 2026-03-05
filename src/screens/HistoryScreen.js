@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,10 @@ import {
 } from 'react-native';
 import Svg, { Polygon, Path } from 'react-native-svg';
 import SpeedTestService from '../services/SpeedTestService';
-import { COLORS, RADIUS, SHADOWS, useTheme } from '../utils/theme';
+import FlashTitle from '../components/FlashTitle';
+import { COLORS, RADIUS, useTheme } from '../utils/theme';
+
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 // ── Small inline icons ──────────────────────────────────────────────────────
 const DownloadIcon = ({ size = 13, color = COLORS.accent }) => (
@@ -30,8 +33,241 @@ const PingIcon = ({ size = 13, color = COLORS.success }) => (
     <Path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z" fill={color} />
   </Svg>
 );
+const CalendarIcon = ({ size = 16, color = COLORS.accent }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z" fill={color} />
+  </Svg>
+);
+const ChevronLeft = ({ size = 18, color }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" fill={color} />
+  </Svg>
+);
+const ChevronRight = ({ size = 18, color }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z" fill={color} />
+  </Svg>
+);
 
-// ── Animated History Card ───────────────────────────────────────────────────
+// ── Calendar helpers ────────────────────────────────────────────────────────
+const toDateKey = (d) => {
+  const yr = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const dy = String(d.getDate()).padStart(2, '0');
+  return `${yr}-${mo}-${dy}`;
+};
+
+const getMonthName = (month, year) => {
+  const d = new Date(year, month);
+  return d.toLocaleString('default', { month: 'long' });
+};
+
+const buildCalendarGrid = (year, month) => {
+  // First day of the month
+  const firstDay = new Date(year, month, 1);
+  // Day of week: JS 0=Sun, we want Mon=0
+  let startDow = firstDay.getDay() - 1;
+  if (startDow < 0) startDow = 6; // Sunday wraps to 6
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const cells = [];
+
+  // Leading blanks
+  for (let i = 0; i < startDow; i++) {
+    cells.push({ day: null, key: `blank-start-${i}` });
+  }
+
+  // Actual days
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push({ day: d, key: `day-${d}`, dateKey: toDateKey(new Date(year, month, d)) });
+  }
+
+  // Trailing blanks to fill last row
+  while (cells.length % 7 !== 0) {
+    cells.push({ day: null, key: `blank-end-${cells.length}` });
+  }
+
+  return cells;
+};
+
+// ── Calendar Component ──────────────────────────────────────────────────────
+const Calendar = ({ history, selectedDate, onSelectDate, onClearSelection }) => {
+  const { t } = useTheme();
+  const isDark = t.mode === 'dark';
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
+
+  // Build a Set of date keys that have test history
+  const testDays = useMemo(() => {
+    const set = new Set();
+    history.forEach((item) => {
+      const d = new Date(item.date);
+      set.add(toDateKey(d));
+    });
+    return set;
+  }, [history]);
+
+  const cells = useMemo(() => buildCalendarGrid(viewYear, viewMonth), [viewYear, viewMonth]);
+
+  const todayKey = toDateKey(today);
+
+  const goToPrevMonth = () => {
+    if (viewMonth === 0) {
+      setViewMonth(11);
+      setViewYear(viewYear - 1);
+    } else {
+      setViewMonth(viewMonth - 1);
+    }
+  };
+
+  const goToNextMonth = () => {
+    if (viewMonth === 11) {
+      setViewMonth(0);
+      setViewYear(viewYear + 1);
+    } else {
+      setViewMonth(viewMonth + 1);
+    }
+  };
+
+  const cardTint = isDark ? 'rgba(245, 196, 0, 0.04)' : 'rgba(245, 196, 0, 0.02)';
+
+  return (
+    <View style={[calStyles.container, { backgroundColor: t.surface }]}>
+      <View style={[calStyles.gradientTint, { backgroundColor: cardTint }]} />
+
+      {/* Month navigation */}
+      <View style={calStyles.navRow}>
+        <TouchableOpacity onPress={goToPrevMonth} activeOpacity={0.6} style={calStyles.navBtn}>
+          <ChevronLeft color={t.textSecondary} />
+        </TouchableOpacity>
+        <Text style={[calStyles.monthLabel, { color: t.textPrimary }]}>
+          {getMonthName(viewMonth, viewYear)} {viewYear}
+        </Text>
+        <TouchableOpacity onPress={goToNextMonth} activeOpacity={0.6} style={calStyles.navBtn}>
+          <ChevronRight color={t.textSecondary} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Weekday headers */}
+      <View style={calStyles.weekdayRow}>
+        {WEEKDAYS.map((wd) => (
+          <View key={wd} style={calStyles.weekdayCell}>
+            <Text style={[calStyles.weekdayText, { color: t.textMuted }]}>{wd}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Day grid */}
+      <View style={calStyles.grid}>
+        {cells.map((cell) => {
+          if (cell.day === null) {
+            return <View key={cell.key} style={calStyles.dayCell} />;
+          }
+
+          const hasTest = testDays.has(cell.dateKey);
+          const isSelected = selectedDate === cell.dateKey;
+          const isToday = cell.dateKey === todayKey;
+
+          return (
+            <TouchableOpacity
+              key={cell.key}
+              style={[
+                calStyles.dayCell,
+                hasTest && calStyles.dayCellHasTest,
+                hasTest && { backgroundColor: isDark ? 'rgba(245, 196, 0, 0.15)' : 'rgba(245, 196, 0, 0.12)' },
+                isSelected && calStyles.dayCellSelected,
+              ]}
+              activeOpacity={0.6}
+              onPress={() => {
+                if (isSelected) {
+                  onClearSelection();
+                } else {
+                  onSelectDate(cell.dateKey);
+                }
+              }}
+            >
+              <Text
+                style={[
+                  calStyles.dayText,
+                  { color: t.textSecondary },
+                  hasTest && { color: COLORS.accent, fontWeight: '800' },
+                  isSelected && { color: COLORS.black },
+                  isToday && !isSelected && !hasTest && { color: t.textPrimary, fontWeight: '700' },
+                ]}
+              >
+                {cell.day}
+              </Text>
+              {isToday && !isSelected && (
+                <View style={calStyles.todayDot} />
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Filter indicator */}
+      {selectedDate && (
+        <TouchableOpacity style={calStyles.clearRow} onPress={onClearSelection} activeOpacity={0.7}>
+          <Text style={calStyles.clearText}>
+            Showing: {formatDateKeyNice(selectedDate)}
+          </Text>
+          <Text style={calStyles.clearAction}>Show All</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
+
+const formatDateKeyNice = (dateKey) => {
+  const [y, m, d] = dateKey.split('-');
+  const date = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+  return date.toLocaleDateString('default', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+const calStyles = StyleSheet.create({
+  container: {
+    marginHorizontal: 16, marginTop: 12, borderRadius: RADIUS.lg, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 8, elevation: 4,
+    paddingBottom: 4,
+  },
+  gradientTint: { ...StyleSheet.absoluteFillObject, borderRadius: RADIUS.lg },
+  navRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 8, paddingTop: 14, paddingBottom: 8,
+  },
+  navBtn: { padding: 6 },
+  monthLabel: { fontSize: 15, fontWeight: '800', letterSpacing: 0.5 },
+  weekdayRow: { flexDirection: 'row', paddingHorizontal: 6, marginBottom: 4 },
+  weekdayCell: { flex: 1, alignItems: 'center', paddingVertical: 4 },
+  weekdayText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 6, paddingBottom: 8 },
+  dayCell: {
+    width: '14.285%', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 8, borderRadius: 10,
+  },
+  dayCellHasTest: {
+    borderRadius: 10,
+  },
+  dayCellSelected: {
+    backgroundColor: COLORS.accent,
+    borderRadius: 10,
+  },
+  dayText: { fontSize: 13, fontWeight: '500' },
+  todayDot: {
+    width: 4, height: 4, borderRadius: 2,
+    backgroundColor: COLORS.accent, marginTop: 2,
+  },
+  clearRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.06)',
+  },
+  clearText: { fontSize: 12, fontWeight: '600', color: COLORS.accent },
+  clearAction: { fontSize: 12, fontWeight: '700', color: COLORS.accent, textDecorationLine: 'underline' },
+});
+
 // ── Animated date with pulsing yellow on hover ──────────────────────────────
 const PulsingDate = ({ text, baseColor }) => {
   const pulseAnim = useRef(new Animated.Value(0)).current;
@@ -62,6 +298,7 @@ const PulsingDate = ({ text, baseColor }) => {
   );
 };
 
+// ── Animated History Card ───────────────────────────────────────────────────
 const HistoryCard = ({ item, index, formatDate }) => {
   const { t } = useTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -137,7 +374,10 @@ const HistoryScreen = () => {
   const { t } = useTheme();
   const [history, setHistory] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(null);
   const contentFade = useRef(new Animated.Value(0)).current;
+  const calHeight = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     loadHistory();
@@ -152,11 +392,44 @@ const HistoryScreen = () => {
   const clearHistory = () => {
     Alert.alert('Clear History', 'Are you sure you want to clear all test history?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Clear', style: 'destructive', onPress: async () => { const c = await SpeedTestService.clearHistory(); setHistory(c); } },
+      {
+        text: 'Clear', style: 'destructive', onPress: async () => {
+          const c = await SpeedTestService.clearHistory();
+          setHistory(c);
+          setSelectedDate(null);
+        },
+      },
     ]);
   };
 
   const onRefresh = async () => { setRefreshing(true); await loadHistory(); setRefreshing(false); };
+
+  const toggleCalendar = useCallback(() => {
+    const opening = !calendarOpen;
+    setCalendarOpen(opening);
+    Animated.timing(calHeight, {
+      toValue: opening ? 1 : 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [calendarOpen]);
+
+  const handleSelectDate = useCallback((dateKey) => {
+    setSelectedDate(dateKey);
+  }, []);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedDate(null);
+  }, []);
+
+  // Filter history by selected date
+  const filteredHistory = useMemo(() => {
+    if (!selectedDate) return history;
+    return history.filter((item) => {
+      const d = new Date(item.date);
+      return toDateKey(d) === selectedDate;
+    });
+  }, [history, selectedDate]);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -176,17 +449,61 @@ const HistoryScreen = () => {
     <HistoryCard item={item} index={index} formatDate={formatDate} />
   );
 
+  const calendarMaxHeight = calHeight.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 420],
+  });
+
+  const calendarOpacity = calHeight.interpolate({
+    inputRange: [0, 0.3, 1],
+    outputRange: [0, 0, 1],
+  });
+
   return (
     <Animated.View style={[styles.container, { backgroundColor: t.bg, opacity: contentFade }]}>
+      {/* Header */}
       <View style={[styles.header, { borderBottomColor: t.separator }]}>
-        <Text style={[styles.headerTitle, { color: t.textSecondary }]}>TEST HISTORY</Text>
-        {history.length > 0 && (
-          <TouchableOpacity style={styles.clearButton} onPress={clearHistory} activeOpacity={0.7}>
-            <Text style={styles.clearButtonText}>Clear All</Text>
+        <FlashTitle text="TEST HISTORY" size="small" interval={5000} />
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={[
+              styles.calendarButton,
+              calendarOpen && styles.calendarButtonActive,
+            ]}
+            onPress={toggleCalendar}
+            activeOpacity={0.7}
+          >
+            <CalendarIcon size={14} color={calendarOpen ? COLORS.black : COLORS.accent} />
+            <Text
+              style={[
+                styles.calendarButtonText,
+                calendarOpen && styles.calendarButtonTextActive,
+              ]}
+            >
+              Calendar
+            </Text>
           </TouchableOpacity>
-        )}
+          {history.length > 0 && (
+            <TouchableOpacity style={styles.clearButton} onPress={clearHistory} activeOpacity={0.7}>
+              <Text style={styles.clearButtonText}>Clear All</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
+      {/* Calendar panel */}
+      <Animated.View style={{ maxHeight: calendarMaxHeight, opacity: calendarOpacity, overflow: 'hidden' }}>
+        {calendarOpen && (
+          <Calendar
+            history={history}
+            selectedDate={selectedDate}
+            onSelectDate={handleSelectDate}
+            onClearSelection={handleClearSelection}
+          />
+        )}
+      </Animated.View>
+
+      {/* Content */}
       {history.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Svg width={80} height={112} viewBox="0 0 24 34">
@@ -197,11 +514,18 @@ const HistoryScreen = () => {
             Run a speed test to start tracking your results
           </Text>
         </View>
+      ) : filteredHistory.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={[styles.emptyTitle, { color: t.textSecondary }]}>No tests on this day</Text>
+          <Text style={[styles.emptySubtitle, { color: t.textMuted }]}>
+            Select another date or tap "Show All"
+          </Text>
+        </View>
       ) : (
         <FlatList
-          data={history}
+          data={filteredHistory}
           renderItem={renderHistoryItem}
-          keyExtractor={(item, index) => index.toString()}
+          keyExtractor={(item, index) => `${item.date}-${index}`}
           contentContainerStyle={styles.listContainer}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} colors={[COLORS.accent]} />}
           showsVerticalScrollIndicator={false}
@@ -215,11 +539,22 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1,
+    paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1,
   },
-  headerTitle: { fontSize: 13, fontWeight: '800', letterSpacing: 2 },
+
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  calendarButton: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: RADIUS.pill,
+    borderWidth: 1, borderColor: COLORS.accent, backgroundColor: 'transparent',
+  },
+  calendarButtonActive: {
+    backgroundColor: COLORS.accent, borderColor: COLORS.accent,
+  },
+  calendarButtonText: { color: COLORS.accent, fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
+  calendarButtonTextActive: { color: COLORS.black },
   clearButton: {
-    paddingHorizontal: 16, paddingVertical: 7, borderRadius: RADIUS.pill,
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: RADIUS.pill,
     borderWidth: 1, borderColor: COLORS.danger, backgroundColor: 'transparent',
   },
   clearButtonText: { color: COLORS.danger, fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },

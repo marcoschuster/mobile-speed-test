@@ -9,30 +9,82 @@ import {
   TextInput,
   Alert,
   Animated,
+  Platform,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
 import SpeedTestService from '../services/SpeedTestService';
+import FlashTitle from '../components/FlashTitle';
 import { COLORS, RADIUS, useTheme } from '../utils/theme';
 
-// ── Segmented Control ───────────────────────────────────────────────────────
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+const FONT_FAMILY = Platform.OS === 'ios' ? 'System' : 'sans-serif';
+
+// ── Pill Segmented Control with sliding indicator ───────────────────────────
 const SegmentedControl = ({ options, selected, onSelect }) => {
   const { t } = useTheme();
+  const isDark = t.mode === 'dark';
+  const containerBg = isDark ? '#2A2A2A' : '#E8E8E8';
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const [segmentWidth, setSegmentWidth] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  const selectedIndex = options.findIndex((o) => o.value === selected);
+
+  useEffect(() => {
+    if (segmentWidth > 0) {
+      Animated.spring(slideAnim, {
+        toValue: selectedIndex * segmentWidth,
+        tension: 300,
+        friction: 25,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [selectedIndex, segmentWidth]);
+
+  const onLayout = (e) => {
+    const w = e.nativeEvent.layout.width;
+    setContainerWidth(w);
+    setSegmentWidth(w / options.length);
+  };
+
   return (
-    <View style={[segS.container, { backgroundColor: t.controlBg, borderColor: t.controlBorder }]}>
-      {options.map((opt, i) => {
+    <View
+      style={[segS.container, { backgroundColor: containerBg }]}
+      onLayout={onLayout}
+    >
+      {/* Sliding pill indicator */}
+      {segmentWidth > 0 && (
+        <Animated.View
+          style={[
+            segS.indicator,
+            {
+              width: segmentWidth - 4,
+              transform: [{ translateX: Animated.add(slideAnim, 2) }],
+            },
+          ]}
+        />
+      )}
+      {options.map((opt) => {
         const isActive = selected === opt.value;
         return (
           <TouchableOpacity
             key={opt.value}
-            style={[
-              segS.segment,
-              isActive && segS.segmentActive,
-              i === 0 && segS.segmentFirst,
-              i === options.length - 1 && segS.segmentLast,
-            ]}
+            style={segS.segment}
             onPress={() => onSelect(opt.value)}
             activeOpacity={0.7}
           >
-            <Text style={[segS.segmentText, { color: t.textSecondary }, isActive && segS.segmentTextActive]}>
+            <Text
+              style={[
+                segS.segmentText,
+                { color: isDark ? '#999' : '#777', fontFamily: FONT_FAMILY },
+                isActive && segS.segmentTextActive,
+              ]}
+            >
               {opt.label}
             </Text>
           </TouchableOpacity>
@@ -43,13 +95,22 @@ const SegmentedControl = ({ options, selected, onSelect }) => {
 };
 
 const segS = StyleSheet.create({
-  container: { flexDirection: 'row', borderRadius: 8, overflow: 'hidden', borderWidth: 1 },
-  segment: { paddingVertical: 8, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', minWidth: 64 },
-  segmentActive: { backgroundColor: COLORS.accent },
-  segmentFirst: { borderTopLeftRadius: 7, borderBottomLeftRadius: 7 },
-  segmentLast: { borderTopRightRadius: 7, borderBottomRightRadius: 7 },
+  container: {
+    flexDirection: 'row', borderRadius: 22, overflow: 'hidden',
+    padding: 2, position: 'relative',
+  },
+  indicator: {
+    position: 'absolute', top: 2, bottom: 2,
+    backgroundColor: COLORS.accent,
+    borderRadius: 20,
+    zIndex: 0,
+  },
+  segment: {
+    flex: 1, paddingVertical: 8, alignItems: 'center',
+    justifyContent: 'center', zIndex: 1,
+  },
   segmentText: { fontSize: 13, fontWeight: '700' },
-  segmentTextActive: { color: COLORS.black },
+  segmentTextActive: { color: COLORS.black, fontWeight: '800' },
 });
 
 // ── Dropdown ────────────────────────────────────────────────────────────────
@@ -61,7 +122,7 @@ const Dropdown = ({ options, selected, onSelect, isOpen, onToggle }) => {
         style={[dropS.trigger, { backgroundColor: t.controlBg, borderColor: t.controlBorder }]}
         onPress={onToggle} activeOpacity={0.7}
       >
-        <Text style={[dropS.triggerText, { color: t.textPrimary }]}>
+        <Text style={[dropS.triggerText, { color: t.textPrimary, fontFamily: FONT_FAMILY }]}>
           {options.find((o) => o.value === selected)?.label || 'Select'}
         </Text>
         <Text style={[dropS.arrow, { color: t.textSecondary }]}>{isOpen ? '▲' : '▼'}</Text>
@@ -75,7 +136,7 @@ const Dropdown = ({ options, selected, onSelect, isOpen, onToggle }) => {
               onPress={() => { onSelect(opt.value); onToggle(); }}
               activeOpacity={0.7}
             >
-              <Text style={[dropS.menuItemText, { color: t.textSecondary }, selected === opt.value && dropS.menuItemTextActive]}>
+              <Text style={[dropS.menuItemText, { color: t.textSecondary, fontFamily: FONT_FAMILY }, selected === opt.value && dropS.menuItemTextActive]}>
                 {opt.label}
               </Text>
             </TouchableOpacity>
@@ -87,10 +148,10 @@ const Dropdown = ({ options, selected, onSelect, isOpen, onToggle }) => {
 };
 
 const dropS = StyleSheet.create({
-  trigger: { flexDirection: 'row', alignItems: 'center', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1 },
+  trigger: { flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1 },
   triggerText: { fontSize: 13, fontWeight: '600', flex: 1 },
   arrow: { fontSize: 10, marginLeft: 8 },
-  menu: { marginTop: 4, borderRadius: 8, borderWidth: 1, overflow: 'hidden' },
+  menu: { marginTop: 4, borderRadius: 10, borderWidth: 1, overflow: 'hidden' },
   menuItem: { paddingVertical: 10, paddingHorizontal: 14, borderBottomWidth: 1 },
   menuItemActive: { backgroundColor: 'rgba(245,196,0,0.1)' },
   menuItemText: { fontSize: 13, fontWeight: '600' },
@@ -102,7 +163,7 @@ const SettingsRow = ({ label, children, isLast }) => {
   const { t } = useTheme();
   return (
     <View style={[rowS.container, !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.separator }]}>
-      <Text style={[rowS.label, { color: t.textPrimary }]}>{label}</Text>
+      <Text style={[rowS.label, { color: t.textPrimary, fontFamily: FONT_FAMILY }]}>{label}</Text>
       <View style={rowS.right}>{children}</View>
     </View>
   );
@@ -117,6 +178,8 @@ const rowS = StyleSheet.create({
 // ── Main Settings Screen ────────────────────────────────────────────────────
 const SettingsScreen = () => {
   const { t, themeChoice, setThemeChoice } = useTheme();
+  const isDark = t.mode === 'dark';
+  const cardTint = isDark ? 'rgba(245, 196, 0, 0.03)' : 'rgba(245, 196, 0, 0.015)';
 
   const [autoBackground, setAutoBackground] = useState(false);
   const [testInterval, setTestInterval] = useState('1h');
@@ -148,35 +211,40 @@ const SettingsScreen = () => {
       showsVerticalScrollIndicator={false}
     >
       {/* APPEARANCE */}
-      <Text style={styles.sectionHeader}>APPEARANCE</Text>
-      <View style={[styles.sectionCard, { backgroundColor: t.surface, borderColor: t.glassBorder, borderTopColor: t.glassBorderTop }]}>
+      <FlashTitle text="APPEARANCE" size="small" interval={5000} center style={styles.sectionHeader} />
+      <View style={[styles.sectionCard, { backgroundColor: t.surface }]}>
+        <View style={[styles.gradientTint, { backgroundColor: cardTint }]} />
         <SettingsRow label="Theme">
-          <SegmentedControl
-            options={[
-              { label: 'Light', value: 'light' },
-              { label: 'Dark', value: 'dark' },
-              { label: 'System', value: 'system' },
-            ]}
-            selected={themeChoice}
-            onSelect={setThemeChoice}
-          />
+          <View style={{ width: 200 }}>
+            <SegmentedControl
+              options={[
+                { label: 'Light', value: 'light' },
+                { label: 'Dark', value: 'dark' },
+                { label: 'System', value: 'system' },
+              ]}
+              selected={themeChoice}
+              onSelect={setThemeChoice}
+            />
+          </View>
         </SettingsRow>
         <SettingsRow label="Accent Color" isLast>
           <View style={styles.accentSwatch}>
             <View style={styles.accentDot} />
-            <Text style={[styles.accentLabel, { color: t.textSecondary }]}>Speed Yellow</Text>
+            <Text style={[styles.accentLabel, { color: t.textSecondary, fontFamily: FONT_FAMILY }]}>Speed Yellow</Text>
           </View>
         </SettingsRow>
       </View>
 
       {/* TESTING */}
-      <Text style={styles.sectionHeader}>TESTING</Text>
-      <View style={[styles.sectionCard, { backgroundColor: t.surface, borderColor: t.glassBorder, borderTopColor: t.glassBorderTop }]}>
+      <FlashTitle text="TESTING" size="small" interval={5500} center style={styles.sectionHeader} />
+      <View style={[styles.sectionCard, { backgroundColor: t.surface }]}>
+        <View style={[styles.gradientTint, { backgroundColor: cardTint }]} />
         <SettingsRow label="Auto Background Test">
           <Switch
             value={autoBackground} onValueChange={setAutoBackground}
             trackColor={{ false: t.switchTrackOff, true: COLORS.accent }}
             thumbColor={autoBackground ? COLORS.white : t.switchThumbOff}
+            ios_backgroundColor={t.switchTrackOff}
           />
         </SettingsRow>
         <SettingsRow label="Test Interval">
@@ -195,73 +263,80 @@ const SettingsScreen = () => {
         </SettingsRow>
         <SettingsRow label="Default Server" isLast>
           <View style={styles.serverRow}>
-            <Text style={[styles.serverText, { color: t.textSecondary }]}>Auto (Nearest)</Text>
+            <Text style={[styles.serverText, { color: t.textSecondary, fontFamily: FONT_FAMILY }]}>Auto (Nearest)</Text>
             <TouchableOpacity activeOpacity={0.7}>
-              <Text style={styles.changeLink}>Change</Text>
+              <Text style={[styles.changeLink, { fontFamily: FONT_FAMILY }]}>Change</Text>
             </TouchableOpacity>
           </View>
         </SettingsRow>
       </View>
 
       {/* UNITS & DISPLAY */}
-      <Text style={styles.sectionHeader}>UNITS & DISPLAY</Text>
-      <View style={[styles.sectionCard, { backgroundColor: t.surface, borderColor: t.glassBorder, borderTopColor: t.glassBorderTop }]}>
+      <FlashTitle text="UNITS & DISPLAY" size="small" interval={6000} center style={styles.sectionHeader} />
+      <View style={[styles.sectionCard, { backgroundColor: t.surface }]}>
+        <View style={[styles.gradientTint, { backgroundColor: cardTint }]} />
         <SettingsRow label="Speed Unit">
-          <SegmentedControl
-            options={[
-              { label: 'Mbps', value: 'mbps' },
-              { label: 'Kbps', value: 'kbps' },
-              { label: 'MB/s', value: 'mbs' },
-            ]}
-            selected={speedUnit} onSelect={setSpeedUnit}
-          />
+          <View style={{ width: 200 }}>
+            <SegmentedControl
+              options={[
+                { label: 'Mbps', value: 'mbps' },
+                { label: 'Kbps', value: 'kbps' },
+                { label: 'MB/s', value: 'mbs' },
+              ]}
+              selected={speedUnit} onSelect={setSpeedUnit}
+            />
+          </View>
         </SettingsRow>
         <SettingsRow label="Show Ping" isLast>
           <Switch
             value={showPing} onValueChange={setShowPing}
             trackColor={{ false: t.switchTrackOff, true: COLORS.accent }}
             thumbColor={showPing ? COLORS.white : t.switchThumbOff}
+            ios_backgroundColor={t.switchTrackOff}
           />
         </SettingsRow>
       </View>
 
       {/* NOTIFICATIONS */}
-      <Text style={styles.sectionHeader}>NOTIFICATIONS</Text>
-      <View style={[styles.sectionCard, { backgroundColor: t.surface, borderColor: t.glassBorder, borderTopColor: t.glassBorderTop }]}>
+      <FlashTitle text="NOTIFICATIONS" size="small" interval={6500} center style={styles.sectionHeader} />
+      <View style={[styles.sectionCard, { backgroundColor: t.surface }]}>
+        <View style={[styles.gradientTint, { backgroundColor: cardTint }]} />
         <SettingsRow label="Notify on test complete">
           <Switch
             value={notifyComplete} onValueChange={setNotifyComplete}
             trackColor={{ false: t.switchTrackOff, true: COLORS.accent }}
             thumbColor={notifyComplete ? COLORS.white : t.switchThumbOff}
+            ios_backgroundColor={t.switchTrackOff}
           />
         </SettingsRow>
         <SettingsRow label="Alert if speed below" isLast>
           <View style={styles.thresholdRow}>
             <TextInput
-              style={[styles.thresholdInput, { backgroundColor: t.controlBg, borderColor: t.controlBorder, color: t.textPrimary }]}
+              style={[styles.thresholdInput, { backgroundColor: t.controlBg, borderColor: t.controlBorder, color: t.textPrimary, fontFamily: FONT_FAMILY }]}
               value={alertThreshold} onChangeText={setAlertThreshold}
               keyboardType="numeric" placeholder="—"
               placeholderTextColor={t.placeholderText} maxLength={5}
             />
-            <Text style={[styles.thresholdUnit, { color: t.textSecondary }]}>Mbps</Text>
+            <Text style={[styles.thresholdUnit, { color: t.textSecondary, fontFamily: FONT_FAMILY }]}>Mbps</Text>
           </View>
         </SettingsRow>
       </View>
 
       {/* DATA */}
-      <Text style={styles.sectionHeader}>DATA</Text>
-      <View style={[styles.sectionCard, { backgroundColor: t.surface, borderColor: t.glassBorder, borderTopColor: t.glassBorderTop }]}>
+      <FlashTitle text="DATA" size="small" interval={7000} center style={styles.sectionHeader} />
+      <View style={[styles.sectionCard, { backgroundColor: t.surface }]}>
+        <View style={[styles.gradientTint, { backgroundColor: cardTint }]} />
         <View style={styles.dataButtons}>
           <TouchableOpacity style={styles.destructiveButton} onPress={handleClearHistory} activeOpacity={0.7}>
-            <Text style={styles.destructiveButtonText}>Clear Test History</Text>
+            <Text style={[styles.destructiveButtonText, { fontFamily: FONT_FAMILY }]}>Clear Test History</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.exportButton} onPress={handleExport} activeOpacity={0.7}>
-            <Text style={styles.exportButtonText}>Export History as CSV</Text>
+            <Text style={[styles.exportButtonText, { fontFamily: FONT_FAMILY }]}>Export History as CSV</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      <Text style={[styles.versionText, { color: t.textMuted }]}>ZOLT v1.0.0</Text>
+      <Text style={[styles.versionText, { color: t.textMuted, fontFamily: FONT_FAMILY }]}>ZOLT v1.0.0</Text>
     </Animated.ScrollView>
   );
 };
@@ -270,8 +345,9 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   contentContainer: { paddingHorizontal: 16, paddingBottom: 40 },
 
-  sectionHeader: { fontSize: 11, fontWeight: '800', color: COLORS.accent, letterSpacing: 2, marginTop: 28, marginBottom: 8, marginLeft: 4 },
-  sectionCard: { borderRadius: RADIUS.lg, overflow: 'hidden', borderWidth: 1 },
+  sectionHeader: { marginTop: 28, marginBottom: 10 },
+  sectionCard: { borderRadius: RADIUS.lg, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.14, shadowRadius: 10, elevation: 5 },
+  gradientTint: { ...StyleSheet.absoluteFillObject, borderRadius: RADIUS.lg },
 
   accentSwatch: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   accentDot: { width: 20, height: 20, borderRadius: 10, backgroundColor: COLORS.accent, borderWidth: 2, borderColor: COLORS.accentDark },
@@ -282,7 +358,7 @@ const styles = StyleSheet.create({
   changeLink: { fontSize: 13, color: COLORS.accent, fontWeight: '700' },
 
   thresholdRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  thresholdInput: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8, width: 70, fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  thresholdInput: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8, width: 70, fontSize: 14, fontWeight: '700', textAlign: 'center' },
   thresholdUnit: { fontSize: 13, fontWeight: '600' },
 
   dataButtons: { padding: 16, gap: 12 },

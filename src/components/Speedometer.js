@@ -102,7 +102,7 @@ const Speedometer = ({
         key={`t${v}`}
         x1={outerP.x} y1={outerP.y}
         x2={innerP.x} y2={innerP.y}
-        stroke={isMajor ? t.tickMajor : t.tickMinor}
+        stroke={isMajor ? t.gaugeLabelMajor : t.gaugeLabelMinor}
         strokeWidth={isMajor ? 2 : 1}
         strokeLinecap="round"
       />
@@ -116,7 +116,7 @@ const Speedometer = ({
           x={lp.x} y={lp.y + 4}
           fontSize={maxValue > 500 ? '9' : '11'}
           fontWeight="700"
-          fill={t.tickLabel}
+          fill={t.gaugeLabelMajor}
           textAnchor="middle"
         >
           {v}
@@ -140,6 +140,20 @@ const Speedometer = ({
         : Math.round(speed).toString()
       : speed;
 
+  // Map old bezel tokens to new theme keys
+  const dialOuter = t.mode === 'dark' ? '#111111' : '#D0D0D0';
+  const bezelTop = t.mode === 'dark' ? '#444444' : '#E8E8E8';
+  const bezelMid = t.mode === 'dark' ? '#222222' : '#D0D0D0';
+  const bezelBottom = t.mode === 'dark' ? '#111111' : '#B8B8B8';
+  const bezelShine = t.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.6)';
+  const dialInnerRing = t.mode === 'dark' ? '#181818' : '#C8C8C8';
+  const dialRim = t.mode === 'dark' ? '#222222' : '#E0E0E0';
+  const dialFaceCenter = t.mode === 'dark' ? '#2A2A2A' : '#FAFAFA';
+  const dialFaceEdge = t.mode === 'dark' ? '#1A1A1A' : '#F0F0F0';
+  const trackArc = t.mode === 'dark' ? '#333333' : '#D8D8D8';
+  const hubInner = t.mode === 'dark' ? '#1A1A1A' : '#FFFFFF';
+  const unitLabel = t.mode === 'dark' ? '#777777' : '#888888';
+
   return (
     <View style={styles.container}>
       {isRunning && (
@@ -149,13 +163,13 @@ const Speedometer = ({
       <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
         <Defs>
           <RadialGradient id="dialBg" cx="50%" cy="40%" r="55%">
-            <Stop offset="0%" stopColor={t.dialFaceCenter} />
-            <Stop offset="100%" stopColor={t.dialFaceEdge} />
+            <Stop offset="0%" stopColor={dialFaceCenter} />
+            <Stop offset="100%" stopColor={dialFaceEdge} />
           </RadialGradient>
           <LinearGradient id="bezelGrad" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0%" stopColor={t.bezelTop} />
-            <Stop offset="50%" stopColor={t.bezelMid} />
-            <Stop offset="100%" stopColor={t.bezelBottom} />
+            <Stop offset="0%" stopColor={bezelTop} />
+            <Stop offset="50%" stopColor={bezelMid} />
+            <Stop offset="100%" stopColor={bezelBottom} />
           </LinearGradient>
           <LinearGradient id="arcGlow" x1="0" y1="0" x2="1" y2="1">
             <Stop offset="0%" stopColor={COLORS.accent} stopOpacity="0.9" />
@@ -164,26 +178,26 @@ const Speedometer = ({
         </Defs>
 
         {/* Outer bezel — 3D bevel with shine */}
-        <Circle cx={CX} cy={CY} r={R + 12} fill={t.dialOuter} />
+        <Circle cx={CX} cy={CY} r={R + 12} fill={dialOuter} />
         <Circle cx={CX} cy={CY} r={R + 10} fill="url(#bezelGrad)" />
         <Path
           d={describeArc(200, 340, R + 10)}
           fill="none"
-          stroke={t.bezelShine}
+          stroke={bezelShine}
           strokeWidth="2"
           strokeLinecap="round"
         />
-        <Circle cx={CX} cy={CY} r={R + 6} fill={t.dialInnerRing} />
+        <Circle cx={CX} cy={CY} r={R + 6} fill={dialInnerRing} />
 
         {/* Dial face */}
-        <Circle cx={CX} cy={CY} r={R + 3} fill={t.dialRim} />
+        <Circle cx={CX} cy={CY} r={R + 3} fill={dialRim} />
         <Circle cx={CX} cy={CY} r={R} fill="url(#dialBg)" />
 
         {/* Track arc (inactive) */}
         <Path
           d={describeArc(MIN_DEG, MIN_DEG - SWEEP, R)}
           fill="none"
-          stroke={t.trackArc}
+          stroke={trackArc}
           strokeWidth="6"
           strokeLinecap="round"
         />
@@ -212,11 +226,11 @@ const Speedometer = ({
         {/* Needle hub */}
         <Circle cx={CX} cy={CY} r={14} fill="rgba(245,196,0,0.15)" />
         <Circle cx={CX} cy={CY} r={9} fill={needleColor} />
-        <Circle cx={CX} cy={CY} r={4.5} fill={t.hubInner} />
+        <Circle cx={CX} cy={CY} r={4.5} fill={hubInner} />
         <Circle cx={CX - 2} cy={CY - 2} r={2.5} fill="rgba(255,255,255,0.3)" />
 
         {/* Unit + label */}
-        <SvgText x={CX} y={CY + 28} fontSize="12" fontWeight="700" fill={t.unitLabel} textAnchor="middle" letterSpacing="1">
+        <SvgText x={CX} y={CY + 28} fontSize="12" fontWeight="700" fill={unitLabel} textAnchor="middle" letterSpacing="1">
           {unit}
         </SvgText>
         {label ? (

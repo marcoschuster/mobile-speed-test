@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Alert, Animated, Dimensions,
+  Alert, Animated, Platform,
 } from 'react-native';
 import Speedometer from '../components/Speedometer';
 import StatCard from '../components/StatCard';
+import FlashTitle from '../components/FlashTitle';
 import SpeedTestService from '../services/SpeedTestService';
 import { COLORS, RADIUS, SHADOWS, useTheme } from '../utils/theme';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const INTERVALS = [
   { key: '30m', label: '30 min', ms: 30 * 60 * 1000 },
@@ -18,49 +17,6 @@ const INTERVALS = [
   { key: '12h', label: '12 h', ms: 12 * 60 * 60 * 1000 },
   { key: '24h', label: '24 h', ms: 24 * 60 * 60 * 1000 },
 ];
-
-const NUM_LINES = 5;
-
-const SpeedLine = ({ index, isRunning }) => {
-  const translateX = useRef(new Animated.Value(-SCREEN_WIDTH * 0.5)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-  const randomOffset = useRef(Math.random() * 40).current;
-  const animDelay = useRef(index * 400 + Math.random() * 300).current;
-  const animDuration = useRef(1200 + Math.random() * 600).current;
-  const peakOpacity = useRef(0.15 + Math.random() * 0.15).current;
-
-  useEffect(() => {
-    if (isRunning) {
-      const loop = Animated.loop(
-        Animated.sequence([
-          Animated.delay(animDelay),
-          Animated.parallel([
-            Animated.timing(translateX, { toValue: SCREEN_WIDTH * 1.5, duration: animDuration, useNativeDriver: true }),
-            Animated.sequence([
-              Animated.timing(opacity, { toValue: peakOpacity, duration: animDuration * 0.3, useNativeDriver: true }),
-              Animated.timing(opacity, { toValue: 0, duration: animDuration * 0.7, useNativeDriver: true }),
-            ]),
-          ]),
-          Animated.timing(translateX, { toValue: -SCREEN_WIDTH * 0.5, duration: 0, useNativeDriver: true }),
-        ])
-      );
-      loop.start();
-      return () => { loop.stop(); translateX.setValue(-SCREEN_WIDTH * 0.5); opacity.setValue(0); };
-    } else {
-      translateX.setValue(-SCREEN_WIDTH * 0.5); opacity.setValue(0);
-    }
-  }, [isRunning]);
-
-  const topOffset = 60 + (index * (SCREEN_HEIGHT * 0.6)) / NUM_LINES + randomOffset;
-
-  return (
-    <Animated.View style={{
-      position: 'absolute', width: SCREEN_WIDTH * 0.7, height: 1.5,
-      backgroundColor: COLORS.accent, left: 0, top: topOffset, opacity,
-      transform: [{ translateX }, { rotate: '-25deg' }],
-    }} />
-  );
-};
 
 const AnimatedButton = ({ onPress, style, textStyle, children, disabled, glowing }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -105,7 +61,6 @@ const SpeedTestScreen = () => {
   const [liveDownload, setLiveDownload] = useState(0);
   const [liveUpload, setLiveUpload] = useState(0);
   const [livePing, setLivePing] = useState(0);
-  const [peaks, setPeaks] = useState({ download: 0, upload: 0, ping: 0 });
   const [backgroundMode, setBackgroundMode] = useState(false);
   const [backgroundInterval, setBackgroundInterval] = useState(null);
   const [showIntervalOptions, setShowIntervalOptions] = useState(false);
@@ -114,13 +69,10 @@ const SpeedTestScreen = () => {
   const contentFade = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    loadPeaks();
     contentFade.setValue(0);
     Animated.timing(contentFade, { toValue: 1, duration: 400, useNativeDriver: true }).start();
     return () => { if (backgroundTimerRef.current) clearInterval(backgroundTimerRef.current); };
   }, []);
-
-  const loadPeaks = async () => { await SpeedTestService.loadPeaks(); setPeaks(SpeedTestService.getPeaks()); };
 
   const runTest = async () => {
     setIsTestRunning(true); setCurrentType('Testing');
@@ -138,7 +90,6 @@ const SpeedTestScreen = () => {
         setDownloadSpeed(result.download); setUploadSpeed(result.upload); setPing(result.ping);
         setLivePing(result.ping); setLiveDownload(result.download); setLiveUpload(result.upload);
         setCurrentType('Complete');
-        await SpeedTestService.loadPeaks(); setPeaks(SpeedTestService.getPeaks());
         setTimeout(() => { setIsTestRunning(false); setCurrentType('Ready'); setProgressText(''); setLiveDownload(0); setLiveUpload(0); setLivePing(0); }, 4000);
       },
       (error) => { Alert.alert('Test Failed', error); setIsTestRunning(false); setCurrentType('Error'); setProgressText(''); setLiveDownload(0); setLiveUpload(0); setLivePing(0); },
@@ -172,7 +123,7 @@ const SpeedTestScreen = () => {
       case 'Upload':   return t.uploadLine;
       case 'Ping':     return COLORS.success;
       case 'Complete': return COLORS.accent;
-      default:         return t.tickMinor;
+      default:         return t.gaugeLabelMinor;
     }
   };
 
@@ -200,9 +151,9 @@ const SpeedTestScreen = () => {
         </View>
         {progressText ? <Text style={[styles.progressText, { color: t.textMuted }]}>{progressText}</Text> : null}
         <View style={styles.statsGrid}>
-          <StatCard label="Download" value={downloadSpeed} peak={peaks.download} activePhase={currentType} />
-          <StatCard label="Upload" value={uploadSpeed} peak={peaks.upload} activePhase={currentType} />
-          <StatCard label="Ping" value={ping} peak={peaks.ping === 0 ? 'N/A' : peaks.ping} unit="ms" activePhase={currentType} />
+          <StatCard label="Download" value={downloadSpeed} activePhase={currentType} />
+          <StatCard label="Upload" value={uploadSpeed} activePhase={currentType} />
+          <StatCard label="Ping" value={ping} unit="ms" activePhase={currentType} />
         </View>
         <View style={styles.controls}>
           {!isTestRunning ? (
@@ -214,8 +165,10 @@ const SpeedTestScreen = () => {
             {backgroundMode ? 'Background: ON (' + getIntervalLabel() + ')' : 'Background Testing'}
           </AnimatedButton>
           {showIntervalOptions && !backgroundMode && (
-            <View style={[styles.intervalBox, { backgroundColor: t.glass, borderColor: t.glassBorder, borderTopColor: t.glassBorderTop }]}>
-              <Text style={styles.intervalTitle}>SELECT INTERVAL</Text>
+            <View style={[styles.intervalBox, { backgroundColor: t.glass }]}>
+              <View style={styles.intervalTitleWrap}>
+                <FlashTitle text="SELECT INTERVAL" size="small" interval={5000} center />
+              </View>
               <View style={styles.intervalGrid}>
                 {INTERVALS.map((iv) => (
                   <TouchableOpacity key={iv.key} style={styles.intervalBtn} onPress={() => selectInterval(iv)} activeOpacity={0.7}>
@@ -235,33 +188,29 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 20, alignItems: 'center', paddingBottom: 40, zIndex: 2 },
   speedoWrap: { marginTop: 0, marginBottom: 4, alignItems: 'center' },
-  progressText: { fontSize: 12, fontStyle: 'italic', marginBottom: 8, letterSpacing: 0.5 },
+  progressText: { fontSize: 12, fontStyle: 'italic', marginBottom: 8, letterSpacing: 0.5, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
   statsGrid: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginVertical: 16 },
   controls: { alignItems: 'center', marginVertical: 8, width: '100%' },
   startButton: {
     backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 52,
-    borderRadius: RADIUS.pill, marginBottom: 14,
-    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.3)',
-    borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.15)', ...SHADOWS.button,
+    borderRadius: RADIUS.pill, marginBottom: 14, ...SHADOWS.button,
   },
-  startButtonText: { color: COLORS.black, fontSize: 16, fontWeight: '800', letterSpacing: 1 },
+  startButtonText: { color: COLORS.black, fontSize: 16, fontWeight: '800', letterSpacing: 1, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
   runningButton: {
     backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 52,
     borderRadius: RADIUS.pill, marginBottom: 14,
-    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.35)',
-    borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.15)',
     shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 8,
   },
-  runningButtonText: { color: COLORS.black, fontSize: 16, fontWeight: '800', letterSpacing: 1 },
+  runningButtonText: { color: COLORS.black, fontSize: 16, fontWeight: '800', letterSpacing: 1, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
   bgButton: { paddingVertical: 11, paddingHorizontal: 28, borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: 'transparent' },
   bgButtonActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
   bgButtonText: { color: COLORS.accent, fontSize: 13, fontWeight: '700', letterSpacing: 0.5 },
   bgButtonTextActive: { color: COLORS.black },
-  intervalBox: { marginTop: 16, width: '100%', borderRadius: RADIUS.lg, padding: 18, borderWidth: 1 },
-  intervalTitle: { fontSize: 11, fontWeight: '800', color: COLORS.accent, textAlign: 'center', marginBottom: 14, letterSpacing: 2 },
+  intervalBox: { marginTop: 16, width: '100%', borderRadius: RADIUS.lg, padding: 18, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 8, elevation: 4 },
+  intervalTitleWrap: { alignItems: 'center', marginBottom: 14 },
   intervalGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
   intervalBtn: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: RADIUS.pill, borderWidth: 1, borderColor: COLORS.accent, backgroundColor: 'transparent', minWidth: 72, alignItems: 'center' },
-  intervalBtnText: { color: COLORS.accent, fontSize: 13, fontWeight: '700' },
+  intervalBtnText: { color: COLORS.accent, fontSize: 13, fontWeight: '700', fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
 });
 
 export default SpeedTestScreen;

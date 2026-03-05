@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import { View, Text, StyleSheet, Animated, Dimensions, Platform } from 'react-native';
+import Svg, { Path, Circle as SvgCircle } from 'react-native-svg';
 import { COLORS, RADIUS, useTheme } from '../utils/theme';
 
 const CARD_WIDTH = (Dimensions.get('window').width - 56) / 3;
@@ -21,6 +21,45 @@ const PingIcon = ({ size = 14, color = COLORS.success }) => (
   </Svg>
 );
 
+// ── Spinning yellow loader ──────────────────────────────────────────────────
+const SpinningLoader = ({ size = 22, color = COLORS.accent }) => {
+  const spinAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(spinAnim, {
+        toValue: 1,
+        duration: 900,
+        useNativeDriver: true,
+      }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+
+  const rotate = spinAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  return (
+    <Animated.View style={{ transform: [{ rotate }], width: size, height: size }}>
+      <Svg width={size} height={size} viewBox="0 0 24 24">
+        {/* Track ring */}
+        <SvgCircle cx="12" cy="12" r="10" fill="none" stroke={color} strokeWidth="2.5" opacity={0.2} />
+        {/* Active arc — 270° gap spinner */}
+        <Path
+          d="M12 2 A10 10 0 1 1 2 12"
+          fill="none"
+          stroke={color}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        />
+      </Svg>
+    </Animated.View>
+  );
+};
+
 // ── Mini speed line inside a card ───────────────────────────────────────────
 const CardSpeedLine = ({ index, color }) => {
   const translateX = useRef(new Animated.Value(-CARD_WIDTH)).current;
@@ -33,7 +72,7 @@ const CardSpeedLine = ({ index, color }) => {
     const loop = Animated.loop(Animated.sequence([
       Animated.delay(delay),
       Animated.parallel([
-        Animated.timing(translateX, { toValue: CARD_WIDTH * 2, duration: duration, useNativeDriver: true }),
+        Animated.timing(translateX, { toValue: CARD_WIDTH * 2, duration, useNativeDriver: true }),
         Animated.sequence([
           Animated.timing(opacity, { toValue: peak, duration: duration * 0.3, useNativeDriver: true }),
           Animated.timing(opacity, { toValue: 0, duration: duration * 0.7, useNativeDriver: true }),
@@ -56,40 +95,18 @@ const CardSpeedLine = ({ index, color }) => {
   );
 };
 
-const StatCard = ({ label, value, peak, unit = 'Mbps', activePhase }) => {
+const FONT_FAMILY = Platform.OS === 'ios' ? 'System' : 'sans-serif';
+
+const StatCard = ({ label, value, unit = 'Mbps', activePhase }) => {
   const { t } = useTheme();
   const animatedValue = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
+  const isDark = t.mode === 'dark';
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
   }, []);
-
-  useEffect(() => {
-    if (value > 0) {
-      Animated.sequence([
-        Animated.timing(animatedValue, { toValue: 1.08, duration: 150, useNativeDriver: true }),
-        Animated.spring(animatedValue, { toValue: 1, tension: 200, friction: 10, useNativeDriver: true }),
-      ]).start();
-    }
-  }, [value]);
-
-  const getIcon = () => {
-    switch (label) {
-      case 'Download': return <DownloadIcon />;
-      case 'Upload': return <UploadIcon />;
-      case 'Ping': return <PingIcon />;
-      default: return null;
-    }
-  };
-
-  const accentColor = label === 'Ping' ? COLORS.success : COLORS.accent;
-  const isDark = t.mode === 'dark';
-
-  // Subtle gradient tint: the accent color at very low opacity
-  const gradientBg = label === 'Ping'
-    ? (isDark ? 'rgba(0, 196, 140, 0.06)' : 'rgba(0, 196, 140, 0.04)')
-    : (isDark ? 'rgba(245, 196, 0, 0.06)' : 'rgba(245, 196, 0, 0.03)');
 
   // Is this card's stat currently being tested?
   const isActive = (
@@ -98,22 +115,74 @@ const StatCard = ({ label, value, peak, unit = 'Mbps', activePhase }) => {
     (label === 'Ping' && activePhase === 'Ping')
   );
 
+  useEffect(() => {
+    if (value > 0 && !isActive) {
+      Animated.sequence([
+        Animated.timing(animatedValue, { toValue: 1.08, duration: 150, useNativeDriver: true }),
+        Animated.spring(animatedValue, { toValue: 1, tension: 200, friction: 10, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [value, isActive]);
+
+  // Pulsing yellow glow when active
+  useEffect(() => {
+    if (isActive) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowAnim, { toValue: 1, duration: 1000, useNativeDriver: false }),
+          Animated.timing(glowAnim, { toValue: 0, duration: 1000, useNativeDriver: false }),
+        ]),
+      );
+      pulse.start();
+      return () => pulse.stop();
+    } else {
+      glowAnim.setValue(0);
+    }
+  }, [isActive]);
+
+  const getIcon = () => {
+    switch (label) {
+      case 'Download': return <DownloadIcon />;
+      case 'Upload':   return <UploadIcon />;
+      case 'Ping':     return <PingIcon />;
+      default:         return null;
+    }
+  };
+
+  const accentColor = label === 'Ping' ? COLORS.success : COLORS.accent;
+
+  const uniformTint = isDark
+    ? 'rgba(245, 196, 0, 0.04)'
+    : 'rgba(245, 196, 0, 0.02)';
+
+  // Animated shadow for the pulsing glow
+  const glowShadowOpacity = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.1, 0.5],
+  });
+  const glowShadowRadius = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [4, 18],
+  });
+
   return (
     <Animated.View
       style={[
         styles.card,
         {
           backgroundColor: t.surface,
-          shadowColor: isDark ? '#000' : '#999',
+          shadowColor: isActive ? COLORS.accent : (isDark ? '#000' : '#888'),
+          shadowOpacity: isActive ? glowShadowOpacity : 0.18,
+          shadowRadius: isActive ? glowShadowRadius : 10,
           opacity: fadeAnim,
           transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
         },
       ]}
     >
-      {/* Gradient tint overlay */}
-      <View style={[styles.gradientTint, { backgroundColor: gradientBg }]} />
+      {/* Uniform gradient tint overlay */}
+      <View style={[styles.gradientTint, { backgroundColor: uniformTint }]} />
 
-      {/* Speed lines — only when this stat is actively being tested */}
+      {/* Speed lines — only when actively being tested */}
       {isActive && (
         <View style={styles.speedLinesClip}>
           {[0, 1, 2].map(i => <CardSpeedLine key={i} index={i} color={accentColor} />)}
@@ -123,15 +192,21 @@ const StatCard = ({ label, value, peak, unit = 'Mbps', activePhase }) => {
       <View style={styles.cardContent}>
         <View style={styles.labelRow}>
           {getIcon()}
-          <Text style={[styles.label, { color: t.textSecondary }]}>{label}</Text>
+          <Text style={[styles.label, { color: t.textSecondary, fontFamily: FONT_FAMILY }]}>{label}</Text>
         </View>
-        <Animated.Text style={[styles.value, { color: t.textPrimary, transform: [{ scale: animatedValue }] }]}>
-          {typeof value === 'number' ? value.toFixed(2) : value}
-          <Text style={[styles.valueUnit, { color: t.textSecondary }]}> {unit}</Text>
-        </Animated.Text>
-        <Text style={[styles.peak, { color: t.textMuted }]}>
-          {label === 'Ping' ? 'Best' : 'Peak'}: {typeof peak === 'number' ? peak.toFixed(2) : peak} {unit}
-        </Text>
+
+        {isActive ? (
+          /* Loading state — spinning icon instead of value */
+          <View style={styles.loaderWrap}>
+            <SpinningLoader size={24} color={accentColor} />
+          </View>
+        ) : (
+          /* Result state — show the value */
+          <Animated.Text style={[styles.value, { color: t.textPrimary, fontFamily: FONT_FAMILY, transform: [{ scale: animatedValue }] }]}>
+            {typeof value === 'number' ? value.toFixed(2) : value}
+            <Text style={[styles.valueUnit, { color: t.textSecondary }]}> {unit}</Text>
+          </Animated.Text>
+        )}
       </View>
     </Animated.View>
   );
@@ -143,11 +218,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
     borderRadius: RADIUS.lg,
     overflow: 'hidden',
-    // Mild box shadow
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
   },
   gradientTint: {
     ...StyleSheet.absoluteFillObject,
@@ -163,10 +235,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   labelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 4 },
-  label: { fontSize: 10, textTransform: 'uppercase', fontWeight: '700', letterSpacing: 1 },
-  value: { fontSize: 18, fontWeight: '900', letterSpacing: -0.5, marginBottom: 4 },
+  label: { fontSize: 10, textTransform: 'uppercase', fontWeight: '700', letterSpacing: 1.2 },
+  value: { fontSize: 18, fontWeight: '900', letterSpacing: -0.5 },
   valueUnit: { fontSize: 11, fontWeight: '600' },
-  peak: { fontSize: 9, fontWeight: '500' },
+  loaderWrap: { height: 28, justifyContent: 'center', alignItems: 'center' },
 });
 
 export default StatCard;

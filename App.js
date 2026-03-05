@@ -2,12 +2,13 @@ import React, { useRef, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, Animated, StyleSheet } from 'react-native';
+import { View, Text, Animated, StyleSheet, Platform } from 'react-native';
 import Svg, { Path, Polygon } from 'react-native-svg';
 import SpeedTestScreen from './src/screens/SpeedTestScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import GraphScreen from './src/screens/GraphScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import FlashTitle from './src/components/FlashTitle';
 import { COLORS, ThemeProvider, useTheme } from './src/utils/theme';
 
 const Tab = createBottomTabNavigator();
@@ -104,7 +105,9 @@ const CustomHeader = ({ title }) => (
       <LightningLogo size={18} />
       <Text style={tabStyles.headerBrand}>ZOLT</Text>
     </View>
-    <Text style={tabStyles.headerTitle}>{title}</Text>
+    <View style={tabStyles.headerCenter}>
+      <FlashTitle text={title.toUpperCase()} size="large" interval={5000} center glow />
+    </View>
     <View style={tabStyles.headerRight} />
   </View>
 );
@@ -135,6 +138,7 @@ function AppInner() {
             fontWeight: '600',
             letterSpacing: 0.3,
             marginTop: 2,
+            fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
           },
           headerStyle: {
             backgroundColor: COLORS.headerBg,
@@ -148,6 +152,7 @@ function AppInner() {
             fontWeight: '700',
             fontSize: 17,
             letterSpacing: 0.5,
+            fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
           },
         }}
       >
@@ -222,7 +227,7 @@ const tabStyles = StyleSheet.create({
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    minWidth: 80,
   },
   headerBrand: {
     color: COLORS.white,
@@ -230,17 +235,15 @@ const tabStyles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 3,
     marginLeft: 8,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
-  headerTitle: {
-    color: '#F0F0F0',
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    textAlign: 'center',
+  headerCenter: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerRight: {
-    flex: 1,
+    minWidth: 80,
   },
   activeIndicator: {
     position: 'absolute',

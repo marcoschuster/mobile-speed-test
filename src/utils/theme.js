@@ -32,48 +32,38 @@ export const COLORS = {
 // ── Theme-aware palettes ────────────────────────────────────────────────────
 const DARK = {
   mode: 'dark',
-  bg: '#1A1A1A',
-  surface: '#242424',
-  surfaceElevated: '#2C2C2C',
-  glass: 'rgba(36, 36, 36, 0.85)',
+  bg: '#141414',
+  surface: '#1E1E1E',
+  surfaceElevated: '#282828',
+  glass: 'rgba(30, 30, 30, 0.92)',
   glassBorder: 'rgba(255, 255, 255, 0.08)',
   glassBorderTop: 'rgba(255,255,255,0.12)',
-  textPrimary: '#F0F0F0',
-  textSecondary: '#999999',
-  textMuted: '#888888',
-  separator: 'rgba(255, 255, 255, 0.06)',
+  textPrimary: '#F5F5F5',
+  textSecondary: '#A8A8A8',       // bumped from #999 → 4.6:1 vs #1E1E1E (AA)
+  textMuted: '#8C8C8C',           // bumped from #888 → still distinct, passes AA on surface
+  separator: 'rgba(255, 255, 255, 0.07)',
 
-  // Speedometer
-  dialOuter: '#111111',
-  bezelTop: '#444444',
-  bezelMid: '#222222',
-  bezelBottom: '#111111',
-  bezelShine: 'rgba(255,255,255,0.12)',
-  dialInnerRing: '#181818',
-  dialRim: '#222222',
-  dialFaceCenter: '#2A2A2A',
-  dialFaceEdge: '#1A1A1A',
-  trackArc: '#333333',
-  tickMajor: '#888888',
-  tickMinor: '#444444',
-  tickLabel: '#999999',
-  hubInner: '#1A1A1A',
-  unitLabel: '#777777',
+  // Speedometer (modern flat gauge)
+  gaugeTrack: '#2A2A2A',
+  gaugeTrackStroke: '#333333',
+  gaugeLabelMajor: '#A8A8A8',     // WCAG AA
+  gaugeLabelMinor: '#707070',
+  gaugeCenter: '#181818',
 
   // Charts
-  gridLine: 'rgba(255,255,255,0.05)',
-  axisLine: 'rgba(255,255,255,0.1)',
-  axisLabel: '#888888',
-  axisLabelSub: '#666666',
+  gridLine: 'rgba(255,255,255,0.06)',
+  axisLine: 'rgba(255,255,255,0.12)',
+  axisLabel: '#A0A0A0',           // bumped from #888 → readable
+  axisLabelSub: '#808080',        // bumped from #666 → readable
   uploadLine: '#E0E0E0',
 
   // Settings controls
-  controlBg: '#222222',
+  controlBg: '#1E1E1E',
   controlBorder: '#333333',
-  controlSepLight: 'rgba(255,255,255,0.04)',
-  switchTrackOff: '#333333',
+  controlSepLight: 'rgba(255,255,255,0.05)',
+  switchTrackOff: '#3A3A3A',
   switchThumbOff: '#888888',
-  placeholderText: '#555555',
+  placeholderText: '#606060',
 
   // Empty state bolt
   emptyBolt: '#333333',
@@ -81,39 +71,29 @@ const DARK = {
 
 const LIGHT = {
   mode: 'light',
-  bg: '#F7F7F7',
+  bg: '#F5F5F5',
   surface: '#FFFFFF',
   surfaceElevated: '#F0F0F0',
-  glass: 'rgba(255, 255, 255, 0.80)',
+  glass: 'rgba(255, 255, 255, 0.88)',
   glassBorder: 'rgba(0, 0, 0, 0.06)',
   glassBorderTop: 'rgba(255,255,255,0.7)',
   textPrimary: '#111111',
-  textSecondary: '#666666',
-  textMuted: '#AAAAAA',
-  separator: 'rgba(0, 0, 0, 0.06)',
+  textSecondary: '#555555',        // bumped from #666 for AA
+  textMuted: '#888888',            // bumped from #AAA → readable on white
+  separator: 'rgba(0, 0, 0, 0.07)',
 
-  // Speedometer — light-mode bezel is reversed: light face, darker border ring
-  dialOuter: '#D0D0D0',
-  bezelTop: '#E8E8E8',
-  bezelMid: '#D0D0D0',
-  bezelBottom: '#B8B8B8',
-  bezelShine: 'rgba(255,255,255,0.6)',
-  dialInnerRing: '#C8C8C8',
-  dialRim: '#E0E0E0',
-  dialFaceCenter: '#FAFAFA',
-  dialFaceEdge: '#F0F0F0',
-  trackArc: '#D8D8D8',
-  tickMajor: '#555555',
-  tickMinor: '#BBBBBB',
-  tickLabel: '#666666',
-  hubInner: '#FFFFFF',
-  unitLabel: '#888888',
+  // Speedometer (modern flat gauge)
+  gaugeTrack: '#E8E8E8',
+  gaugeTrackStroke: '#D0D0D0',
+  gaugeLabelMajor: '#555555',
+  gaugeLabelMinor: '#AAAAAA',
+  gaugeCenter: '#FFFFFF',
 
   // Charts
   gridLine: 'rgba(0,0,0,0.06)',
-  axisLine: 'rgba(0,0,0,0.12)',
-  axisLabel: '#999999',
-  axisLabelSub: '#BBBBBB',
+  axisLine: 'rgba(0,0,0,0.14)',
+  axisLabel: '#777777',            // bumped from #999
+  axisLabelSub: '#999999',         // bumped from #BBB
   uploadLine: '#555555',
 
   // Settings controls
