@@ -70,7 +70,7 @@ const SpeedTestScreen = () => {
 
   useEffect(() => {
     contentFade.setValue(0);
-    Animated.timing(contentFade, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+    Animated.timing(contentFade, { toValue: 1, duration: 400, useNativeDriver: false }).start();
     return () => { if (backgroundTimerRef.current) clearInterval(backgroundTimerRef.current); };
   }, []);
 
@@ -157,9 +157,9 @@ const SpeedTestScreen = () => {
         </View>
         <View style={styles.controls}>
           {!isTestRunning ? (
-            <AnimatedButton onPress={startTest} style={styles.startButton} textStyle={styles.startButtonText}>Start Test</AnimatedButton>
+            <AnimatedButton onPress={startTest} style={styles.startButton} textStyle={[styles.startButtonText, { color: t.buttonText }]}>Start Test</AnimatedButton>
           ) : (
-            <AnimatedButton onPress={stopTest} style={styles.runningButton} textStyle={styles.runningButtonText} glowing>Stop Test</AnimatedButton>
+            <AnimatedButton onPress={stopTest} style={styles.runningButton} textStyle={[styles.runningButtonText, { color: t.buttonText }]} glowing>Stop Test</AnimatedButton>
           )}
           <AnimatedButton onPress={toggleBackgroundMode} style={[styles.bgButton, backgroundMode && styles.bgButtonActive]} textStyle={[styles.bgButtonText, backgroundMode && styles.bgButtonTextActive]}>
             {backgroundMode ? 'Background: ON (' + getIntervalLabel() + ')' : 'Background Testing'}
@@ -195,13 +195,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 52,
     borderRadius: RADIUS.pill, marginBottom: 14, ...SHADOWS.button,
   },
-  startButtonText: { color: COLORS.black, fontSize: 16, fontWeight: '800', letterSpacing: 1, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
+  startButtonText: { fontSize: 16, fontWeight: '800', letterSpacing: 1, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
   runningButton: {
     backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 52,
     borderRadius: RADIUS.pill, marginBottom: 14,
     shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 8,
   },
-  runningButtonText: { color: COLORS.black, fontSize: 16, fontWeight: '800', letterSpacing: 1, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
+  runningButtonText: { fontSize: 16, fontWeight: '800', letterSpacing: 1, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
   bgButton: { paddingVertical: 11, paddingHorizontal: 28, borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: 'transparent' },
   bgButtonActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
   bgButtonText: { color: COLORS.accent, fontSize: 13, fontWeight: '700', letterSpacing: 0.5 },

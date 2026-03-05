@@ -41,7 +41,7 @@ const SegmentedControl = ({ options, selected, onSelect }) => {
         toValue: selectedIndex * segmentWidth,
         tension: 300,
         friction: 25,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }).start();
     }
   }, [selectedIndex, segmentWidth]);
@@ -192,7 +192,7 @@ const SettingsScreen = () => {
   const contentFade = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(contentFade, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+    Animated.timing(contentFade, { toValue: 1, duration: 300, useNativeDriver: false }).start();
   }, []);
 
   const handleClearHistory = () => {

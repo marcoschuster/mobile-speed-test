@@ -437,7 +437,7 @@ const GraphScreen = () => {
 
   useEffect(() => {
     loadSpeedHistory();
-    Animated.timing(contentFade, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+    Animated.timing(contentFade, { toValue: 1, duration: 300, useNativeDriver: false }).start();
   }, []);
 
   const loadSpeedHistory = async () => {

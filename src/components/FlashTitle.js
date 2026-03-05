@@ -55,24 +55,24 @@ const FlashTitle = ({
           Animated.timing(flashPos, {
             toValue: endX,
             duration,
-            useNativeDriver: true,
+            useNativeDriver: false,
           }),
           // Quick fade-in then hold, fade out near the end
           Animated.sequence([
             Animated.timing(flashOpacity, {
               toValue: 1,
               duration: duration * 0.12,
-              useNativeDriver: true,
+              useNativeDriver: false,
             }),
             Animated.timing(flashOpacity, {
               toValue: 1,
               duration: duration * 0.65,
-              useNativeDriver: true,
+              useNativeDriver: false,
             }),
             Animated.timing(flashOpacity, {
               toValue: 0,
               duration: duration * 0.23,
-              useNativeDriver: true,
+              useNativeDriver: false,
             }),
           ]),
         ]),
@@ -99,10 +99,11 @@ const FlashTitle = ({
   };
   const s = sizeMap[size] || sizeMap.medium;
 
-  // 3D text colours
-  const shadowColor = isDark ? '#000000' : '#888888';
-  const highlightColor = isDark ? '#555555' : '#FFFFFF';
-  const flashColor = isDark ? '#FFFFFF' : '#FFFBE6';
+  // 3D text colours — from theme tokens
+  const shadowColor = t.flashShadow;
+  const highlightColor = t.flashHighlight;
+  const highlightOpacity = t.flashHighlightOpacity;
+  const flashColor = t.flashColor;
 
   const textStyle = {
     fontFamily: FONT_FAMILY,
@@ -132,7 +133,7 @@ const FlashTitle = ({
       <Text
         style={[textStyle, styles.absLayer, {
           color: highlightColor,
-          opacity: isDark ? 0.12 : 0.45,
+          opacity: highlightOpacity,
           left: -0.5,
           top: -0.5,
         }]}
@@ -146,9 +147,9 @@ const FlashTitle = ({
         <Text
           style={[textStyle, styles.absLayer, {
             color: 'transparent',
-            textShadowColor: isDark ? 'rgba(245,196,0,0.35)' : 'rgba(245,196,0,0.25)',
+            textShadowColor: isDark ? 'rgba(245,196,0,0.5)' : 'rgba(245,196,0,0.7)',
             textShadowOffset: { width: 0, height: 0 },
-            textShadowRadius: 12,
+            textShadowRadius: 14,
             left: 0,
             top: 0,
           }]}
@@ -162,7 +163,7 @@ const FlashTitle = ({
       <Text
         style={[textStyle, {
           color: COLORS.accent,
-          textShadowColor: isDark ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.2)',
+          textShadowColor: isDark ? 'rgba(0,0,0,0.7)' : 'rgba(180,180,180,0.5)',
           textShadowOffset: { width: 0.6, height: 1.2 },
           textShadowRadius: 1.5,
         }]}

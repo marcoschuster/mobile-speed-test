@@ -15,12 +15,6 @@ export const COLORS = {
   accentGlow: 'rgba(245, 196, 0, 0.35)',
   accentSubtle: 'rgba(245, 196, 0, 0.08)',
 
-  navBar: '#111111',
-  navActive: '#F5C400',
-  navInactive: '#666666',
-  headerBg: '#111111',
-  headerText: '#FFFFFF',
-
   danger: '#FF4444',
   success: '#00C48C',
   warning: '#F5C400',
@@ -42,6 +36,22 @@ const DARK = {
   textSecondary: '#A8A8A8',       // bumped from #999 → 4.6:1 vs #1E1E1E (AA)
   textMuted: '#8C8C8C',           // bumped from #888 → still distinct, passes AA on surface
   separator: 'rgba(255, 255, 255, 0.07)',
+
+  // Header & Nav
+  headerBg: '#111111',
+  headerText: '#FFFFFF',
+  navBar: '#111111',
+  navActive: '#F5C400',
+  navInactive: '#666666',
+
+  // Buttons
+  buttonText: '#000000',
+
+  // FlashTitle 3D text
+  flashShadow: '#000000',
+  flashHighlight: '#555555',
+  flashHighlightOpacity: 0.12,
+  flashColor: '#FFFFFF',
 
   // Speedometer (modern flat gauge)
   gaugeTrack: '#2A2A2A',
@@ -71,7 +81,7 @@ const DARK = {
 
 const LIGHT = {
   mode: 'light',
-  bg: '#F5F5F5',
+  bg: '#FAFAFA',
   surface: '#FFFFFF',
   surfaceElevated: '#F0F0F0',
   glass: 'rgba(255, 255, 255, 0.88)',
@@ -81,6 +91,22 @@ const LIGHT = {
   textSecondary: '#555555',        // bumped from #666 for AA
   textMuted: '#888888',            // bumped from #AAA → readable on white
   separator: 'rgba(0, 0, 0, 0.07)',
+
+  // Header & Nav
+  headerBg: '#FFFFFF',
+  headerText: '#111111',
+  navBar: '#FFFFFF',
+  navActive: '#F5C400',
+  navInactive: '#AAAAAA',
+
+  // Buttons
+  buttonText: '#FFFFFF',
+
+  // FlashTitle 3D text — light grey sides instead of dark
+  flashShadow: '#C8C8C8',
+  flashHighlight: '#FFFFFF',
+  flashHighlightOpacity: 0.6,
+  flashColor: '#FFFBE6',
 
   // Speedometer (modern flat gauge)
   gaugeTrack: '#E8E8E8',

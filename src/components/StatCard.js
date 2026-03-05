@@ -30,7 +30,7 @@ const SpinningLoader = ({ size = 22, color = COLORS.accent }) => {
       Animated.timing(spinAnim, {
         toValue: 1,
         duration: 900,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
     );
     loop.start();
@@ -72,13 +72,13 @@ const CardSpeedLine = ({ index, color }) => {
     const loop = Animated.loop(Animated.sequence([
       Animated.delay(delay),
       Animated.parallel([
-        Animated.timing(translateX, { toValue: CARD_WIDTH * 2, duration, useNativeDriver: true }),
+        Animated.timing(translateX, { toValue: CARD_WIDTH * 2, duration, useNativeDriver: false }),
         Animated.sequence([
-          Animated.timing(opacity, { toValue: peak, duration: duration * 0.3, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 0, duration: duration * 0.7, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: peak, duration: duration * 0.3, useNativeDriver: false }),
+          Animated.timing(opacity, { toValue: 0, duration: duration * 0.7, useNativeDriver: false }),
         ]),
       ]),
-      Animated.timing(translateX, { toValue: -CARD_WIDTH, duration: 0, useNativeDriver: true }),
+      Animated.timing(translateX, { toValue: -CARD_WIDTH, duration: 0, useNativeDriver: false }),
     ]));
     loop.start();
     return () => loop.stop();
@@ -105,7 +105,7 @@ const StatCard = ({ label, value, unit = 'Mbps', activePhase }) => {
   const isDark = t.mode === 'dark';
 
   useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+    Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: false }).start();
   }, []);
 
   // Is this card's stat currently being tested?
@@ -118,8 +118,8 @@ const StatCard = ({ label, value, unit = 'Mbps', activePhase }) => {
   useEffect(() => {
     if (value > 0 && !isActive) {
       Animated.sequence([
-        Animated.timing(animatedValue, { toValue: 1.08, duration: 150, useNativeDriver: true }),
-        Animated.spring(animatedValue, { toValue: 1, tension: 200, friction: 10, useNativeDriver: true }),
+        Animated.timing(animatedValue, { toValue: 1.08, duration: 150, useNativeDriver: false }),
+        Animated.spring(animatedValue, { toValue: 1, tension: 200, friction: 10, useNativeDriver: false }),
       ]).start();
     }
   }, [value, isActive]);
@@ -171,43 +171,44 @@ const StatCard = ({ label, value, unit = 'Mbps', activePhase }) => {
         styles.card,
         {
           backgroundColor: t.surface,
+          marginHorizontal: 4,
+          opacity: fadeAnim,
+          transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
           shadowColor: isActive ? COLORS.accent : (isDark ? '#000' : '#888'),
           shadowOpacity: isActive ? glowShadowOpacity : 0.18,
           shadowRadius: isActive ? glowShadowRadius : 10,
-          opacity: fadeAnim,
-          transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
         },
       ]}
     >
-      {/* Uniform gradient tint overlay */}
-      <View style={[styles.gradientTint, { backgroundColor: uniformTint }]} />
+        {/* Uniform gradient tint overlay */}
+        <View style={[styles.gradientTint, { backgroundColor: uniformTint }]} />
 
-      {/* Speed lines — only when actively being tested */}
-      {isActive && (
-        <View style={styles.speedLinesClip}>
-          {[0, 1, 2].map(i => <CardSpeedLine key={i} index={i} color={accentColor} />)}
-        </View>
-      )}
-
-      <View style={styles.cardContent}>
-        <View style={styles.labelRow}>
-          {getIcon()}
-          <Text style={[styles.label, { color: t.textSecondary, fontFamily: FONT_FAMILY }]}>{label}</Text>
-        </View>
-
-        {isActive ? (
-          /* Loading state — spinning icon instead of value */
-          <View style={styles.loaderWrap}>
-            <SpinningLoader size={24} color={accentColor} />
+        {/* Speed lines — only when actively being tested */}
+        {isActive && (
+          <View style={styles.speedLinesClip}>
+            {[0, 1, 2].map(i => <CardSpeedLine key={i} index={i} color={accentColor} />)}
           </View>
-        ) : (
-          /* Result state — show the value */
-          <Animated.Text style={[styles.value, { color: t.textPrimary, fontFamily: FONT_FAMILY, transform: [{ scale: animatedValue }] }]}>
-            {typeof value === 'number' ? value.toFixed(2) : value}
-            <Text style={[styles.valueUnit, { color: t.textSecondary }]}> {unit}</Text>
-          </Animated.Text>
         )}
-      </View>
+
+        <View style={styles.cardContent}>
+          <View style={styles.labelRow}>
+            {getIcon()}
+            <Text style={[styles.label, { color: t.textSecondary, fontFamily: FONT_FAMILY }]}>{label}</Text>
+          </View>
+
+          {isActive ? (
+            /* Loading state — spinning icon instead of value */
+            <View style={styles.loaderWrap}>
+              <SpinningLoader size={24} color={accentColor} />
+            </View>
+          ) : (
+            /* Result state — show the value */
+            <Animated.Text style={[styles.value, { color: t.textPrimary, fontFamily: FONT_FAMILY, transform: [{ scale: animatedValue }] }]}>
+              {typeof value === 'number' ? value.toFixed(2) : value}
+              <Text style={[styles.valueUnit, { color: t.textSecondary }]}> {unit}</Text>
+            </Animated.Text>
+          )}
+        </View>
     </Animated.View>
   );
 };
@@ -215,7 +216,6 @@ const StatCard = ({ label, value, unit = 'Mbps', activePhase }) => {
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    marginHorizontal: 4,
     borderRadius: RADIUS.lg,
     overflow: 'hidden',
     shadowOffset: { width: 0, height: 4 },

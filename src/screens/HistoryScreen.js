@@ -307,8 +307,8 @@ const HistoryCard = ({ item, index, formatDate }) => {
   useEffect(() => {
     const delay = Math.min(index * 80, 600);
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 350, delay, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 350, delay, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 350, delay, useNativeDriver: false }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 350, delay, useNativeDriver: false }),
     ]).start();
   }, []);
 
@@ -381,7 +381,7 @@ const HistoryScreen = () => {
 
   useEffect(() => {
     loadHistory();
-    Animated.timing(contentFade, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+    Animated.timing(contentFade, { toValue: 1, duration: 300, useNativeDriver: false }).start();
   }, []);
 
   const loadHistory = async () => {

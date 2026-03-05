@@ -34,13 +34,13 @@ const TabIcon = ({ focused, iconType, color }) => {
           toValue: 1.15,
           tension: 300,
           friction: 10,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.spring(scale, {
           toValue: 1.0,
           tension: 200,
           friction: 12,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
       ]).start();
     } else {
@@ -99,18 +99,21 @@ const TabIcon = ({ focused, iconType, color }) => {
 };
 
 // ── Custom Header ───────────────────────────────────────────────────────────
-const CustomHeader = ({ title }) => (
-  <View style={tabStyles.header}>
-    <View style={tabStyles.headerLeft}>
-      <LightningLogo size={18} />
-      <Text style={tabStyles.headerBrand}>ZOLT</Text>
+const CustomHeader = ({ title }) => {
+  const { t } = useTheme();
+  return (
+    <View style={[tabStyles.header, { backgroundColor: t.headerBg }]}>
+      <View style={tabStyles.headerLeft}>
+        <LightningLogo size={18} />
+        <Text style={[tabStyles.headerBrand, { color: t.headerText }]}>ZOLT</Text>
+      </View>
+      <View style={tabStyles.headerCenter}>
+        <FlashTitle text={title.toUpperCase()} size="large" interval={5000} center glow />
+      </View>
+      <View style={tabStyles.headerRight} />
     </View>
-    <View style={tabStyles.headerCenter}>
-      <FlashTitle text={title.toUpperCase()} size="large" interval={5000} center glow />
-    </View>
-    <View style={tabStyles.headerRight} />
-  </View>
-);
+  );
+};
 
 // ── Inner app that can read theme ───────────────────────────────────────────
 function AppInner() {
@@ -119,20 +122,24 @@ function AppInner() {
 
   return (
     <NavigationContainer>
-      <StatusBar style="light" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <Tab.Navigator
         screenOptions={{
           tabBarStyle: {
-            backgroundColor: COLORS.navBar,
-            borderTopWidth: 0,
+            backgroundColor: t.navBar,
+            borderTopWidth: isDark ? 0 : 1,
+            borderTopColor: isDark ? 'transparent' : 'rgba(0,0,0,0.06)',
             height: 64,
             paddingBottom: 8,
             paddingTop: 4,
-            elevation: 0,
-            shadowOpacity: 0,
+            elevation: isDark ? 0 : 2,
+            shadowOpacity: isDark ? 0 : 0.06,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -1 },
+            shadowRadius: 4,
           },
-          tabBarActiveTintColor: COLORS.navActive,
-          tabBarInactiveTintColor: COLORS.navInactive,
+          tabBarActiveTintColor: t.navActive,
+          tabBarInactiveTintColor: t.navInactive,
           tabBarLabelStyle: {
             fontSize: 10,
             fontWeight: '600',
@@ -141,13 +148,17 @@ function AppInner() {
             fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
           },
           headerStyle: {
-            backgroundColor: COLORS.headerBg,
-            elevation: 0,
-            shadowOpacity: 0,
-            borderBottomWidth: 0,
+            backgroundColor: t.headerBg,
+            elevation: isDark ? 0 : 2,
+            shadowOpacity: isDark ? 0 : 0.06,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 1 },
+            shadowRadius: 4,
+            borderBottomWidth: isDark ? 0 : 1,
+            borderBottomColor: isDark ? 'transparent' : 'rgba(0,0,0,0.06)',
             height: 96,
           },
-          headerTintColor: COLORS.headerText,
+          headerTintColor: t.headerText,
           headerTitleStyle: {
             fontWeight: '700',
             fontSize: 17,
@@ -215,7 +226,6 @@ export default function App() {
 
 const tabStyles = StyleSheet.create({
   header: {
-    backgroundColor: COLORS.headerBg,
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
@@ -230,7 +240,6 @@ const tabStyles = StyleSheet.create({
     minWidth: 80,
   },
   headerBrand: {
-    color: COLORS.white,
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 3,
