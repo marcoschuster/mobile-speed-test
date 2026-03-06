@@ -10,6 +10,7 @@ import GraphScreen from './src/screens/GraphScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import FlashTitle from './src/components/FlashTitle';
 import { COLORS, ThemeProvider, useTheme } from './src/utils/theme';
+import SoundEngine from './src/services/SoundEngine';
 
 const Tab = createBottomTabNavigator();
 
@@ -170,6 +171,7 @@ function AppInner() {
         <Tab.Screen
           name="Speed Test"
           component={SpeedTestScreen}
+          listeners={{ tabPress: () => SoundEngine.playNavTick() }}
           options={{
             tabBarLabel: 'Speed',
             header: () => <CustomHeader title="Speed Test" />,
@@ -181,6 +183,7 @@ function AppInner() {
         <Tab.Screen
           name="History"
           component={HistoryScreen}
+          listeners={{ tabPress: () => SoundEngine.playNavTick() }}
           options={{
             tabBarLabel: 'History',
             header: () => <CustomHeader title="History" />,
@@ -192,6 +195,7 @@ function AppInner() {
         <Tab.Screen
           name="Graphs"
           component={GraphScreen}
+          listeners={{ tabPress: () => SoundEngine.playNavTick() }}
           options={{
             tabBarLabel: 'Graphs',
             header: () => <CustomHeader title="Graphs" />,
@@ -203,6 +207,7 @@ function AppInner() {
         <Tab.Screen
           name="Settings"
           component={SettingsScreen}
+          listeners={{ tabPress: () => SoundEngine.playNavTick() }}
           options={{
             tabBarLabel: 'Settings',
             header: () => <CustomHeader title="Settings" />,

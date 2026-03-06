@@ -7,6 +7,7 @@ import Speedometer from '../components/Speedometer';
 import StatCard from '../components/StatCard';
 import FlashTitle from '../components/FlashTitle';
 import SpeedTestService from '../services/SpeedTestService';
+import SoundEngine from '../services/SoundEngine';
 import { COLORS, RADIUS, SHADOWS, useTheme } from '../utils/theme';
 
 const INTERVALS = [
@@ -66,18 +67,36 @@ const SpeedTestScreen = () => {
   const [showIntervalOptions, setShowIntervalOptions] = useState(false);
   const [progressText, setProgressText] = useState('');
   const backgroundTimerRef = useRef(null);
+  const liveSpeedRef = useRef(0);
+  const gaugeWhirRef = useRef(null);
   const contentFade = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     contentFade.setValue(0);
     Animated.timing(contentFade, { toValue: 1, duration: 400, useNativeDriver: false }).start();
-    return () => { if (backgroundTimerRef.current) clearInterval(backgroundTimerRef.current); };
+    return () => {
+      if (backgroundTimerRef.current) clearInterval(backgroundTimerRef.current);
+      if (gaugeWhirRef.current) clearInterval(gaugeWhirRef.current);
+    };
   }, []);
 
   const runTest = async () => {
     setIsTestRunning(true); setCurrentType('Testing');
     setDownloadSpeed(0); setUploadSpeed(0); setPing(0);
     setLiveDownload(0); setLiveUpload(0); setLivePing(0);
+
+    // Start gauge whir sound — periodic grain tied to live speed ref
+    liveSpeedRef.current = 0;
+    let lastWhirProgress = 0;
+    gaugeWhirRef.current = setInterval(() => {
+      const maxVal = 200;
+      const progress = Math.min(liveSpeedRef.current / maxVal, 1);
+      if (progress > 0.01 && Math.abs(progress - lastWhirProgress) > 0.02) {
+        SoundEngine.playGaugeWhir(progress);
+        lastWhirProgress = progress;
+      }
+    }, 350);
+
     await SpeedTestService.runSpeedTest(
       (progress, type) => {
         setProgressText(progress);
@@ -85,20 +104,39 @@ const SpeedTestScreen = () => {
         else if (type === 'download') setCurrentType('Download');
         else if (type === 'upload') setCurrentType('Upload');
       },
-      (speed, type) => { if (type === 'download') setLiveDownload(speed); else if (type === 'upload') setLiveUpload(speed); },
+      (speed, type) => {
+        liveSpeedRef.current = speed; // keep ref fresh for gauge whir
+        if (type === 'download') setLiveDownload(speed);
+        else if (type === 'upload') setLiveUpload(speed);
+      },
       async (result) => {
+        if (gaugeWhirRef.current) { clearInterval(gaugeWhirRef.current); gaugeWhirRef.current = null; }
         setDownloadSpeed(result.download); setUploadSpeed(result.upload); setPing(result.ping);
         setLivePing(result.ping); setLiveDownload(result.download); setLiveUpload(result.upload);
         setCurrentType('Complete');
+        SoundEngine.playTestComplete();
         setTimeout(() => { setIsTestRunning(false); setCurrentType('Ready'); setProgressText(''); setLiveDownload(0); setLiveUpload(0); setLivePing(0); }, 4000);
       },
-      (error) => { Alert.alert('Test Failed', error); setIsTestRunning(false); setCurrentType('Error'); setProgressText(''); setLiveDownload(0); setLiveUpload(0); setLivePing(0); },
-      (pingSample) => { setLivePing(pingSample); }
+      (error) => {
+        if (gaugeWhirRef.current) { clearInterval(gaugeWhirRef.current); gaugeWhirRef.current = null; }
+        Alert.alert('Test Failed', error); setIsTestRunning(false); setCurrentType('Error'); setProgressText(''); setLiveDownload(0); setLiveUpload(0); setLivePing(0);
+      },
+      (pingSample) => { setLivePing(pingSample); },
+      (type, value) => {
+        // Show result instantly when each phase completes + play sound
+        SoundEngine.playPhaseComplete();
+        if (type === 'ping') setPing(value);
+        else if (type === 'download') setDownloadSpeed(value);
+        else if (type === 'upload') setUploadSpeed(value);
+      }
     );
   };
 
-  const startTest = () => runTest();
-  const stopTest = () => { SpeedTestService.stopTest(); setIsTestRunning(false); setCurrentType('Ready'); setProgressText(''); setLiveDownload(0); setLiveUpload(0); setLivePing(0); };
+  const startTest = () => { SoundEngine.playStartTest(); runTest(); };
+  const stopTest = () => {
+    if (gaugeWhirRef.current) { clearInterval(gaugeWhirRef.current); gaugeWhirRef.current = null; }
+    SpeedTestService.stopTest(); setIsTestRunning(false); setCurrentType('Ready'); setProgressText(''); setLiveDownload(0); setLiveUpload(0); setLivePing(0);
+  };
 
   const toggleBackgroundMode = () => {
     if (backgroundMode) {
@@ -149,7 +187,7 @@ const SpeedTestScreen = () => {
         <View style={styles.speedoWrap}>
           <Speedometer speed={getSpeedValue()} maxValue={getMaxValue()} label={getSpeedLabel()} unit={getSpeedUnit()} needleColor={getNeedleColor()} isRunning={isTestRunning} />
         </View>
-        {progressText ? <Text style={[styles.progressText, { color: t.textMuted }]}>{progressText}</Text> : null}
+        {progressText ? <Text style={[styles.progressText, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>{progressText}</Text> : null}
         <View style={styles.statsGrid}>
           <StatCard label="Download" value={downloadSpeed} activePhase={currentType} />
           <StatCard label="Upload" value={uploadSpeed} activePhase={currentType} />
@@ -204,13 +242,29 @@ const styles = StyleSheet.create({
   runningButtonText: { fontSize: 16, fontWeight: '800', letterSpacing: 1, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
   bgButton: { paddingVertical: 11, paddingHorizontal: 28, borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: 'transparent' },
   bgButtonActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
-  bgButtonText: { color: COLORS.accent, fontSize: 13, fontWeight: '700', letterSpacing: 0.5 },
+  bgButtonText: { 
+    color: COLORS.accent, 
+    fontSize: 13, 
+    fontWeight: '700', 
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1.5,
+  },
   bgButtonTextActive: { color: COLORS.black },
   intervalBox: { marginTop: 16, width: '100%', borderRadius: RADIUS.lg, padding: 18, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 8, elevation: 4 },
   intervalTitleWrap: { alignItems: 'center', marginBottom: 14 },
   intervalGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
   intervalBtn: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: RADIUS.pill, borderWidth: 1, borderColor: COLORS.accent, backgroundColor: 'transparent', minWidth: 72, alignItems: 'center' },
-  intervalBtnText: { color: COLORS.accent, fontSize: 13, fontWeight: '700', fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
+  intervalBtnText: { 
+    color: COLORS.accent, 
+    fontSize: 13, 
+    fontWeight: '700', 
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1.5,
+  },
 });
 
 export default SpeedTestScreen;

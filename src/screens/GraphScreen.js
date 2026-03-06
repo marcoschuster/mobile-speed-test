@@ -23,6 +23,7 @@ import Svg, {
   Polygon,
 } from 'react-native-svg';
 import SpeedTestService from '../services/SpeedTestService';
+import SoundEngine from '../services/SoundEngine';
 import FlashTitle from '../components/FlashTitle';
 import { COLORS, RADIUS, useTheme } from '../utils/theme';
 
@@ -136,6 +137,7 @@ const InteractiveChart = ({
   ));
 
   const handleDotPress = (index) => {
+    if (selectedIndex !== index) SoundEngine.playGraphPing();
     setSelectedIndex(selectedIndex === index ? null : index);
   };
 
@@ -574,7 +576,15 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: 'transparent',
   },
   filterButtonActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
-  filterButtonText: { fontSize: 13, fontWeight: '700', color: COLORS.accent, letterSpacing: 0.3 },
+  filterButtonText: { 
+    fontSize: 13, 
+    fontWeight: '700', 
+    color: COLORS.accent, 
+    letterSpacing: 0.3,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1.5,
+  },
   filterButtonTextActive: { color: COLORS.black },
 
   content: { flex: 1 },

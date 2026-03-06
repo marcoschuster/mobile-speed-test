@@ -74,7 +74,7 @@ const CardSpeedLine = ({ index, color }) => {
       Animated.parallel([
         Animated.timing(translateX, { toValue: CARD_WIDTH * 2, duration, useNativeDriver: false }),
         Animated.sequence([
-          Animated.timing(opacity, { toValue: peak, duration: duration * 0.3, useNativeDriver: false }),
+          Animated.timing(opacity, { toValue: 0.3, duration: duration * 0.3, useNativeDriver: false }),
           Animated.timing(opacity, { toValue: 0, duration: duration * 0.7, useNativeDriver: false }),
         ]),
       ]),
@@ -143,13 +143,13 @@ const StatCard = ({ label, value, unit = 'Mbps', activePhase }) => {
   const getIcon = () => {
     switch (label) {
       case 'Download': return <DownloadIcon />;
-      case 'Upload':   return <UploadIcon />;
+      case 'Upload':   return <UploadIcon color={t.uploadLine} />;
       case 'Ping':     return <PingIcon />;
       default:         return null;
     }
   };
 
-  const accentColor = label === 'Ping' ? COLORS.success : COLORS.accent;
+  const accentColor = label === 'Ping' ? COLORS.success : (label === 'Upload' ? t.uploadLine : COLORS.accent);
 
   const uniformTint = isDark
     ? 'rgba(245, 196, 0, 0.04)'
@@ -193,7 +193,7 @@ const StatCard = ({ label, value, unit = 'Mbps', activePhase }) => {
         <View style={styles.cardContent}>
           <View style={styles.labelRow}>
             {getIcon()}
-            <Text style={[styles.label, { color: t.textSecondary, fontFamily: FONT_FAMILY }]}>{label}</Text>
+            <Text style={[styles.label, { color: t.textSecondary, fontFamily: FONT_FAMILY, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>{label}</Text>
           </View>
 
           {isActive ? (
@@ -205,9 +205,12 @@ const StatCard = ({ label, value, unit = 'Mbps', activePhase }) => {
             /* Result state — show the value */
             <Animated.Text style={[styles.value, { color: t.textPrimary, fontFamily: FONT_FAMILY, transform: [{ scale: animatedValue }] }]}>
               {typeof value === 'number' ? value.toFixed(2) : value}
-              <Text style={[styles.valueUnit, { color: t.textSecondary }]}> {unit}</Text>
+              <Text style={[styles.valueUnit, { color: t.textSecondary, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}> {unit}</Text>
             </Animated.Text>
           )}
+          <Text style={[styles.peak, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>
+            {label === 'Ping' ? 'Best' : 'Peak'}
+          </Text>
         </View>
     </Animated.View>
   );

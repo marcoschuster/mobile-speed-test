@@ -65,7 +65,7 @@ const DARK = {
   axisLine: 'rgba(255,255,255,0.12)',
   axisLabel: '#A0A0A0',           // bumped from #888 → readable
   axisLabelSub: '#808080',        // bumped from #666 → readable
-  uploadLine: '#E0E0E0',
+  uploadLine: '#4FC3F7',
 
   // Settings controls
   controlBg: '#1E1E1E',
@@ -120,7 +120,7 @@ const LIGHT = {
   axisLine: 'rgba(0,0,0,0.14)',
   axisLabel: '#777777',            // bumped from #999
   axisLabelSub: '#999999',         // bumped from #BBB
-  uploadLine: '#555555',
+  uploadLine: '#2196F3',
 
   // Settings controls
   controlBg: '#F0F0F0',

@@ -14,13 +14,11 @@ import {
   UIManager,
 } from 'react-native';
 import SpeedTestService from '../services/SpeedTestService';
+import SoundEngine from '../services/SoundEngine';
 import FlashTitle from '../components/FlashTitle';
 import { COLORS, RADIUS, useTheme } from '../utils/theme';
 
-// Enable LayoutAnimation on Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+// LayoutAnimation is now enabled by default on Android
 
 const FONT_FAMILY = Platform.OS === 'ios' ? 'System' : 'sans-serif';
 
@@ -122,10 +120,8 @@ const Dropdown = ({ options, selected, onSelect, isOpen, onToggle }) => {
         style={[dropS.trigger, { backgroundColor: t.controlBg, borderColor: t.controlBorder }]}
         onPress={onToggle} activeOpacity={0.7}
       >
-        <Text style={[dropS.triggerText, { color: t.textPrimary, fontFamily: FONT_FAMILY }]}>
-          {options.find((o) => o.value === selected)?.label || 'Select'}
-        </Text>
-        <Text style={[dropS.arrow, { color: t.textSecondary }]}>{isOpen ? '▲' : '▼'}</Text>
+        <Text style={[dropS.triggerText, { color: t.textPrimary, fontFamily: FONT_FAMILY }]}>{options.find((o) => o.value === selected)?.label || 'Select'}</Text>
+        <Text style={[dropS.arrow, { color: t.textSecondary, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>{isOpen ? '▲' : '▼'}</Text>
       </TouchableOpacity>
       {isOpen && (
         <View style={[dropS.menu, { backgroundColor: t.controlBg, borderColor: t.controlBorder }]}>
@@ -136,7 +132,7 @@ const Dropdown = ({ options, selected, onSelect, isOpen, onToggle }) => {
               onPress={() => { onSelect(opt.value); onToggle(); }}
               activeOpacity={0.7}
             >
-              <Text style={[dropS.menuItemText, { color: t.textSecondary, fontFamily: FONT_FAMILY }, selected === opt.value && dropS.menuItemTextActive]}>
+              <Text style={[dropS.menuItemText, { color: t.textSecondary, fontFamily: FONT_FAMILY, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }, selected === opt.value && dropS.menuItemTextActive]}>
                 {opt.label}
               </Text>
             </TouchableOpacity>
@@ -155,7 +151,12 @@ const dropS = StyleSheet.create({
   menuItem: { paddingVertical: 10, paddingHorizontal: 14, borderBottomWidth: 1 },
   menuItemActive: { backgroundColor: 'rgba(245,196,0,0.1)' },
   menuItemText: { fontSize: 13, fontWeight: '600' },
-  menuItemTextActive: { color: COLORS.accent },
+  menuItemTextActive: { 
+    color: COLORS.accent,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1.5,
+  },
 });
 
 // ── Settings Row ────────────────────────────────────────────────────────────
@@ -189,11 +190,34 @@ const SettingsScreen = () => {
   const [alertThreshold, setAlertThreshold] = useState('');
   const [intervalOpen, setIntervalOpen] = useState(false);
 
+  // Sound & Haptics state
+  const [sfxMuted, setSfxMuted] = useState(SoundEngine.muted);
+  const [sfxVolume, setSfxVolume] = useState(SoundEngine.volume);
+  const [hapticsOn, setHapticsOn] = useState(SoundEngine.hapticsEnabled);
+
   const contentFade = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(contentFade, { toValue: 1, duration: 300, useNativeDriver: false }).start();
   }, []);
+
+  // Toggle handler that plays the appropriate sound
+  const handleToggle = (currentVal, setter, engineProp) => {
+    const newVal = !currentVal;
+    setter(newVal);
+    if (engineProp) {
+      SoundEngine[engineProp] = engineProp === 'muted' ? newVal : newVal;
+    }
+    if (newVal) SoundEngine.playToggleOn();
+    else SoundEngine.playToggleOff();
+  };
+
+  const handleVolumeChange = (val) => {
+    const v = parseFloat(val) || 0;
+    const clamped = Math.max(0, Math.min(1, v));
+    setSfxVolume(clamped);
+    SoundEngine.volume = clamped;
+  };
 
   const handleClearHistory = () => {
     Alert.alert('Clear Test History', 'This will permanently delete all speed test records. Are you sure?', [
@@ -230,7 +254,7 @@ const SettingsScreen = () => {
         <SettingsRow label="Accent Color" isLast>
           <View style={styles.accentSwatch}>
             <View style={styles.accentDot} />
-            <Text style={[styles.accentLabel, { color: t.textSecondary, fontFamily: FONT_FAMILY }]}>Speed Yellow</Text>
+            <Text style={[styles.accentLabel, { color: t.textSecondary, fontFamily: FONT_FAMILY, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Speed Yellow</Text>
           </View>
         </SettingsRow>
       </View>
@@ -241,7 +265,7 @@ const SettingsScreen = () => {
         <View style={[styles.gradientTint, { backgroundColor: cardTint }]} />
         <SettingsRow label="Auto Background Test">
           <Switch
-            value={autoBackground} onValueChange={setAutoBackground}
+            value={autoBackground} onValueChange={() => handleToggle(autoBackground, setAutoBackground)}
             trackColor={{ false: t.switchTrackOff, true: COLORS.accent }}
             thumbColor={autoBackground ? COLORS.white : t.switchThumbOff}
             ios_backgroundColor={t.switchTrackOff}
@@ -263,7 +287,7 @@ const SettingsScreen = () => {
         </SettingsRow>
         <SettingsRow label="Default Server" isLast>
           <View style={styles.serverRow}>
-            <Text style={[styles.serverText, { color: t.textSecondary, fontFamily: FONT_FAMILY }]}>Auto (Nearest)</Text>
+            <Text style={[styles.serverText, { color: t.textSecondary, fontFamily: FONT_FAMILY, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Auto (Nearest)</Text>
             <TouchableOpacity activeOpacity={0.7}>
               <Text style={[styles.changeLink, { fontFamily: FONT_FAMILY }]}>Change</Text>
             </TouchableOpacity>
@@ -289,7 +313,7 @@ const SettingsScreen = () => {
         </SettingsRow>
         <SettingsRow label="Show Ping" isLast>
           <Switch
-            value={showPing} onValueChange={setShowPing}
+            value={showPing} onValueChange={() => handleToggle(showPing, setShowPing)}
             trackColor={{ false: t.switchTrackOff, true: COLORS.accent }}
             thumbColor={showPing ? COLORS.white : t.switchThumbOff}
             ios_backgroundColor={t.switchTrackOff}
@@ -303,7 +327,7 @@ const SettingsScreen = () => {
         <View style={[styles.gradientTint, { backgroundColor: cardTint }]} />
         <SettingsRow label="Notify on test complete">
           <Switch
-            value={notifyComplete} onValueChange={setNotifyComplete}
+            value={notifyComplete} onValueChange={() => handleToggle(notifyComplete, setNotifyComplete)}
             trackColor={{ false: t.switchTrackOff, true: COLORS.accent }}
             thumbColor={notifyComplete ? COLORS.white : t.switchThumbOff}
             ios_backgroundColor={t.switchTrackOff}
@@ -317,8 +341,54 @@ const SettingsScreen = () => {
               keyboardType="numeric" placeholder="—"
               placeholderTextColor={t.placeholderText} maxLength={5}
             />
-            <Text style={[styles.thresholdUnit, { color: t.textSecondary, fontFamily: FONT_FAMILY }]}>Mbps</Text>
+            <Text style={[styles.thresholdUnit, { color: t.textSecondary, fontFamily: FONT_FAMILY, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Mbps</Text>
           </View>
+        </SettingsRow>
+      </View>
+
+      {/* SOUND & HAPTICS */}
+      <FlashTitle text="SOUND & HAPTICS" size="small" interval={6800} center style={styles.sectionHeader} />
+      <View style={[styles.sectionCard, { backgroundColor: t.surface }]}>
+        <View style={[styles.gradientTint, { backgroundColor: cardTint }]} />
+        <SettingsRow label="Sound Effects">
+          <Switch
+            value={!sfxMuted} onValueChange={() => {
+              const newMuted = !sfxMuted;
+              setSfxMuted(newMuted);
+              SoundEngine.muted = newMuted;
+              if (!newMuted) SoundEngine.playToggleOn();
+            }}
+            trackColor={{ false: t.switchTrackOff, true: COLORS.accent }}
+            thumbColor={!sfxMuted ? COLORS.white : t.switchThumbOff}
+            ios_backgroundColor={t.switchTrackOff}
+          />
+        </SettingsRow>
+        <SettingsRow label="Master Volume">
+          <View style={styles.volumeRow}>
+            {[0.25, 0.5, 0.75, 1.0].map((v) => (
+              <TouchableOpacity
+                key={v}
+                style={[styles.volumeDot, sfxVolume >= v && styles.volumeDotActive]}
+                onPress={() => { handleVolumeChange(v); SoundEngine.playNavTick(); }}
+                activeOpacity={0.7}
+              />
+            ))}
+            <Text style={[styles.volumeLabel, { color: t.textSecondary, fontFamily: FONT_FAMILY, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>{Math.round(sfxVolume * 100)}%</Text>
+          </View>
+        </SettingsRow>
+        <SettingsRow label="Haptic Feedback" isLast>
+          <Switch
+            value={hapticsOn} onValueChange={() => {
+              const newVal = !hapticsOn;
+              setHapticsOn(newVal);
+              SoundEngine.hapticsEnabled = newVal;
+              if (newVal) SoundEngine.playToggleOn();
+              else SoundEngine.playToggleOff();
+            }}
+            trackColor={{ false: t.switchTrackOff, true: COLORS.accent }}
+            thumbColor={hapticsOn ? COLORS.white : t.switchThumbOff}
+            ios_backgroundColor={t.switchTrackOff}
+          />
         </SettingsRow>
       </View>
 
@@ -336,7 +406,7 @@ const SettingsScreen = () => {
         </View>
       </View>
 
-      <Text style={[styles.versionText, { color: t.textMuted, fontFamily: FONT_FAMILY }]}>ZOLT v1.0.0</Text>
+      <Text style={[styles.versionText, { color: t.textMuted, fontFamily: FONT_FAMILY, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>ZOLT v1.0.0</Text>
     </Animated.ScrollView>
   );
 };
@@ -355,7 +425,14 @@ const styles = StyleSheet.create({
 
   serverRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   serverText: { fontSize: 13, fontWeight: '500' },
-  changeLink: { fontSize: 13, color: COLORS.accent, fontWeight: '700' },
+  changeLink: { 
+    fontSize: 13, 
+    color: COLORS.accent, 
+    fontWeight: '700',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1.5,
+  },
 
   thresholdRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   thresholdInput: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8, width: 70, fontSize: 14, fontWeight: '700', textAlign: 'center' },
@@ -365,7 +442,19 @@ const styles = StyleSheet.create({
   destructiveButton: { paddingVertical: 13, borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.danger, backgroundColor: 'transparent', alignItems: 'center' },
   destructiveButtonText: { color: COLORS.danger, fontSize: 14, fontWeight: '700' },
   exportButton: { paddingVertical: 13, borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: 'transparent', alignItems: 'center' },
-  exportButtonText: { color: COLORS.accent, fontSize: 14, fontWeight: '700' },
+  exportButtonText: { 
+    color: COLORS.accent, 
+    fontSize: 14, 
+    fontWeight: '700',
+    textShadowColor: 'rgba(0, 0, 0, 0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+
+  volumeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  volumeDot: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: 'transparent' },
+  volumeDotActive: { backgroundColor: COLORS.accent },
+  volumeLabel: { fontSize: 12, fontWeight: '700', marginLeft: 4, minWidth: 36, textAlign: 'right' },
 
   versionText: { textAlign: 'center', fontSize: 11, marginTop: 32, letterSpacing: 1, fontWeight: '500' },
 });

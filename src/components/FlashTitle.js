@@ -163,8 +163,8 @@ const FlashTitle = ({
       <Text
         style={[textStyle, {
           color: COLORS.accent,
-          textShadowColor: isDark ? 'rgba(0,0,0,0.7)' : 'rgba(180,180,180,0.5)',
-          textShadowOffset: { width: 0.6, height: 1.2 },
+          textShadowColor: isDark ? 'rgba(0,0,0,0.7)' : 'rgba(0, 0, 0, 0.2)',
+          textShadowOffset: { width: 0, height: 1 },
           textShadowRadius: 1.5,
         }]}
         numberOfLines={1}

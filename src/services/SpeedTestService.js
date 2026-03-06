@@ -345,7 +345,8 @@ class SpeedTestService {
     const measureStart = Date.now();
     calc.push(0);
 
-    console.log('Starting download test — 6 XHR connections for 12s');
+    const WORKERS = 4;
+    console.log(`Starting download test — ${WORKERS} XHR connections for 12s`);
 
     // Live speed reporter every 200ms
     const updateInterval = setInterval(() => {
@@ -355,9 +356,9 @@ class SpeedTestService {
       }
     }, 200);
 
-    // 6 parallel workers
+    // Parallel workers
     const promises = [];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < WORKERS; i++) {
       promises.push(
         this._downloadWorkerXHR(chunkSizes, startTime, testDuration, shared, calc, i)
       );
@@ -381,14 +382,16 @@ class SpeedTestService {
     let errors = 0;
     let sizeIdx = 0;
 
+    // Stagger worker starts to avoid simultaneous connection bursts
+    await new Promise(r => setTimeout(r, idx * 150));
+
     while (Date.now() - startTime < testDuration && errors < 3 && this.isTestRunning) {
       try {
         const size = chunkSizes[Math.min(sizeIdx, chunkSizes.length - 1)];
-        const url = `https://speed.cloudflare.com/__down?bytes=${size}&_=${Date.now()}_${idx}`;
+        const url = `https://speed.cloudflare.com/__down?bytes=${size}&_=${Date.now()}_${idx}_${sizeIdx}`;
 
-        const bytesReceived = await this._xhrDownloadChunk(url, testDuration, (loaded) => {
-          // onprogress callback — called many times during the transfer
-          shared.totalBytes += loaded; // Note: loaded is incremental
+        await this._xhrDownloadChunk(url, testDuration, (loaded) => {
+          shared.totalBytes += loaded;
           calc.push(shared.totalBytes);
         });
 
@@ -397,7 +400,8 @@ class SpeedTestService {
       } catch (e) {
         errors++;
         console.log(`DL worker ${idx + 1} error (${errors}): ${e.message}`);
-        if (errors < 3) await new Promise(r => setTimeout(r, 200));
+        // Exponential backoff: 300ms, 900ms, then give up
+        if (errors < 3) await new Promise(r => setTimeout(r, 300 * errors * errors));
       }
     }
   }
@@ -413,6 +417,9 @@ class SpeedTestService {
       );
       xhr.responseType = 'arraybuffer';
       xhr.timeout = timeoutMs || 15000;
+      // Prevent caching
+      xhr.setRequestHeader('Cache-Control', 'no-cache, no-store');
+      xhr.setRequestHeader('Pragma', 'no-cache');
 
       let lastLoaded = 0;
 
@@ -425,17 +432,21 @@ class SpeedTestService {
       };
 
       xhr.onload = () => {
-        // Final delta in case onprogress didn't fire for the tail
-        if (xhr.response) {
-          const finalSize = xhr.response.byteLength || 0;
-          if (finalSize > lastLoaded && onProgress) {
-            onProgress(finalSize - lastLoaded);
+        if (xhr.status >= 200 && xhr.status < 300) {
+          // Final delta in case onprogress didn't fire for the tail
+          if (xhr.response) {
+            const finalSize = xhr.response.byteLength || 0;
+            if (finalSize > lastLoaded && onProgress) {
+              onProgress(finalSize - lastLoaded);
+            }
           }
+          resolve(lastLoaded);
+        } else {
+          reject(new Error(`XHR download HTTP ${xhr.status}`));
         }
-        resolve(lastLoaded);
       };
 
-      xhr.onerror = () => reject(new Error('XHR download error'));
+      xhr.onerror = () => reject(new Error('XHR download network error'));
       xhr.ontimeout = () => reject(new Error('XHR download timeout'));
       xhr.send();
     });
@@ -487,7 +498,8 @@ class SpeedTestService {
     const measureStart = Date.now();
     calc.push(0);
 
-    console.log('Starting upload test — 6 XHR connections for 12s');
+    const WORKERS = 4;
+    console.log(`Starting upload test — ${WORKERS} XHR connections for 12s`);
 
     const updateInterval = setInterval(() => {
       if (onSpeedUpdate && shared.totalBytes > 0) {
@@ -497,7 +509,7 @@ class SpeedTestService {
     }, 200);
 
     const promises = [];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < WORKERS; i++) {
       promises.push(
         this._uploadWorkerXHR(payloads, startTime, testDuration, shared, calc, i)
       );
@@ -521,6 +533,9 @@ class SpeedTestService {
     let errors = 0;
     let payloadIdx = 0;
 
+    // Stagger worker starts to avoid simultaneous connection bursts
+    await new Promise(r => setTimeout(r, idx * 150));
+
     while (Date.now() - startTime < testDuration && errors < 3 && this.isTestRunning) {
       try {
         const payload = payloads[Math.min(payloadIdx, payloads.length - 1)];
@@ -535,7 +550,8 @@ class SpeedTestService {
       } catch (e) {
         errors++;
         console.log(`UL worker ${idx + 1} error (${errors}): ${e.message}`);
-        if (errors < 3) await new Promise(r => setTimeout(r, 200));
+        // Exponential backoff: 300ms, 900ms, then give up
+        if (errors < 3) await new Promise(r => setTimeout(r, 300 * errors * errors));
       }
     }
   }
@@ -546,7 +562,7 @@ class SpeedTestService {
   _xhrUploadChunk(payload, timeoutMs, onProgress) {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', 'https://speed.cloudflare.com/__up');
+      xhr.open('POST', `https://speed.cloudflare.com/__up?_=${Date.now()}`);
       xhr.setRequestHeader('Content-Type', 'application/octet-stream');
       xhr.timeout = timeoutMs || 15000;
 
@@ -561,15 +577,19 @@ class SpeedTestService {
       };
 
       xhr.onload = () => {
-        // Ensure we counted all bytes even if last progress event was missed
-        const total = payload.byteLength || payload.length;
-        if (lastLoaded < total && onProgress) {
-          onProgress(total - lastLoaded);
+        if (xhr.status >= 200 && xhr.status < 300) {
+          // Ensure we counted all bytes even if last progress event was missed
+          const total = payload.byteLength || payload.length;
+          if (lastLoaded < total && onProgress) {
+            onProgress(total - lastLoaded);
+          }
+          resolve(lastLoaded);
+        } else {
+          reject(new Error(`XHR upload HTTP ${xhr.status}`));
         }
-        resolve(lastLoaded);
       };
 
-      xhr.onerror = () => reject(new Error('XHR upload error'));
+      xhr.onerror = () => reject(new Error('XHR upload network error'));
       xhr.ontimeout = () => reject(new Error('XHR upload timeout'));
 
       // Send the binary payload directly
@@ -581,7 +601,7 @@ class SpeedTestService {
   // Sequence: server selection → ping → download → upload
   // Callbacks are unchanged from the original interface.
 
-  async runSpeedTest(onProgress, onSpeedUpdate, onComplete, onError, onPingSample) {
+  async runSpeedTest(onProgress, onSpeedUpdate, onComplete, onError, onPingSample, onPhaseComplete) {
     if (this.isTestRunning) return;
 
     this.isTestRunning = true;
@@ -602,11 +622,13 @@ class SpeedTestService {
       onProgress('Testing ping...', 'ping');
       const pingResult = await this.runPingTest(onPingSample);
       this.currentTest.ping = pingResult;
+      if (onPhaseComplete) onPhaseComplete('ping', pingResult);
 
       // Phase 3: Download (6 parallel XHR with onprogress, rolling window)
       onProgress('Testing download speed...', 'download');
       const downloadResult = await this.runDownloadTest(onSpeedUpdate);
       this.currentTest.download = downloadResult;
+      if (onPhaseComplete) onPhaseComplete('download', downloadResult);
 
       if (downloadResult > this.peaks.download) {
         this.peaks.download = downloadResult;
@@ -617,6 +639,7 @@ class SpeedTestService {
       onProgress('Testing upload speed...', 'upload');
       const uploadResult = await this.runUploadTest(onSpeedUpdate);
       this.currentTest.upload = uploadResult;
+      if (onPhaseComplete) onPhaseComplete('upload', uploadResult);
 
       if (uploadResult > this.peaks.upload) {
         this.peaks.upload = uploadResult;

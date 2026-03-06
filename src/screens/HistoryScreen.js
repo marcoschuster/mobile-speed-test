@@ -154,7 +154,7 @@ const Calendar = ({ history, selectedDate, onSelectDate, onClearSelection }) => 
       <View style={calStyles.weekdayRow}>
         {WEEKDAYS.map((wd) => (
           <View key={wd} style={calStyles.weekdayCell}>
-            <Text style={[calStyles.weekdayText, { color: t.textMuted }]}>{wd}</Text>
+            <Text style={[calStyles.weekdayText, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>{wd}</Text>
           </View>
         ))}
       </View>
@@ -191,7 +191,7 @@ const Calendar = ({ history, selectedDate, onSelectDate, onClearSelection }) => 
               <Text
                 style={[
                   calStyles.dayText,
-                  { color: t.textSecondary },
+                  { color: t.textSecondary, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 },
                   hasTest && { color: COLORS.accent, fontWeight: '800' },
                   isSelected && { color: COLORS.black },
                   isToday && !isSelected && !hasTest && { color: t.textPrimary, fontWeight: '700' },
@@ -264,8 +264,23 @@ const calStyles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 10,
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.06)',
   },
-  clearText: { fontSize: 12, fontWeight: '600', color: COLORS.accent },
-  clearAction: { fontSize: 12, fontWeight: '700', color: COLORS.accent, textDecorationLine: 'underline' },
+  clearText: { 
+    fontSize: 12, 
+    fontWeight: '600', 
+    color: COLORS.accent,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1.5,
+  },
+  clearAction: { 
+    fontSize: 12, 
+    fontWeight: '700', 
+    color: COLORS.accent, 
+    textDecorationLine: 'underline',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1.5,
+  },
 });
 
 // ── Animated date with pulsing yellow on hover ──────────────────────────────
@@ -330,7 +345,7 @@ const HistoryCard = ({ item, index, formatDate }) => {
           <View style={styles.historyStat}>
             <View style={styles.statIconRow}>
               <DownloadIcon />
-              <Text style={[styles.historyStatLabel, { color: t.textMuted }]}>Download</Text>
+              <Text style={[styles.historyStatLabel, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Download</Text>
             </View>
             <Text style={[styles.historyStatValue, { color: t.textPrimary }]}>
               {item.download.toFixed(1)}
@@ -343,7 +358,7 @@ const HistoryCard = ({ item, index, formatDate }) => {
           <View style={styles.historyStat}>
             <View style={styles.statIconRow}>
               <UploadIcon color={t.uploadLine} />
-              <Text style={[styles.historyStatLabel, { color: t.textMuted }]}>Upload</Text>
+              <Text style={[styles.historyStatLabel, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Upload</Text>
             </View>
             <Text style={[styles.historyStatValue, { color: t.textPrimary }]}>
               {item.upload.toFixed(1)}
@@ -356,11 +371,11 @@ const HistoryCard = ({ item, index, formatDate }) => {
           <View style={styles.historyStat}>
             <View style={styles.statIconRow}>
               <PingIcon />
-              <Text style={[styles.historyStatLabel, { color: t.textMuted }]}>Ping</Text>
+              <Text style={[styles.historyStatLabel, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Ping</Text>
             </View>
             <Text style={[styles.historyStatValue, { color: t.textPrimary }]}>
               {item.ping}
-              <Text style={[styles.historyStatUnit, { color: t.textSecondary }]}> ms</Text>
+              <Text style={[styles.historyStatUnit, { color: t.textSecondary, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}> ms</Text>
             </Text>
           </View>
         </View>
