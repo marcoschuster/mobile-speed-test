@@ -1,69 +1,19 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, Animated, StyleSheet, Platform, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, Animated, StyleSheet, Platform } from 'react-native';
 import Svg, { Path, Polygon } from 'react-native-svg';
 import SpeedHomeScreen from './src/screens/SpeedHomeScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import GraphScreen from './src/screens/GraphScreen';
 import AppSettingsScreen from './src/screens/AppSettingsScreen';
 import FlashTitle from './src/components/FlashTitle';
-import { COLORS, ThemeProvider, useTheme, RADIUS } from './src/utils/theme';
+import { COLORS, ThemeProvider, useTheme } from './src/utils/theme';
 import SoundEngine from './src/services/SoundEngine';
 import { AppSettingsProvider } from './src/context/AppSettingsContext';
 
-// Tab Navigator setup
 const Tab = createBottomTabNavigator();
-
-// Tab configuration data
-const TABS = [
-  { key: 'Speed Test', label: 'Speed', iconType: 'speed', component: SpeedHomeScreen },
-  { key: 'History', label: 'History', iconType: 'history', component: HistoryScreen },
-  { key: 'Graphs', label: 'Graphs', iconType: 'graph', component: GraphScreen },
-  { key: 'Settings', label: 'Settings', iconType: 'settings', component: AppSettingsScreen },
-];
-
-// Floating Pill Navigation Component
-const FloatingPillNav = ({ state, navigation, t, isDark }) => {
-  const [activeIndex, setActiveIndex] = useState(state.index);
-  
-  useEffect(() => {
-    setActiveIndex(state.index);
-  }, [state.index]);
-
-  const handleTabPress = (index, routeName) => {
-    SoundEngine.playNavTick();
-    navigation.navigate(routeName);
-  };
-
-  return (
-    <View style={[pillStyles.container, { backgroundColor: t.navBar }]}>
-      <View style={[pillStyles.pill, { 
-        backgroundColor: isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.95)',
-        borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-      }]}>
-        {TABS.map((tab, index) => (
-          <TouchableOpacity
-            key={tab.key}
-            style={[
-              pillStyles.tabItem,
-              activeIndex === index && pillStyles.tabItemActive
-            ]}
-            onPress={() => handleTabPress(index, tab.key)}
-            activeOpacity={0.7}
-          >
-            <TabIcon 
-              focused={activeIndex === index} 
-              iconType={tab.iconType} 
-              color={activeIndex === index ? COLORS.accent : t.navInactive} 
-            />
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-};
 
 // ── Lightning Bolt SVG Logo ─────────────────────────────────────────────────
 const LightningLogo = ({ size = 22 }) => (
@@ -141,9 +91,12 @@ const TabIcon = ({ focused, iconType, color }) => {
   };
 
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
-      {getIcon()}
-    </Animated.View>
+    <View style={{ alignItems: 'center' }}>
+      {focused && <View style={tabStyles.activeIndicator} />}
+      <Animated.View style={{ transform: [{ scale }] }}>
+        {getIcon()}
+      </Animated.View>
+    </View>
   );
 };
 
@@ -165,76 +118,106 @@ const CustomHeader = ({ title }) => {
 };
 
 // ── Inner app that can read theme ───────────────────────────────────────────
-const CustomTabNavigator = () => {
-  const { t } = useTheme();
-  const isDark = t.mode === 'dark';
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }}>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-      
-      {/* Header */}
-      <View style={[tabStyles.header, { backgroundColor: t.headerBg }]}>
-        <View style={tabStyles.headerLeft}>
-          <LightningLogo size={18} />
-          <Text style={[tabStyles.headerBrand, { color: t.headerText }]}>ZOLT</Text>
-        </View>
-        <View style={tabStyles.headerCenter}>
-          <FlashTitle text={TABS[activeIndex].label.toUpperCase()} size="large" interval={5000} center glow />
-        </View>
-        <View style={tabStyles.headerRight} />
-      </View>
-
-      {/* Content Area */}
-      <View style={{ flex: 1 }}>
-        <Tab.Navigator
-          screenOptions={{
-            tabBarStyle: { display: 'none' }, // Hide default tab bar
-            headerShown: false, // Hide default headers
-          }}
-        >
-          {TABS.map((tab, index) => (
-            <Tab.Screen
-              key={tab.key}
-              name={tab.key}
-              component={tab.component}
-              listeners={{
-                tabPress: () => {
-                  SoundEngine.playNavTick();
-                  setActiveIndex(index);
-                },
-              }}
-              options={{
-                tabBarLabel: tab.label,
-              }}
-            />
-          ))}
-        </Tab.Navigator>
-      </View>
-
-      {/* Floating Pill Navigation */}
-      <FloatingPillNav 
-        state={{ index: activeIndex, routes: TABS.map(tab => ({ key: tab.key, name: tab.key })) }}
-        navigation={{ navigate: (routeName) => {
-          const index = TABS.findIndex(tab => tab.key === routeName);
-          if (index !== -1) {
-            setActiveIndex(index);
-          }
-        }}}
-        t={t}
-        isDark={isDark}
-      />
-    </SafeAreaView>
-  );
-};
-
 function AppInner() {
   const { t } = useTheme();
+  const isDark = t.mode === 'dark';
 
   return (
     <NavigationContainer>
-      <CustomTabNavigator />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <Tab.Navigator
+        screenOptions={{
+          tabBarStyle: {
+            backgroundColor: t.navBar,
+            borderTopWidth: isDark ? 0 : 1,
+            borderTopColor: isDark ? 'transparent' : 'rgba(0,0,0,0.06)',
+            height: 64,
+            paddingBottom: 8,
+            paddingTop: 4,
+            elevation: isDark ? 0 : 2,
+            shadowOpacity: isDark ? 0 : 0.06,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -1 },
+            shadowRadius: 4,
+          },
+          tabBarActiveTintColor: t.navActive,
+          tabBarInactiveTintColor: t.navInactive,
+          tabBarLabelStyle: {
+            fontSize: 10,
+            fontWeight: '600',
+            letterSpacing: 0.3,
+            marginTop: 2,
+            fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+          },
+          headerStyle: {
+            backgroundColor: t.headerBg,
+            elevation: isDark ? 0 : 2,
+            shadowOpacity: isDark ? 0 : 0.06,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 1 },
+            shadowRadius: 4,
+            borderBottomWidth: isDark ? 0 : 1,
+            borderBottomColor: isDark ? 'transparent' : 'rgba(0,0,0,0.06)',
+            height: 96,
+          },
+          headerTintColor: t.headerText,
+          headerTitleStyle: {
+            fontWeight: '700',
+            fontSize: 17,
+            letterSpacing: 0.5,
+            fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+          },
+        }}
+      >
+        <Tab.Screen
+          name="Speed Test"
+          component={SpeedHomeScreen}
+          listeners={{ tabPress: () => SoundEngine.playNavTick() }}
+          options={{
+            tabBarLabel: 'Speed',
+            header: () => <CustomHeader title="Speed Test" />,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon focused={focused} iconType="speed" color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="History"
+          component={HistoryScreen}
+          listeners={{ tabPress: () => SoundEngine.playNavTick() }}
+          options={{
+            tabBarLabel: 'History',
+            header: () => <CustomHeader title="History" />,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon focused={focused} iconType="history" color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Graphs"
+          component={GraphScreen}
+          listeners={{ tabPress: () => SoundEngine.playNavTick() }}
+          options={{
+            tabBarLabel: 'Graphs',
+            header: () => <CustomHeader title="Graphs" />,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon focused={focused} iconType="graph" color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Settings"
+          component={AppSettingsScreen}
+          listeners={{ tabPress: () => SoundEngine.playNavTick() }}
+          options={{
+            tabBarLabel: 'Settings',
+            header: () => <CustomHeader title="Settings" />,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon focused={focused} iconType="settings" color={color} />
+            ),
+          }}
+        />
+      </Tab.Navigator>
     </NavigationContainer>
   );
 }
@@ -286,42 +269,5 @@ const tabStyles = StyleSheet.create({
     height: 2,
     backgroundColor: COLORS.accent,
     borderRadius: 1,
-  },
-});
-
-const pillStyles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-    alignItems: 'center',
-  },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingHorizontal: 8,
-    paddingVertical: 12,
-    borderRadius: 50, // Very rounded for pill shape
-    borderWidth: 1,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    minHeight: 60,
-  },
-  tabItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    borderRadius: 25,
-    minHeight: 36,
-  },
-  tabItemActive: {
-    backgroundColor: COLORS.accent,
   },
 });
