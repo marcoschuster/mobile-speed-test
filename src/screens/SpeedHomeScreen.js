@@ -536,16 +536,6 @@ const SpeedHomeScreen = () => {
                 Stop Test
               </AnimatedButton>
             )}
-          </View>
-          
-          <View style={styles.nextToControls}>
-            <AnimatedButton
-              onPress={() => setBackgroundIntervalOpen(!backgroundIntervalOpen)}
-              style={styles.backgroundTestButtonSmall}
-              textStyle={styles.backgroundTestTextSmall}
-            >
-              Background Test
-            </AnimatedButton>
             
             {lastTest && (
               <AnimatedButton
@@ -557,6 +547,14 @@ const SpeedHomeScreen = () => {
               </AnimatedButton>
             )}
           </View>
+          
+          <AnimatedButton
+            onPress={() => setBackgroundIntervalOpen(!backgroundIntervalOpen)}
+            style={styles.backgroundTestButtonSmall}
+            textStyle={styles.backgroundTestTextSmall}
+          >
+            Background Test
+          </AnimatedButton>
         </View>
 
         {backgroundIntervalOpen && (
@@ -718,7 +716,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 12,
   },
   nextToControls: {
     flexDirection: 'row',
