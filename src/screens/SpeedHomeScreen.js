@@ -150,7 +150,7 @@ const SpeedHomeScreen = () => {
     
     const runBackgroundTest = async () => {
       try {
-        const result = await SpeedTestService.runFullTest({
+        const result = await SpeedTestService.runTest({
           onProgress: (phase, progress) => {
             console.log(`Background test ${phase}: ${progress}%`);
           },
@@ -507,63 +507,6 @@ const SpeedHomeScreen = () => {
               footerText={peaks.ping ? `Best ${formatPing(peaks.ping)}` : 'Best pending'}
             />
           )}
-
-          <View style={styles.backgroundTestSection}>
-            <View style={styles.backgroundTestButton}>
-              <TouchableOpacity
-                style={[styles.backgroundTestTrigger, { borderColor: COLORS.accent }]}
-                onPress={() => setBackgroundIntervalOpen(!backgroundIntervalOpen)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.backgroundTestText, { color: COLORS.accent }]}>
-                  Background Test
-                </Text>
-                <Text style={[styles.backgroundTestInterval, { color: t.textSecondary }]}>
-                  {settings.backgroundTestInterval 
-                    ? BACKGROUND_TEST_INTERVALS.find(i => i.value === settings.backgroundTestInterval)?.label || 'Disabled'
-                    : 'Disabled'
-                  }
-                </Text>
-                <Text style={[styles.backgroundTestArrow, { color: t.textSecondary }]}>
-                  {backgroundIntervalOpen ? '▲' : '▼'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            
-            {backgroundIntervalOpen && (
-              <View style={[styles.backgroundTestOptions, { backgroundColor: t.surface }]}>
-                <TouchableOpacity
-                  style={[styles.backgroundTestOption, settings.backgroundTestInterval === null && styles.backgroundTestOptionActive]}
-                  onPress={() => {
-                    updateSettings({ backgroundTestInterval: null });
-                    setBackgroundIntervalOpen(false);
-                    stopBackgroundTest();
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.backgroundTestOptionText, { color: settings.backgroundTestInterval === null ? COLORS.black : t.textPrimary }]}>
-                    Disabled
-                  </Text>
-                </TouchableOpacity>
-                {BACKGROUND_TEST_INTERVALS.map((interval) => (
-                  <TouchableOpacity
-                    key={interval.value}
-                    style={[styles.backgroundTestOption, settings.backgroundTestInterval === interval.value && styles.backgroundTestOptionActive]}
-                    onPress={() => {
-                      updateSettings({ backgroundTestInterval: interval.value });
-                      setBackgroundIntervalOpen(false);
-                      startBackgroundTest(interval.value);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.backgroundTestOptionText, { color: settings.backgroundTestInterval === interval.value ? COLORS.black : t.textPrimary }]}>
-                      {interval.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
         </View>
 
         <View style={styles.controls}>
@@ -597,14 +540,51 @@ const SpeedHomeScreen = () => {
               Share Last Result
             </AnimatedButton>
             <AnimatedButton
-              onPress={() => openLegalSection('privacy')}
+              onPress={() => setBackgroundIntervalOpen(!backgroundIntervalOpen)}
               style={styles.utilityButton}
               textStyle={styles.utilityButtonText}
             >
-              Privacy Details
+              Background Test
             </AnimatedButton>
           </View>
         </View>
+
+        {backgroundIntervalOpen && (
+          <View style={[styles.backgroundTestOptions, { backgroundColor: t.surface }]}>
+            <TouchableOpacity
+              style={[styles.backgroundTestOption, settings.backgroundTestInterval === null && styles.backgroundTestOptionActive]}
+              onPress={() => {
+                updateSettings({ backgroundTestInterval: null });
+                setBackgroundIntervalOpen(false);
+                if (backgroundTestRef) {
+                  clearInterval(backgroundTestRef);
+                  setBackgroundTestRef(null);
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.backgroundTestOptionText, { color: settings.backgroundTestInterval === null ? COLORS.black : t.textPrimary }]}>
+                Disabled
+              </Text>
+            </TouchableOpacity>
+            {BACKGROUND_TEST_INTERVALS.map((interval) => (
+              <TouchableOpacity
+                key={interval.value}
+                style={[styles.backgroundTestOption, settings.backgroundTestInterval === interval.value && styles.backgroundTestOptionActive]}
+                onPress={() => {
+                  updateSettings({ backgroundTestInterval: interval.value });
+                  setBackgroundIntervalOpen(false);
+                  startBackgroundTest(interval.value);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.backgroundTestOptionText, { color: settings.backgroundTestInterval === interval.value ? COLORS.black : t.textPrimary }]}>
+                  {interval.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         <View style={styles.insightsWrap}>
           <InsightCard
