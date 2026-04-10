@@ -231,13 +231,13 @@ const styles = StyleSheet.create({
     height: 120,
   },
   wheelWrapper: {
-    width: WHEEL_DIAMETER,
-    height: WHEEL_DIAMETER,
-    borderRadius: WHEEL_RADIUS,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
     overflow: 'hidden',
   },
   wheelSvg: {
-    transform: [{ translateY: -WHEEL_RADIUS * 0.5 }],
+    transform: [{ translateY: -50 }],
   },
   arrowContainer: {
     position: 'absolute',
