@@ -16,7 +16,7 @@ import StatCard from '../components/StatCard';
 
 const ShareIcon = () => (
   <View style={{ width: 16, height: 16, alignItems: 'center', justifyContent: 'center' }}>
-    <Text style={{ color: COLORS.accent, fontSize: 14, fontWeight: '700' }}>↗</Text>
+    <Text style={{ color: COLORS.accent, fontSize: 16, fontWeight: '700' }}>⤴</Text>
   </View>
 );
 import { useFocusEffect } from '@react-navigation/native';
@@ -536,6 +536,9 @@ const SpeedHomeScreen = () => {
                 Stop Test
               </AnimatedButton>
             )}
+          </View>
+          
+          <View style={styles.nextToControls}>
             <AnimatedButton
               onPress={() => setBackgroundIntervalOpen(!backgroundIntervalOpen)}
               style={styles.backgroundTestButtonSmall}
@@ -543,17 +546,17 @@ const SpeedHomeScreen = () => {
             >
               Background Test
             </AnimatedButton>
+            
+            {lastTest && (
+              <AnimatedButton
+                onPress={shareLastResult}
+                style={styles.shareIconButton}
+                disabled={false}
+              >
+                <ShareIcon />
+              </AnimatedButton>
+            )}
           </View>
-          
-          {lastTest && (
-            <AnimatedButton
-              onPress={shareLastResult}
-              style={styles.shareIconButton}
-              disabled={false}
-            >
-              <ShareIcon />
-            </AnimatedButton>
-          )}
         </View>
 
         {backgroundIntervalOpen && (
@@ -716,6 +719,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     marginBottom: 12,
+  },
+  nextToControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   backgroundTestButtonSmall: {
     paddingVertical: 10,
