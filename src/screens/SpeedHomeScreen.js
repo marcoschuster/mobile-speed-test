@@ -538,23 +538,25 @@ const SpeedHomeScreen = () => {
             )}
           </View>
           
-          <AnimatedButton
-            onPress={() => setBackgroundIntervalOpen(!backgroundIntervalOpen)}
-            style={styles.backgroundTestButtonSmall}
-            textStyle={styles.backgroundTestTextSmall}
-          >
-            Background Test
-          </AnimatedButton>
-          
-          {lastTest && (
+          <View style={styles.bottomControlsRow}>
             <AnimatedButton
-              onPress={shareLastResult}
-              style={styles.shareIconButtonAbsolute}
-              disabled={false}
+              onPress={() => setBackgroundIntervalOpen(!backgroundIntervalOpen)}
+              style={styles.backgroundTestButtonSmall}
+              textStyle={styles.backgroundTestTextSmall}
             >
-              <ShareIcon />
+              Background Test
             </AnimatedButton>
-          )}
+            
+            {lastTest && (
+              <AnimatedButton
+                onPress={shareLastResult}
+                style={styles.shareIconButton}
+                disabled={false}
+              >
+                <ShareIcon />
+              </AnimatedButton>
+            )}
+          </View>
         </View>
 
         {backgroundIntervalOpen && (
@@ -712,6 +714,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
   centeredControls: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  bottomControlsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
