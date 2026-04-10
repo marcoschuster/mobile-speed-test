@@ -159,6 +159,55 @@ const SpeedHomeScreen = () => {
     };
   }, [contentFade, loadPersistedData]);
 
+  // Background testing functionality
+  useEffect(() => {
+    if (!settings.dataDisclosureAccepted) return;
+
+    let backgroundInterval = null;
+    let lastBackgroundTest = 0;
+
+    const runBackgroundTest = async () => {
+      const now = Date.now();
+      if (now - lastBackgroundTest < 60 * 60 * 1000) return; // 1 hour minimum between tests
+      
+      try {
+        lastBackgroundTest = now;
+        const result = await SpeedTestService.runFullTest({
+          onProgress: (phase, progress) => {
+            console.log(`Background test ${phase}: ${progress}%`);
+          },
+          onSpeedUpdate: (speed, type) => {
+            console.log(`Background ${type} speed: ${speed} Mbps`);
+          },
+        });
+        
+        // Save background test result
+        if (result.success) {
+          await SpeedTestService.saveResult(result);
+          console.log('Background test completed successfully');
+        }
+      } catch (error) {
+        console.error('Background test failed:', error);
+      }
+    };
+
+    if (settings.autoBackgroundTest) {
+      // Run initial test after a short delay
+      setTimeout(() => {
+        runBackgroundTest();
+      }, 5000);
+
+      // Set up interval for background tests
+      backgroundInterval = setInterval(runBackgroundTest, 60 * 60 * 1000); // Every hour
+    }
+
+    return () => {
+      if (backgroundInterval) {
+        clearInterval(backgroundInterval);
+      }
+    };
+  }, [settings.autoBackgroundTest, settings.dataDisclosureAccepted]);
+
   useFocusEffect(useCallback(() => {
     loadPersistedData();
   }, [loadPersistedData]));

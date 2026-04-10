@@ -14,6 +14,7 @@ export const DEFAULT_APP_SETTINGS = {
   showPing: true,
   historyRetentionDays: 90,
   dataDisclosureAccepted: false,
+  autoBackgroundTest: false,
 };
 
 export const sanitizeAppSettings = (value) => ({
