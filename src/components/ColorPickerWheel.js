@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
+  Animated,
+  PanResponder,
   TouchableOpacity,
   Modal,
   Text,
-  ScrollView,
 } from 'react-native';
 import { COLOR_THEMES } from '../utils/theme';
 import { useTheme } from '../utils/theme';
@@ -13,11 +14,80 @@ import SoundEngine from '../services/SoundEngine';
 
 const ColorPickerWheel = ({ visible, onClose, onColorSelect, currentColorId }) => {
   const { t } = useTheme();
+  const rotationRef = useRef(0);
+  const wheelRotation = useRef(new Animated.Value(0)).current;
+  const selectedIndex = useRef(0);
 
-  const handleColorPress = (themeId) => {
-    SoundEngine.playNavTick();
-    onColorSelect(themeId);
+  const SEGMENT_ANGLE = 360 / COLOR_THEMES.length;
+  const WHEEL_RADIUS = 120;
+
+  // Find current color index
+  useEffect(() => {
+    const currentIndex = COLOR_THEMES.findIndex(ct => ct.id === currentColorId);
+    if (currentIndex !== -1) {
+      selectedIndex.current = currentIndex;
+      const targetRotation = -currentIndex * SEGMENT_ANGLE;
+      rotationRef.current = targetRotation;
+      wheelRotation.setValue(targetRotation);
+    }
+  }, [currentColorId]);
+
+  const handlePanMove = (gestureState) => {
+    const { translationX } = gestureState;
+    const angle = (translationX / 300) * 360;
+    const newRotation = rotationRef.current + angle;
+    wheelRotation.setValue(newRotation);
+    
+    // Calculate current segment
+    const segmentIndex = Math.round(-newRotation / SEGMENT_ANGLE);
+    const clampedIndex = Math.max(0, Math.min(COLOR_THEMES.length - 1, segmentIndex));
+    
+    // Update theme dynamically as wheel rotates
+    if (clampedIndex !== selectedIndex.current) {
+      selectedIndex.current = clampedIndex;
+      const theme = COLOR_THEMES[clampedIndex];
+      if (theme) {
+        onColorSelect(theme.id);
+      }
+    }
   };
+
+  const handlePanEnd = (gestureState) => {
+    const { translationX } = gestureState;
+    
+    // Calculate snap to nearest segment
+    const currentRotation = rotationRef.current + (translationX / 300) * 360;
+    const segmentIndex = Math.round(-currentRotation / SEGMENT_ANGLE);
+    const clampedIndex = Math.max(0, Math.min(COLOR_THEMES.length - 1, segmentIndex));
+    
+    const targetRotation = -clampedIndex * SEGMENT_ANGLE;
+    
+    // Animate to snap position
+    Animated.spring(wheelRotation, {
+      toValue: targetRotation,
+      tension: 100,
+      friction: 8,
+      useNativeDriver: true,
+    }).start(() => {
+      rotationRef.current = targetRotation;
+      selectedIndex.current = clampedIndex;
+      SoundEngine.playNavTick();
+    });
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderMove: (e, gestureState) => handlePanMove(gestureState),
+      onPanResponderRelease: (e, gestureState) => handlePanEnd(gestureState),
+    })
+  ).current;
+
+  const rotationString = wheelRotation.interpolate({
+    inputRange: [0, 360],
+    outputRange: ['0deg', '360deg'],
+  });
 
   return (
     <Modal
@@ -32,33 +102,44 @@ const ColorPickerWheel = ({ visible, onClose, onColorSelect, currentColorId }) =
         onPress={onClose}
       >
         <View style={styles.container}>
-          <Text style={[styles.title, { color: t.textPrimary }]}>Choose Accent Color</Text>
-          
-          <ScrollView
-            style={styles.colorList}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.colorListContent}
-          >
-            {COLOR_THEMES.map((theme) => (
-              <TouchableOpacity
-                key={theme.id}
-                style={[
-                  styles.colorOption,
-                  { backgroundColor: theme.accent },
-                  currentColorId === theme.id && styles.colorOptionActive,
-                ]}
-                onPress={() => handleColorPress(theme.id)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.colorName, { color: t.textPrimary }]}>
-                  {theme.name}
-                </Text>
-                {currentColorId === theme.id && (
-                  <View style={styles.checkmark} />
-                )}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          {/* Wheel Container */}
+          <View style={styles.wheelContainer} {...panResponder.panHandlers}>
+            {/* Half-circle wheel */}
+            <Animated.View
+              style={[
+                styles.wheelWrapper,
+                { transform: [{ rotate: rotationString }] },
+              ]}
+            >
+              {COLOR_THEMES.map((theme, index) => {
+                const startAngle = index * SEGMENT_ANGLE;
+                const endAngle = startAngle + SEGMENT_ANGLE;
+                const midAngle = startAngle + SEGMENT_ANGLE / 2;
+                
+                const x = WHEEL_RADIUS + (WHEEL_RADIUS - 30) * Math.cos((midAngle * Math.PI) / 180);
+                const y = WHEEL_RADIUS + (WHEEL_RADIUS - 30) * Math.sin((midAngle * Math.PI) / 180);
+                
+                return (
+                  <View
+                    key={theme.id}
+                    style={[
+                      styles.colorSegment,
+                      {
+                        backgroundColor: theme.accent,
+                        left: x - 25,
+                        top: y - 25,
+                      },
+                    ]}
+                  />
+                );
+              })}
+            </Animated.View>
+
+            {/* Center arrow indicator */}
+            <View style={styles.arrowContainer}>
+              <View style={[styles.arrow, { borderTopColor: t.textPrimary }]} />
+            </View>
+          </View>
 
           <TouchableOpacity
             style={[styles.closeButton, { backgroundColor: t.surface }]}
@@ -75,7 +156,7 @@ const ColorPickerWheel = ({ visible, onClose, onColorSelect, currentColorId }) =
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'flex-end',
   },
   container: {
@@ -84,44 +165,46 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 30,
     padding: 20,
     paddingBottom: 40,
-    maxHeight: '70%',
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  colorList: {
-    flex: 1,
-  },
-  colorListContent: {
-    gap: 12,
-    paddingBottom: 20,
-  },
-  colorOption: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: 'transparent',
   },
-  colorOptionActive: {
-    borderColor: '#FFFFFF',
-    borderWidth: 3,
+  wheelContainer: {
+    width: 240,
+    height: 240,
+    marginBottom: 30,
+    position: 'relative',
   },
-  colorName: {
-    fontSize: 16,
-    fontWeight: '600',
+  wheelWrapper: {
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    overflow: 'hidden',
+    position: 'relative',
   },
-  checkmark: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+  colorSegment: {
+    position: 'absolute',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  arrowContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 120,
+    transform: [{ translateX: -12 }],
+  },
+  arrow: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 12,
+    borderRightWidth: 12,
+    borderTopWidth: 20,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   closeButton: {
     paddingHorizontal: 40,
@@ -129,7 +212,6 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     minWidth: 120,
     alignItems: 'center',
-    marginTop: 10,
   },
   closeText: {
     fontSize: 16,
