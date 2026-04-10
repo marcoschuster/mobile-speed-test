@@ -15,8 +15,61 @@ import Speedometer from '../components/Speedometer';
 import StatCard from '../components/StatCard';
 
 const ShareIcon = () => (
-  <View style={{ width: 16, height: 16, alignItems: 'center', justifyContent: 'center' }}>
-    <Text style={{ color: COLORS.accent, fontSize: 16, fontWeight: '700' }}>⤴</Text>
+  <View style={{ width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ 
+      position: 'absolute', 
+      width: 20, 
+      height: 20, 
+      alignItems: 'center', 
+      justifyContent: 'center' 
+    }}>
+      {/* Modern share icon design */}
+      <View style={{
+        position: 'absolute',
+        width: 8,
+        height: 8,
+        backgroundColor: COLORS.accent,
+        borderRadius: 4,
+        top: 2,
+      }} />
+      <View style={{
+        position: 'absolute',
+        width: 8,
+        height: 8,
+        backgroundColor: COLORS.accent,
+        borderRadius: 4,
+        bottom: 2,
+        left: 2,
+      }} />
+      <View style={{
+        position: 'absolute',
+        width: 8,
+        height: 8,
+        backgroundColor: COLORS.accent,
+        borderRadius: 4,
+        bottom: 2,
+        right: 2,
+      }} />
+      {/* Connection lines */}
+      <View style={{
+        position: 'absolute',
+        width: 6,
+        height: 1.5,
+        backgroundColor: COLORS.accent,
+        top: 5,
+        left: 6,
+        transform: [{ rotate: '45deg' }],
+      }} />
+      <View style={{
+        position: 'absolute',
+        width: 6,
+        height: 1.5,
+        backgroundColor: COLORS.accent,
+        top: 5,
+        right: 6,
+        transform: [{ rotate: '-45deg' }],
+      }} />
+    </View>
   </View>
 );
 import { useFocusEffect } from '@react-navigation/native';
@@ -747,7 +800,7 @@ const styles = StyleSheet.create({
   },
   shareIconButton: {
     paddingVertical: 10,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     borderRadius: RADIUS.pill,
     borderWidth: 1.5,
     borderColor: COLORS.accent,
