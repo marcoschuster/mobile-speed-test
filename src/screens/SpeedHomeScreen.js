@@ -791,6 +791,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.accent,
     backgroundColor: 'transparent',
     alignItems: 'center',
+    minHeight: 40, // Ensure consistent height with share button
   },
   backgroundTestTextSmall: {
     color: COLORS.accent,
@@ -807,6 +808,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 40, // Ensure same height as background test button
   },
   shareIconButtonAbsolute: {
     position: 'absolute',

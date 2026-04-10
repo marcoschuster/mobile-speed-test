@@ -557,36 +557,38 @@ const HistoryScreen = () => {
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: t.separator }]}>
         <FlashTitle text="TEST HISTORY" size="small" interval={5000} />
-        <View style={styles.headerActions}>
-          {history.length > 0 && (
-            <TouchableOpacity style={styles.exportHeaderButton} onPress={exportHistory} activeOpacity={0.7}>
-              <Text style={styles.exportHeaderButtonText}>Export CSV</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={[
-              styles.calendarButton,
-              calendarOpen && styles.calendarButtonActive,
-            ]}
-            onPress={toggleCalendar}
-            activeOpacity={0.7}
-          >
-            <CalendarIcon size={14} color={calendarOpen ? COLORS.black : COLORS.accent} />
-            <Text
-              style={[
-                styles.calendarButtonText,
-                calendarOpen && styles.calendarButtonTextActive,
-              ]}
-            >
-              Calendar
-            </Text>
+      </View>
+      
+      {/* Action buttons moved under title */}
+      <View style={styles.actionButtons}>
+        {history.length > 0 && (
+          <TouchableOpacity style={styles.exportHeaderButton} onPress={exportHistory} activeOpacity={0.7}>
+            <Text style={styles.exportHeaderButtonText}>Export CSV</Text>
           </TouchableOpacity>
-          {history.length > 0 && (
-            <TouchableOpacity style={styles.clearButton} onPress={clearHistory} activeOpacity={0.7}>
-              <Text style={styles.clearButtonText}>Clear All</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        )}
+        <TouchableOpacity
+          style={[
+            styles.calendarButton,
+            calendarOpen && styles.calendarButtonActive,
+          ]}
+          onPress={toggleCalendar}
+          activeOpacity={0.7}
+        >
+          <CalendarIcon size={14} color={calendarOpen ? COLORS.black : COLORS.accent} />
+          <Text
+            style={[
+              styles.calendarButtonText,
+              calendarOpen && styles.calendarButtonTextActive,
+            ]}
+          >
+            Calendar
+          </Text>
+        </TouchableOpacity>
+        {history.length > 0 && (
+          <TouchableOpacity style={styles.clearButton} onPress={clearHistory} activeOpacity={0.7}>
+            <Text style={styles.clearButtonText}>Clear All</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Calendar panel */}
@@ -647,7 +649,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1,
   },
 
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   exportHeaderButton: {
     paddingHorizontal: 14,
     paddingVertical: 7,
