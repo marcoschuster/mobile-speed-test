@@ -13,6 +13,12 @@ import FlashTitle from '../components/FlashTitle';
 import LegalModal from '../components/LegalModal';
 import Speedometer from '../components/Speedometer';
 import StatCard from '../components/StatCard';
+
+const ShareIcon = () => (
+  <View style={{ width: 16, height: 16, alignItems: 'center', justifyContent: 'center' }}>
+    <Text style={{ color: COLORS.accent, fontSize: 14, fontWeight: '700' }}>↗</Text>
+  </View>
+);
 import { useFocusEffect } from '@react-navigation/native';
 import { BACKGROUND_TEST_INTERVALS } from '../config/appSettings';
 import { APP_NAME } from '../config/appInfo';
@@ -510,43 +516,44 @@ const SpeedHomeScreen = () => {
         </View>
 
         <View style={styles.controls}>
-          {!isTestRunning ? (
-            <AnimatedButton
-              onPress={startTest}
-              style={styles.startButton}
-              textStyle={[styles.startButtonText, { color: t.buttonText }]}
-              disabled={!settings.dataDisclosureAccepted}
-            >
-              Start Test
-            </AnimatedButton>
-          ) : (
-            <AnimatedButton
-              onPress={stopTest}
-              style={styles.runningButton}
-              textStyle={[styles.runningButtonText, { color: t.buttonText }]}
-              glowing
-            >
-              Stop Test
-            </AnimatedButton>
-          )}
-
-          <View style={styles.actionRow}>
-            <AnimatedButton
-              onPress={shareLastResult}
-              style={styles.utilityButton}
-              textStyle={styles.utilityButtonText}
-              disabled={!lastTest}
-            >
-              Share Last Result
-            </AnimatedButton>
+          <View style={styles.centeredControls}>
+            {!isTestRunning ? (
+              <AnimatedButton
+                onPress={startTest}
+                style={styles.startButton}
+                textStyle={[styles.startButtonText, { color: t.buttonText }]}
+                disabled={!settings.dataDisclosureAccepted}
+              >
+                Start Test
+              </AnimatedButton>
+            ) : (
+              <AnimatedButton
+                onPress={stopTest}
+                style={styles.runningButton}
+                textStyle={[styles.runningButtonText, { color: t.buttonText }]}
+                glowing
+              >
+                Stop Test
+              </AnimatedButton>
+            )}
             <AnimatedButton
               onPress={() => setBackgroundIntervalOpen(!backgroundIntervalOpen)}
-              style={styles.utilityButton}
-              textStyle={styles.utilityButtonText}
+              style={styles.backgroundTestButtonSmall}
+              textStyle={styles.backgroundTestTextSmall}
             >
               Background Test
             </AnimatedButton>
           </View>
+          
+          {lastTest && (
+            <AnimatedButton
+              onPress={shareLastResult}
+              style={styles.shareIconButton}
+              disabled={false}
+            >
+              <ShareIcon />
+            </AnimatedButton>
+          )}
         </View>
 
         {backgroundIntervalOpen && (
@@ -702,6 +709,38 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.4,
+  },
+  centeredControls: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  backgroundTestButtonSmall: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1.5,
+    borderColor: COLORS.accent,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+  },
+  backgroundTestTextSmall: {
+    color: COLORS.accent,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  shareIconButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1.5,
+    borderColor: COLORS.accent,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   backgroundTestSection: {
     width: '100%',
