@@ -536,16 +536,6 @@ const SpeedHomeScreen = () => {
                 Stop Test
               </AnimatedButton>
             )}
-            
-            {lastTest && (
-              <AnimatedButton
-                onPress={shareLastResult}
-                style={styles.shareIconButton}
-                disabled={false}
-              >
-                <ShareIcon />
-              </AnimatedButton>
-            )}
           </View>
           
           <AnimatedButton
@@ -555,6 +545,16 @@ const SpeedHomeScreen = () => {
           >
             Background Test
           </AnimatedButton>
+          
+          {lastTest && (
+            <AnimatedButton
+              onPress={shareLastResult}
+              style={styles.shareIconButtonAbsolute}
+              disabled={false}
+            >
+              <ShareIcon />
+            </AnimatedButton>
+          )}
         </View>
 
         {backgroundIntervalOpen && (
@@ -738,6 +738,19 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   shareIconButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1.5,
+    borderColor: COLORS.accent,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shareIconButtonAbsolute: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
     paddingVertical: 10,
     paddingHorizontal: 10,
     borderRadius: RADIUS.pill,
