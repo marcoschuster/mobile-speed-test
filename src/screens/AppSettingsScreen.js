@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import LegalModal from '../components/LegalModal';
 import FlashTitle from '../components/FlashTitle';
+import ColorPickerWheel from '../components/ColorPickerWheel';
 import { APP_NAME, APP_VERSION, TEST_PROVIDERS } from '../config/appInfo';
 import { HISTORY_RETENTION_OPTIONS } from '../config/appSettings';
 import { LEGAL_SECTIONS } from '../content/legal';
@@ -19,7 +20,7 @@ import { useAppSettings } from '../context/AppSettingsContext';
 import SpeedTestService from '../services/SpeedTestService';
 import SoundEngine from '../services/SoundEngine';
 import { buildHistoryCsv } from '../utils/history';
-import { COLORS, RADIUS, useTheme } from '../utils/theme';
+import { COLORS, RADIUS, useTheme, COLOR_THEMES } from '../utils/theme';
 
 const SegmentedControl = ({ options, selected, onSelect }) => {
   const { t } = useTheme();
@@ -218,7 +219,7 @@ const ActionButton = ({ text, onPress, danger = false }) => (
 );
 
 const AppSettingsScreen = () => {
-  const { t, themeChoice, setThemeChoice } = useTheme();
+  const { t, themeChoice, setThemeChoice, colorThemeId, setColorThemeId } = useTheme();
   const { settings, updateSettings, resetSettings } = useAppSettings();
   const [historyCount, setHistoryCount] = useState(0);
   const [retentionOpen, setRetentionOpen] = useState(false);
@@ -227,6 +228,7 @@ const AppSettingsScreen = () => {
   const [sfxMuted, setSfxMuted] = useState(SoundEngine.muted);
   const [sfxVolume, setSfxVolume] = useState(SoundEngine.volume);
   const [hapticsOn, setHapticsOn] = useState(SoundEngine.hapticsEnabled);
+  const [colorPickerVisible, setColorPickerVisible] = useState(false);
   const contentFade = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -313,7 +315,7 @@ const AppSettingsScreen = () => {
     >
       <FlashTitle text="APPEARANCE" size="small" interval={5000} center style={styles.sectionHeader} />
       <View style={[styles.sectionCard, { backgroundColor: t.surface }]}>
-        <SettingsRow label="Theme" isLast>
+        <SettingsRow label="Theme">
           <View style={{ width: 220 }}>
             <SegmentedControl
               options={[
@@ -325,6 +327,17 @@ const AppSettingsScreen = () => {
               onSelect={setThemeChoice}
             />
           </View>
+        </SettingsRow>
+        <SettingsRow label="Accent color" isLast>
+          <TouchableOpacity
+            style={[styles.colorPreview, { backgroundColor: t.accent }]}
+            onPress={() => setColorPickerVisible(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.colorPreviewText, { color: t.textPrimary }]}>
+              {COLOR_THEMES.find(ct => ct.id === colorThemeId)?.name || 'Gold'}
+            </Text>
+          </TouchableOpacity>
         </SettingsRow>
       </View>
 
@@ -466,6 +479,13 @@ const AppSettingsScreen = () => {
         onClose={() => setLegalVisible(false)}
         onSelect={setSelectedLegalKey}
       />
+
+      <ColorPickerWheel
+        visible={colorPickerVisible}
+        onClose={() => setColorPickerVisible(false)}
+        onColorSelect={setColorThemeId}
+        currentColorId={colorThemeId}
+      />
     </Animated.ScrollView>
   );
 };
@@ -592,6 +612,20 @@ const styles = StyleSheet.create({
   aboutText: {
     fontSize: 13,
     lineHeight: 20,
+  },
+  colorPreview: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  colorPreviewText: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 });
 

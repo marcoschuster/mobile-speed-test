@@ -23,6 +23,20 @@ export const COLORS = {
   black: '#000000',
 };
 
+// ── Color Themes (10 themes) ─────────────────────────────────────────────────
+export const COLOR_THEMES = [
+  { id: 'gold', name: 'Gold', accent: '#F5C400', accentDark: '#D4A900', accentLight: '#FFD633' },
+  { id: 'blue', name: 'Ocean Blue', accent: '#2196F3', accentDark: '#1976D2', accentLight: '#42A5F5' },
+  { id: 'purple', name: 'Royal Purple', accent: '#9C27B0', accentDark: '#7B1FA2', accentLight: '#BA68C8' },
+  { id: 'red', name: 'Crimson Red', accent: '#F44336', accentDark: '#D32F2F', accentLight: '#EF5350' },
+  { id: 'green', name: 'Emerald Green', accent: '#4CAF50', accentDark: '#388E3C', accentLight: '#66BB6A' },
+  { id: 'orange', name: 'Sunset Orange', accent: '#FF9800', accentDark: '#F57C00', accentLight: '#FFB74D' },
+  { id: 'pink', name: 'Hot Pink', accent: '#E91E63', accentDark: '#C2185B', accentLight: '#EC407A' },
+  { id: 'teal', name: 'Teal', accent: '#009688', accentDark: '#00796B', accentLight: '#26A69A' },
+  { id: 'indigo', name: 'Indigo', accent: '#3F51B5', accentDark: '#303F9F', accentLight: '#5C6BC0' },
+  { id: 'cyan', name: 'Cyan', accent: '#00BCD4', accentDark: '#0097A7', accentLight: '#26C6DA' },
+];
+
 // ── Theme-aware palettes ────────────────────────────────────────────────────
 const DARK = {
   mode: 'dark',
@@ -178,23 +192,33 @@ export const SHADOWS = {
 const ThemeContext = createContext({
   t: DARK,
   themeChoice: 'dark',
+  colorThemeId: 'gold',
   setThemeChoice: () => {},
+  setColorThemeId: () => {},
 });
 
 export const useTheme = () => useContext(ThemeContext);
 
 const STORAGE_KEY = '@zolt_theme';
+const COLOR_THEME_KEY = '@zolt_color_theme';
 
 export const ThemeProvider = ({ children }) => {
   const systemScheme = useColorScheme(); // 'light' | 'dark' | null
   const [themeChoice, setThemeChoiceState] = useState('dark'); // 'light' | 'dark' | 'system'
+  const [colorThemeId, setColorThemeIdState] = useState('gold');
   const [loaded, setLoaded] = useState(false);
 
-  // Load stored preference
+  // Load stored preferences
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((v) => {
-      if (v === 'light' || v === 'dark' || v === 'system') {
-        setThemeChoiceState(v);
+    Promise.all([
+      AsyncStorage.getItem(STORAGE_KEY),
+      AsyncStorage.getItem(COLOR_THEME_KEY),
+    ]).then(([themeVal, colorVal]) => {
+      if (themeVal === 'light' || themeVal === 'dark' || themeVal === 'system') {
+        setThemeChoiceState(themeVal);
+      }
+      if (colorVal && COLOR_THEMES.find(ct => ct.id === colorVal)) {
+        setColorThemeIdState(colorVal);
       }
       setLoaded(true);
     }).catch(() => setLoaded(true));
@@ -205,15 +229,31 @@ export const ThemeProvider = ({ children }) => {
     AsyncStorage.setItem(STORAGE_KEY, val).catch(() => {});
   };
 
+  const setColorThemeId = (val) => {
+    setColorThemeIdState(val);
+    AsyncStorage.setItem(COLOR_THEME_KEY, val).catch(() => {});
+  };
+
+  // Get active color theme
+  const activeColorTheme = COLOR_THEMES.find(ct => ct.id === colorThemeId) || COLOR_THEMES[0];
+
   // Resolve effective theme
   let effective = themeChoice;
   if (themeChoice === 'system') {
     effective = systemScheme === 'light' ? 'light' : 'dark';
   }
-  const t = effective === 'light' ? LIGHT : DARK;
+  const baseTheme = effective === 'light' ? LIGHT : DARK;
+
+  // Apply color theme to base theme
+  const t = {
+    ...baseTheme,
+    ...activeColorTheme,
+    accentGlow: `${activeColorTheme.accent}59`, // 35% opacity
+    accentSubtle: `${activeColorTheme.accent}14`, // 8% opacity
+  };
 
   return (
-    <ThemeContext.Provider value={{ t, themeChoice, setThemeChoice }}>
+    <ThemeContext.Provider value={{ t, themeChoice, colorThemeId, setThemeChoice, setColorThemeId }}>
       {loaded ? children : null}
     </ThemeContext.Provider>
   );
