@@ -2,6 +2,9 @@
 
 # dependencies
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Expo
 .expo/
@@ -21,20 +24,103 @@ expo-env.d.ts
 # Metro
 .metro-health-check*
 
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
 # macOS
 .DS_Store
 *.pem
 
-# local env files
+# Environment files - ALL ENV FILES
+.env
+.env.*
+!.env.example
+!.env.template
+!.env.sample
 .env*.local
+.env*.development
+.env*.production
+.env*.staging
+.env*.test
 
-# typescript
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# TypeScript
 *.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# next.js build output
+.next
+
+# nuxt.js build output
+.nuxt
+
+# vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
 
 # Bun lockfile
 bun.lockb
@@ -42,7 +128,105 @@ bun.lockb
 # Temporary files
 *.tmp
 *.temp
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
 # generated native folders
 /ios
 /android
+
+# Build artifacts
+build/
+dist/
+out/
+
+# Test artifacts
+test-results/
+coverage/
+
+# Documentation build
+docs/_build/
+
+# Package manager lock files (keeping package.json.lock if needed)
+package-lock.json
+yarn.lock
+
+# Local configuration files
+config/local.json
+config/development.json
+config/production.json
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.bak
+*.backup
+
+# Archive files
+*.zip
+*.tar.gz
+*.rar
+
+# Large media files
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.flv
+*.webm
+*.mp3
+*.wav
+*.flac
+
+# Font files
+*.ttf
+*.otf
+*.woff
+*.woff2
+
+# Image files (if not needed in repo)
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.svg
+*.ico
+*.webp
+
+# API keys and secrets
+secrets.json
+api-keys.json
+credentials.json
+private-key.json
+
+# Local development
+.local/
+local/
+dev/
+development/
+
+# Monitoring and analytics
+*.prof
+*.heap
+*.cpu
+
+# Misc
+.envrc
+*.orig
+*.rej
+~*
+.~#*#
