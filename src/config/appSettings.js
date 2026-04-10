@@ -9,12 +9,21 @@ export const HISTORY_RETENTION_OPTIONS = [
   { label: 'Keep until deleted', value: -1 },
 ];
 
+export const BACKGROUND_TEST_INTERVALS = [
+  { label: 'Every 30 minutes', value: 30 },
+  { label: 'Every 1 hour', value: 60 },
+  { label: 'Every 3 hours', value: 180 },
+  { label: 'Every 6 hours', value: 360 },
+  { label: 'Every 12 hours', value: 720 },
+  { label: 'Every 24 hours', value: 1440 },
+];
+
 export const DEFAULT_APP_SETTINGS = {
   speedUnit: 'mbps',
   showPing: true,
   historyRetentionDays: 90,
   dataDisclosureAccepted: false,
-  autoBackgroundTest: false,
+  backgroundTestInterval: null, // null = disabled
 };
 
 export const sanitizeAppSettings = (value) => ({

@@ -343,21 +343,12 @@ const AppSettingsScreen = () => {
             />
           </View>
         </SettingsRow>
-        <SettingsRow label="Show Ping">
+        <SettingsRow label="Show Ping" isLast>
           <Switch
             value={settings.showPing}
             onValueChange={(value) => updateSettings({ showPing: value })}
             trackColor={{ false: t.switchTrackOff, true: COLORS.accent }}
             thumbColor={settings.showPing ? COLORS.white : t.switchThumbOff}
-            ios_backgroundColor={t.switchTrackOff}
-          />
-        </SettingsRow>
-        <SettingsRow label="Auto Background Test" isLast>
-          <Switch
-            value={settings.autoBackgroundTest}
-            onValueChange={(value) => updateSettings({ autoBackgroundTest: value })}
-            trackColor={{ false: t.switchTrackOff, true: COLORS.accent }}
-            thumbColor={settings.autoBackgroundTest ? COLORS.white : t.switchThumbOff}
             ios_backgroundColor={t.switchTrackOff}
           />
         </SettingsRow>

@@ -14,6 +14,7 @@ import LegalModal from '../components/LegalModal';
 import Speedometer from '../components/Speedometer';
 import StatCard from '../components/StatCard';
 import { useFocusEffect } from '@react-navigation/native';
+import { BACKGROUND_TEST_INTERVALS } from '../config/appSettings';
 import { APP_NAME } from '../config/appInfo';
 import { LEGAL_SECTIONS } from '../content/legal';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -136,11 +137,54 @@ const SpeedHomeScreen = () => {
   const [historySummary, setHistorySummary] = useState(summarizeHistory([]));
   const [peaks, setPeaks] = useState({ download: 0, upload: 0, ping: 0 });
   const [legalVisible, setLegalVisible] = useState(false);
+  const [backgroundIntervalOpen, setBackgroundIntervalOpen] = useState(false);
+  const [backgroundTestRef, setBackgroundTestRef] = useState(null);
   const [selectedLegalKey, setSelectedLegalKey] = useState('privacy');
 
   const gaugeWhirRef = useRef(null);
   const liveSpeedRef = useRef(0);
   const contentFade = useRef(new Animated.Value(1)).current;
+
+  const startBackgroundTest = async (intervalMinutes) => {
+    if (!settings.dataDisclosureAccepted) return;
+    
+    const runBackgroundTest = async () => {
+      try {
+        const result = await SpeedTestService.runFullTest({
+          onProgress: (phase, progress) => {
+            console.log(`Background test ${phase}: ${progress}%`);
+          },
+          onSpeedUpdate: (speed, type) => {
+            console.log(`Background ${type} speed: ${speed} Mbps`);
+          },
+        });
+        
+        if (result.success) {
+          await SpeedTestService.saveResult(result);
+          console.log('Background test completed successfully');
+        }
+      } catch (error) {
+        console.error('Background test failed:', error);
+      }
+    };
+
+    // Run initial test immediately
+    setTimeout(() => {
+      runBackgroundTest();
+    }, 1000);
+
+    // Set up interval for background tests
+    const intervalMs = intervalMinutes * 60 * 1000;
+    const intervalId = setInterval(runBackgroundTest, intervalMs);
+    setBackgroundTestRef(intervalId);
+  };
+
+  const stopBackgroundTest = () => {
+    if (backgroundTestRef) {
+      clearInterval(backgroundTestRef);
+      setBackgroundTestRef(null);
+    }
+  };
 
   const loadPersistedData = useCallback(async () => {
     const history = await SpeedTestService.getHistory();
@@ -156,57 +200,9 @@ const SpeedHomeScreen = () => {
 
     return () => {
       if (gaugeWhirRef.current) clearInterval(gaugeWhirRef.current);
+      if (backgroundTestRef) clearInterval(backgroundTestRef);
     };
-  }, [contentFade, loadPersistedData]);
-
-  // Background testing functionality
-  useEffect(() => {
-    if (!settings.dataDisclosureAccepted) return;
-
-    let backgroundInterval = null;
-    let lastBackgroundTest = 0;
-
-    const runBackgroundTest = async () => {
-      const now = Date.now();
-      if (now - lastBackgroundTest < 60 * 60 * 1000) return; // 1 hour minimum between tests
-      
-      try {
-        lastBackgroundTest = now;
-        const result = await SpeedTestService.runFullTest({
-          onProgress: (phase, progress) => {
-            console.log(`Background test ${phase}: ${progress}%`);
-          },
-          onSpeedUpdate: (speed, type) => {
-            console.log(`Background ${type} speed: ${speed} Mbps`);
-          },
-        });
-        
-        // Save background test result
-        if (result.success) {
-          await SpeedTestService.saveResult(result);
-          console.log('Background test completed successfully');
-        }
-      } catch (error) {
-        console.error('Background test failed:', error);
-      }
-    };
-
-    if (settings.autoBackgroundTest) {
-      // Run initial test after a short delay
-      setTimeout(() => {
-        runBackgroundTest();
-      }, 5000);
-
-      // Set up interval for background tests
-      backgroundInterval = setInterval(runBackgroundTest, 60 * 60 * 1000); // Every hour
-    }
-
-    return () => {
-      if (backgroundInterval) {
-        clearInterval(backgroundInterval);
-      }
-    };
-  }, [settings.autoBackgroundTest, settings.dataDisclosureAccepted]);
+  }, [contentFade, loadPersistedData, backgroundTestRef]);
 
   useFocusEffect(useCallback(() => {
     loadPersistedData();
@@ -511,6 +507,63 @@ const SpeedHomeScreen = () => {
               footerText={peaks.ping ? `Best ${formatPing(peaks.ping)}` : 'Best pending'}
             />
           )}
+
+          <View style={styles.backgroundTestSection}>
+            <View style={styles.backgroundTestButton}>
+              <TouchableOpacity
+                style={[styles.backgroundTestTrigger, { borderColor: COLORS.accent }]}
+                onPress={() => setBackgroundIntervalOpen(!backgroundIntervalOpen)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.backgroundTestText, { color: COLORS.accent }]}>
+                  Background Test
+                </Text>
+                <Text style={[styles.backgroundTestInterval, { color: t.textSecondary }]}>
+                  {settings.backgroundTestInterval 
+                    ? BACKGROUND_TEST_INTERVALS.find(i => i.value === settings.backgroundTestInterval)?.label || 'Disabled'
+                    : 'Disabled'
+                  }
+                </Text>
+                <Text style={[styles.backgroundTestArrow, { color: t.textSecondary }]}>
+                  {backgroundIntervalOpen ? '▲' : '▼'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            
+            {backgroundIntervalOpen && (
+              <View style={[styles.backgroundTestOptions, { backgroundColor: t.surface }]}>
+                <TouchableOpacity
+                  style={[styles.backgroundTestOption, settings.backgroundTestInterval === null && styles.backgroundTestOptionActive]}
+                  onPress={() => {
+                    updateSettings({ backgroundTestInterval: null });
+                    setBackgroundIntervalOpen(false);
+                    stopBackgroundTest();
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.backgroundTestOptionText, { color: settings.backgroundTestInterval === null ? COLORS.black : t.textPrimary }]}>
+                    Disabled
+                  </Text>
+                </TouchableOpacity>
+                {BACKGROUND_TEST_INTERVALS.map((interval) => (
+                  <TouchableOpacity
+                    key={interval.value}
+                    style={[styles.backgroundTestOption, settings.backgroundTestInterval === interval.value && styles.backgroundTestOptionActive]}
+                    onPress={() => {
+                      updateSettings({ backgroundTestInterval: interval.value });
+                      setBackgroundIntervalOpen(false);
+                      startBackgroundTest(interval.value);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.backgroundTestOptionText, { color: settings.backgroundTestInterval === interval.value ? COLORS.black : t.textPrimary }]}>
+                      {interval.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
         </View>
 
         <View style={styles.controls}>
@@ -669,6 +722,68 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.4,
+  },
+  backgroundTestSection: {
+    width: '100%',
+    marginTop: 16,
+  },
+  backgroundTestButton: {
+    borderRadius: RADIUS.pill,
+    borderWidth: 1.5,
+    borderColor: COLORS.accent,
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
+  },
+  backgroundTestTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  backgroundTestText: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  backgroundTestInterval: {
+    fontSize: 11,
+    fontWeight: '500',
+    flex: 1,
+    textAlign: 'center',
+  },
+  backgroundTestArrow: {
+    fontSize: 10,
+    marginLeft: 8,
+  },
+  backgroundTestOptions: {
+    marginTop: 4,
+    borderRadius: RADIUS.lg,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  backgroundTestOption: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  backgroundTestOptionActive: {
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
+  },
+  backgroundTestOptionText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   insightsWrap: {
     width: '100%',
