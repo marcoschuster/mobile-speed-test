@@ -96,11 +96,7 @@ const ColorPickerWheel = ({ visible, onClose, onColorSelect, currentColorId }) =
       animationType="slide"
       onRequestClose={onClose}
     >
-      <TouchableOpacity
-        style={styles.overlay}
-        activeOpacity={1}
-        onPress={onClose}
-      >
+      <View style={styles.overlay}>
         <View style={styles.container}>
           {/* Wheel Container */}
           <View style={styles.wheelContainer} {...panResponder.panHandlers}>
@@ -148,7 +144,7 @@ const ColorPickerWheel = ({ visible, onClose, onColorSelect, currentColorId }) =
             <Text style={[styles.closeText, { color: t.textPrimary }]}>Done</Text>
           </TouchableOpacity>
         </View>
-      </TouchableOpacity>
+      </View>
     </Modal>
   );
 };
@@ -156,7 +152,7 @@ const ColorPickerWheel = ({ visible, onClose, onColorSelect, currentColorId }) =
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'transparent',
     justifyContent: 'flex-end',
   },
   container: {
@@ -179,6 +175,7 @@ const styles = StyleSheet.create({
     borderRadius: 120,
     overflow: 'hidden',
     position: 'relative',
+    backgroundColor: '#1a1a1a',
   },
   colorSegment: {
     position: 'absolute',
@@ -191,6 +188,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 120,
     transform: [{ translateX: -12 }],
+    zIndex: 10,
   },
   arrow: {
     width: 0,
