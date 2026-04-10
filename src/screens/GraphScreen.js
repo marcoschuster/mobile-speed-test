@@ -187,7 +187,7 @@ const InteractiveChart = ({
     <View style={[cStyles.chartCard, { backgroundColor: t.surface }]}>
       <View style={[cStyles.gradientTint, { backgroundColor: chartTintBg }]} />
       <View style={cStyles.chartTitleWrap}>
-        <FlashTitle text={title.toUpperCase()} size="small" interval={5000} center />
+        <FlashTitle text={title.toUpperCase()} size="small" interval={5000} center disableFlash />
       </View>
       <View style={cStyles.legendRow}>
         {legends.map((leg, i) => (
