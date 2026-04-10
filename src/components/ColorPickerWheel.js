@@ -37,17 +37,12 @@ const ColorPickerWheel = ({ visible, onClose, onColorSelect, currentColorId }) =
     }
   }, [currentColorId]);
 
-  const handlePan = Animated.event(
-    [{ nativeEvent: { translationX: dx } }],
-    {
-      useNativeDriver: true,
-      listener: ({ nativeEvent }) => {
-        const angle = (nativeEvent.translationX / SCREEN_WIDTH) * 360;
-        const newRotation = rotationRef.current + angle;
-        wheelRotation.setValue(newRotation);
-      },
-    }
-  );
+  const handlePanMove = (gestureState) => {
+    const { translationX } = gestureState;
+    const angle = (translationX / SCREEN_WIDTH) * 360;
+    const newRotation = rotationRef.current + angle;
+    wheelRotation.setValue(newRotation);
+  };
 
   const handlePanEnd = (gestureState) => {
     const { translationX, velocityX } = gestureState;
@@ -82,7 +77,7 @@ const ColorPickerWheel = ({ visible, onClose, onColorSelect, currentColorId }) =
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderMove: handlePan,
+      onPanResponderMove: (e, gestureState) => handlePanMove(gestureState),
       onPanResponderRelease: (e, gestureState) => handlePanEnd(gestureState),
     })
   ).current;
