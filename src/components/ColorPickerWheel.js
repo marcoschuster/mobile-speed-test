@@ -17,13 +17,16 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const ColorPickerWheel = ({ visible, onClose, onColorSelect, currentColorId }) => {
   const { t } = useTheme();
-  const [rotation, setRotation] = useState(0);
   const rotationRef = useRef(0);
   const wheelRotation = useRef(new Animated.Value(0)).current;
+  const rotationString = wheelRotation.interpolate({
+    inputRange: [0, 360],
+    outputRange: ['0deg', '360deg'],
+  });
   const selectedIndex = useRef(0);
 
   const SEGMENT_ANGLE = 360 / COLOR_THEMES.length;
-  const WHEEL_RADIUS = 140;
+  const WHEEL_RADIUS = 100;
   const WHEEL_DIAMETER = WHEEL_RADIUS * 2;
 
   // Find current color index
@@ -152,13 +155,10 @@ const ColorPickerWheel = ({ visible, onClose, onColorSelect, currentColorId }) =
             <Animated.View
               style={[
                 styles.wheelWrapper,
-                { transform: [{ rotate: wheelRotation.interpolate({
-                  inputRange: [0, 360],
-                  outputRange: ['0deg', '360deg'],
-                }) }] },
+                { transform: [{ rotate: rotationString }] },
               ]}
             >
-              <Svg width={WHEEL_DIAMETER} height={WHEEL_DIAMETER}>
+              <Svg width={WHEEL_DIAMETER} height={WHEEL_DIAMETER} style={styles.wheelSvg}>
                 <Defs>
                   <LinearGradient id="wheelGradient" x1="0" y1="0" x2="0" y2="1">
                     <Stop offset="0%" stopColor={t.bg} stopOpacity="0.3" />
@@ -202,7 +202,7 @@ const ColorPickerWheel = ({ visible, onClose, onColorSelect, currentColorId }) =
             style={[styles.closeButton, { backgroundColor: t.surface }]}
             onPress={onClose}
           >
-            <View style={[styles.closeText, { color: t.textPrimary }]}>Done</View>
+            <Text style={[styles.closeText, { color: t.textPrimary }]}>Done</Text>
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -213,7 +213,7 @@ const ColorPickerWheel = ({ visible, onClose, onColorSelect, currentColorId }) =
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
     justifyContent: 'flex-end',
   },
   container: {
@@ -227,25 +227,29 @@ const styles = StyleSheet.create({
   wheelContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 30,
+    marginBottom: 20,
+    height: 120,
   },
   wheelWrapper: {
-    width: 280,
-    height: 280,
-    borderRadius: 140,
+    width: WHEEL_DIAMETER,
+    height: WHEEL_DIAMETER,
+    borderRadius: WHEEL_RADIUS,
     overflow: 'hidden',
+  },
+  wheelSvg: {
+    transform: [{ translateY: -WHEEL_RADIUS * 0.5 }],
   },
   arrowContainer: {
     position: 'absolute',
-    top: -10,
+    top: -5,
     alignItems: 'center',
   },
   arrow: {
     width: 0,
     height: 0,
-    borderLeftWidth: 15,
-    borderRightWidth: 15,
-    borderTopWidth: 25,
+    borderLeftWidth: 12,
+    borderRightWidth: 12,
+    borderTopWidth: 20,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
     shadowColor: '#000',
@@ -258,13 +262,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 12,
+    gap: 10,
     marginBottom: 20,
   },
   colorButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 2,
     borderColor: 'transparent',
   },
