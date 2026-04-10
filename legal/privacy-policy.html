@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ZOLT Privacy Policy</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f7f3;
+        --surface: #ffffff;
+        --ink: #121212;
+        --muted: #555555;
+        --accent: #f5c400;
+        --border: rgba(0, 0, 0, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background:
+          radial-gradient(circle at top right, rgba(245, 196, 0, 0.18), transparent 32%),
+          linear-gradient(180deg, #fffdf4 0%, var(--bg) 100%);
+        color: var(--ink);
+      }
+
+      main {
+        max-width: 880px;
+        margin: 0 auto;
+        padding: 48px 20px 72px;
+      }
+
+      article {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        padding: 32px;
+        box-shadow: 0 16px 50px rgba(0, 0, 0, 0.08);
+      }
+
+      h1, h2 {
+        margin: 0 0 16px;
+      }
+
+      h1 {
+        font-size: clamp(2rem, 5vw, 3rem);
+      }
+
+      h2 {
+        margin-top: 32px;
+        font-size: 1.15rem;
+      }
+
+      p, li {
+        line-height: 1.65;
+        color: var(--muted);
+      }
+
+      .eyebrow {
+        display: inline-block;
+        margin-bottom: 12px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(245, 196, 0, 0.16);
+        color: #6d5600;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <article>
+        <span class="eyebrow">Effective 2026-04-10</span>
+        <h1>ZOLT Privacy Policy</h1>
+        <p>
+          ZOLT is a network speed testing app. This Privacy Policy explains how ZOLT handles
+          data when you run tests, view results, and manage the app.
+        </p>
+
+        <h2>What the app does not do</h2>
+        <p>
+          This project does not require an account, does not sell personal information,
+          and does not include advertising or analytics SDKs.
+        </p>
+
+        <h2>What happens when you run a speed test</h2>
+        <p>
+          Running a test sends network traffic to the infrastructure used to power the test,
+          including Measurement Lab for server discovery and Cloudflare for download and upload
+          traffic. Those providers necessarily receive technical request data such as IP address,
+          user agent, timing, and network route information so the test can complete.
+        </p>
+
+        <h2>What is stored on your device</h2>
+        <p>
+          ZOLT stores test history, local settings, sound preferences, and privacy acknowledgement
+          on the device. This data is used to display charts, summaries, and app behavior. In this
+          codebase, it is not transmitted back to the app publisher.
+        </p>
+
+        <h2>Retention and deletion</h2>
+        <p>
+          History stays on-device until you delete it or until your selected retention window
+          automatically removes older results. You can clear history and reset local app data from
+          the Settings screen.
+        </p>
+
+        <h2>Security</h2>
+        <p>
+          Test traffic uses encrypted HTTPS and WSS connections where supported by the provider
+          endpoints. Local app data relies on the operating system sandbox and the security
+          controls of your device.
+        </p>
+
+        <h2>Contact</h2>
+        <p>
+          For privacy questions or requests, use the support contact listed on the Google Play
+          store page for ZOLT.
+        </p>
+      </article>
+    </main>
+  </body>
+</html>

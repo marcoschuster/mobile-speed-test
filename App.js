@@ -4,13 +4,14 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, Animated, StyleSheet, Platform } from 'react-native';
 import Svg, { Path, Polygon } from 'react-native-svg';
-import SpeedTestScreen from './src/screens/SpeedTestScreen';
+import SpeedHomeScreen from './src/screens/SpeedHomeScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import GraphScreen from './src/screens/GraphScreen';
-import SettingsScreen from './src/screens/SettingsScreen';
+import AppSettingsScreen from './src/screens/AppSettingsScreen';
 import FlashTitle from './src/components/FlashTitle';
 import { COLORS, ThemeProvider, useTheme } from './src/utils/theme';
 import SoundEngine from './src/services/SoundEngine';
+import { AppSettingsProvider } from './src/context/AppSettingsContext';
 
 const Tab = createBottomTabNavigator();
 
@@ -170,7 +171,7 @@ function AppInner() {
       >
         <Tab.Screen
           name="Speed Test"
-          component={SpeedTestScreen}
+          component={SpeedHomeScreen}
           listeners={{ tabPress: () => SoundEngine.playNavTick() }}
           options={{
             tabBarLabel: 'Speed',
@@ -206,7 +207,7 @@ function AppInner() {
         />
         <Tab.Screen
           name="Settings"
-          component={SettingsScreen}
+          component={AppSettingsScreen}
           listeners={{ tabPress: () => SoundEngine.playNavTick() }}
           options={{
             tabBarLabel: 'Settings',
@@ -224,7 +225,9 @@ function AppInner() {
 export default function App() {
   return (
     <ThemeProvider>
-      <AppInner />
+      <AppSettingsProvider>
+        <AppInner />
+      </AppSettingsProvider>
     </ThemeProvider>
   );
 }

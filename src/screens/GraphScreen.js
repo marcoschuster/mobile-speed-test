@@ -10,6 +10,7 @@ import {
   Animated,
   Platform,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import Svg, {
   Rect,
   Line,
@@ -25,6 +26,9 @@ import Svg, {
 import SpeedTestService from '../services/SpeedTestService';
 import SoundEngine from '../services/SoundEngine';
 import FlashTitle from '../components/FlashTitle';
+import { useAppSettings } from '../context/AppSettingsContext';
+import { summarizeHistory } from '../utils/history';
+import { convertSpeedFromMbps, formatBytes, formatSpeedValue, getSpeedUnitLabel } from '../utils/measurements';
 import { COLORS, RADIUS, useTheme } from '../utils/theme';
 
 const screenWidth = Dimensions.get('window').width;
@@ -428,24 +432,73 @@ const cStyles = StyleSheet.create({
   legendText: { fontSize: 12, fontWeight: '600' },
 });
 
+const TrendSummary = ({ history, speedUnit, speedUnitLabel }) => {
+  const { t } = useTheme();
+  const summary = summarizeHistory(history);
+
+  if (!summary.totalTests) return null;
+
+  const trendLabel = summary.recentTrend === 'up'
+    ? 'Improving'
+    : summary.recentTrend === 'down'
+      ? 'Slower lately'
+      : 'Stable';
+
+  const cards = [
+    {
+      label: 'Avg Download',
+      value: `${formatSpeedValue(summary.averageDownload, speedUnit, 1)} ${speedUnitLabel}`,
+    },
+    {
+      label: 'Avg Ping',
+      value: `${Math.round(summary.averagePing)} ms`,
+    },
+    {
+      label: 'Trend',
+      value: trendLabel,
+    },
+    {
+      label: 'Traffic',
+      value: formatBytes(summary.totalDataUsedBytes),
+    },
+  ];
+
+  return (
+    <View style={styles.summaryGrid}>
+      {cards.map((card) => (
+        <View key={card.label} style={[styles.summaryCard, { backgroundColor: t.surface }]}>
+          <Text style={[styles.summaryLabel, { color: t.textMuted }]}>{card.label}</Text>
+          <Text style={[styles.summaryValue, { color: t.textPrimary }]}>{card.value}</Text>
+        </View>
+      ))}
+    </View>
+  );
+};
+
 // ── Main Screen ─────────────────────────────────────────────────────────────
 const GraphScreen = () => {
   const { t } = useTheme();
+  const { settings } = useAppSettings();
   const isDark = t.mode === 'dark';
   const [allHistory, setAllHistory] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [timeFilter, setTimeFilter] = useState('month');
   const contentFade = useRef(new Animated.Value(0)).current;
+  const speedUnitLabel = getSpeedUnitLabel(settings.speedUnit);
+
+  const loadSpeedHistory = useCallback(async () => {
+    const history = await SpeedTestService.getHistory();
+    setAllHistory(history);
+  }, []);
 
   useEffect(() => {
     loadSpeedHistory();
     Animated.timing(contentFade, { toValue: 1, duration: 300, useNativeDriver: false }).start();
-  }, []);
+  }, [contentFade, loadSpeedHistory]);
 
-  const loadSpeedHistory = async () => {
-    const history = await SpeedTestService.getHistory();
-    setAllHistory(history);
-  };
+  useFocusEffect(useCallback(() => {
+    loadSpeedHistory();
+  }, [loadSpeedHistory]));
 
   const onRefresh = async () => { setRefreshing(true); await loadSpeedHistory(); setRefreshing(false); };
 
@@ -499,15 +552,28 @@ const GraphScreen = () => {
 
     return (
       <>
+        <TrendSummary
+          history={data}
+          speedUnit={settings.speedUnit}
+          speedUnitLabel={speedUnitLabel}
+        />
         <InteractiveChart
           chartId="speed"
           dataPoints={data}
           datasets={[
-            { values: data.map((d) => d.download), color: COLORS.accent, label: 'Download' },
-            { values: data.map((d) => d.upload), color: t.uploadLine, label: 'Upload' },
+            {
+              values: data.map((d) => convertSpeedFromMbps(d.download, settings.speedUnit)),
+              color: COLORS.accent,
+              label: 'Download',
+            },
+            {
+              values: data.map((d) => convertSpeedFromMbps(d.upload, settings.speedUnit)),
+              color: t.uploadLine,
+              label: 'Upload',
+            },
           ]}
           yAxisSuffix=""
-          title="Download & Upload Speed (Mbps)"
+          title={`Download & Upload Speed (${speedUnitLabel})`}
           legends={[
             { color: COLORS.accent, label: 'Download' },
             { color: t.uploadLine, label: 'Upload' },
@@ -520,18 +586,20 @@ const GraphScreen = () => {
           isDark={isDark}
           t={t}
         />
-        <InteractiveChart
-          chartId="ping"
-          dataPoints={data}
-          datasets={[{ values: data.map((d) => d.ping), color: COLORS.success, label: 'Ping' }]}
-          yAxisSuffix=""
-          title="Ping / Latency (ms)"
-          legends={[{ color: COLORS.success, label: 'Ping' }]}
-          areaGradients={[{ color: COLORS.success }]}
-          formatXLabel={formatXLabel}
-          isDark={isDark}
-          t={t}
-        />
+        {settings.showPing && (
+          <InteractiveChart
+            chartId="ping"
+            dataPoints={data}
+            datasets={[{ values: data.map((d) => d.ping), color: COLORS.success, label: 'Ping' }]}
+            yAxisSuffix=""
+            title="Ping / Latency (ms)"
+            legends={[{ color: COLORS.success, label: 'Ping' }]}
+            areaGradients={[{ color: COLORS.success }]}
+            formatXLabel={formatXLabel}
+            isDark={isDark}
+            t={t}
+          />
+        )}
       </>
     );
   };
@@ -589,6 +657,33 @@ const styles = StyleSheet.create({
 
   content: { flex: 1 },
   contentContainer: { padding: 16, paddingBottom: 30 },
+  summaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 18,
+  },
+  summaryCard: {
+    width: '48.5%',
+    borderRadius: RADIUS.lg,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  summaryLabel: {
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  summaryValue: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
 
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 80 },
   emptyTitle: { fontSize: 18, fontWeight: '800', marginTop: 16, letterSpacing: 0.5 },

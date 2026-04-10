@@ -9,10 +9,15 @@ import {
   Alert,
   RefreshControl,
   Animated,
+  Share,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Polygon, Path } from 'react-native-svg';
 import SpeedTestService from '../services/SpeedTestService';
 import FlashTitle from '../components/FlashTitle';
+import { useAppSettings } from '../context/AppSettingsContext';
+import { buildHistoryCsv, summarizeHistory } from '../utils/history';
+import { formatBytes, formatSpeedValue, getSpeedUnitLabel } from '../utils/measurements';
 import { COLORS, RADIUS, useTheme } from '../utils/theme';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -314,7 +319,7 @@ const PulsingDate = ({ text, baseColor }) => {
 };
 
 // ── Animated History Card ───────────────────────────────────────────────────
-const HistoryCard = ({ item, index, formatDate }) => {
+const HistoryCard = ({ item, index, formatDate, speedUnit, speedUnitLabel }) => {
   const { t } = useTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -348,8 +353,8 @@ const HistoryCard = ({ item, index, formatDate }) => {
               <Text style={[styles.historyStatLabel, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Download</Text>
             </View>
             <Text style={[styles.historyStatValue, { color: t.textPrimary }]}>
-              {item.download.toFixed(1)}
-              <Text style={[styles.historyStatUnit, { color: t.textSecondary }]}> Mbps</Text>
+              {formatSpeedValue(item.download, speedUnit, 1)}
+              <Text style={[styles.historyStatUnit, { color: t.textSecondary }]}> {speedUnitLabel}</Text>
             </Text>
           </View>
 
@@ -361,8 +366,8 @@ const HistoryCard = ({ item, index, formatDate }) => {
               <Text style={[styles.historyStatLabel, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Upload</Text>
             </View>
             <Text style={[styles.historyStatValue, { color: t.textPrimary }]}>
-              {item.upload.toFixed(1)}
-              <Text style={[styles.historyStatUnit, { color: t.textSecondary }]}> Mbps</Text>
+              {formatSpeedValue(item.upload, speedUnit, 1)}
+              <Text style={[styles.historyStatUnit, { color: t.textSecondary }]}> {speedUnitLabel}</Text>
             </Text>
           </View>
 
@@ -379,30 +384,81 @@ const HistoryCard = ({ item, index, formatDate }) => {
             </Text>
           </View>
         </View>
+        <View style={[styles.metaRow, { borderTopColor: t.separator }]}>
+          <Text style={[styles.metaText, { color: t.textMuted }]}>
+            {formatBytes(item.totalBytes || 0)} used
+          </Text>
+          <Text style={[styles.metaText, { color: t.textMuted }]}>
+            {(item.serverName || 'Automatic')}{item.serverLocation ? ` • ${item.serverLocation}` : ''}
+          </Text>
+        </View>
       </View>
     </Animated.View>
+  );
+};
+
+const SummaryStrip = ({ history, speedUnit, speedUnitLabel }) => {
+  const { t } = useTheme();
+  const summary = summarizeHistory(history);
+
+  if (!summary.totalTests) return null;
+
+  const cards = [
+    {
+      label: 'Tests',
+      value: String(summary.totalTests),
+      subtitle: 'Visible in this view',
+    },
+    {
+      label: 'Average Download',
+      value: `${formatSpeedValue(summary.averageDownload, speedUnit, 1)} ${speedUnitLabel}`,
+      subtitle: 'Across filtered history',
+    },
+    {
+      label: 'Data Used',
+      value: formatBytes(summary.totalDataUsedBytes),
+      subtitle: 'Saved test traffic total',
+    },
+  ];
+
+  return (
+    <View style={styles.summaryRow}>
+      {cards.map((card) => (
+        <View key={card.label} style={[styles.summaryCard, { backgroundColor: t.surface }]}>
+          <Text style={[styles.summaryLabel, { color: t.textMuted }]}>{card.label}</Text>
+          <Text style={[styles.summaryValue, { color: t.textPrimary }]}>{card.value}</Text>
+          <Text style={[styles.summarySubtitle, { color: t.textSecondary }]}>{card.subtitle}</Text>
+        </View>
+      ))}
+    </View>
   );
 };
 
 // ── Screen ──────────────────────────────────────────────────────────────────
 const HistoryScreen = () => {
   const { t } = useTheme();
+  const { settings } = useAppSettings();
   const [history, setHistory] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const contentFade = useRef(new Animated.Value(0)).current;
   const calHeight = useRef(new Animated.Value(0)).current;
+  const speedUnitLabel = getSpeedUnitLabel(settings.speedUnit);
+
+  const loadHistory = useCallback(async () => {
+    const historyData = await SpeedTestService.getHistory();
+    setHistory(historyData);
+  }, []);
 
   useEffect(() => {
     loadHistory();
     Animated.timing(contentFade, { toValue: 1, duration: 300, useNativeDriver: false }).start();
-  }, []);
+  }, [contentFade, loadHistory]);
 
-  const loadHistory = async () => {
-    const historyData = await SpeedTestService.getHistory();
-    setHistory(historyData);
-  };
+  useFocusEffect(useCallback(() => {
+    loadHistory();
+  }, [loadHistory]));
 
   const clearHistory = () => {
     Alert.alert('Clear History', 'Are you sure you want to clear all test history?', [
@@ -415,6 +471,22 @@ const HistoryScreen = () => {
         },
       },
     ]);
+  };
+
+  const exportHistory = async () => {
+    if (!history.length) {
+      Alert.alert('No history', 'Run a speed test before exporting results.');
+      return;
+    }
+
+    try {
+      await Share.share({
+        title: 'ZOLT speed history',
+        message: buildHistoryCsv(history),
+      });
+    } catch (error) {
+      Alert.alert('Export failed', 'Could not open the share sheet on this device.');
+    }
   };
 
   const onRefresh = async () => { setRefreshing(true); await loadHistory(); setRefreshing(false); };
@@ -461,7 +533,13 @@ const HistoryScreen = () => {
   };
 
   const renderHistoryItem = ({ item, index }) => (
-    <HistoryCard item={item} index={index} formatDate={formatDate} />
+    <HistoryCard
+      item={item}
+      index={index}
+      formatDate={formatDate}
+      speedUnit={settings.speedUnit}
+      speedUnitLabel={speedUnitLabel}
+    />
   );
 
   const calendarMaxHeight = calHeight.interpolate({
@@ -480,6 +558,11 @@ const HistoryScreen = () => {
       <View style={[styles.header, { borderBottomColor: t.separator }]}>
         <FlashTitle text="TEST HISTORY" size="small" interval={5000} />
         <View style={styles.headerActions}>
+          {history.length > 0 && (
+            <TouchableOpacity style={styles.exportHeaderButton} onPress={exportHistory} activeOpacity={0.7}>
+              <Text style={styles.exportHeaderButtonText}>Export CSV</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={[
               styles.calendarButton,
@@ -542,6 +625,13 @@ const HistoryScreen = () => {
           renderItem={renderHistoryItem}
           keyExtractor={(item, index) => `${item.date}-${index}`}
           contentContainerStyle={styles.listContainer}
+          ListHeaderComponent={(
+            <SummaryStrip
+              history={filteredHistory}
+              speedUnit={settings.speedUnit}
+              speedUnitLabel={speedUnitLabel}
+            />
+          )}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} colors={[COLORS.accent]} />}
           showsVerticalScrollIndicator={false}
         />
@@ -558,6 +648,20 @@ const styles = StyleSheet.create({
   },
 
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  exportHeaderButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: COLORS.accent,
+    backgroundColor: 'transparent',
+  },
+  exportHeaderButtonText: {
+    color: COLORS.accent,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
   calendarButton: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 14, paddingVertical: 7, borderRadius: RADIUS.pill,
@@ -590,6 +694,48 @@ const styles = StyleSheet.create({
   historyStatValue: { fontSize: 16, fontWeight: '900', letterSpacing: -0.5 },
   historyStatUnit: { fontSize: 10, fontWeight: '600' },
   historyStatDivider: { width: 1, height: 28, marginHorizontal: 2 },
+  metaRow: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: 4,
+  },
+  metaText: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 14,
+  },
+  summaryCard: {
+    width: '48.5%',
+    borderRadius: RADIUS.lg,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  summaryLabel: {
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  summaryValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  summarySubtitle: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
 
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
   emptyTitle: { fontSize: 20, fontWeight: '800', marginTop: 20, letterSpacing: 0.5 },

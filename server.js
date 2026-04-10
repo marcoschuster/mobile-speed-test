@@ -10,7 +10,7 @@ app.get('/', (req, res) => {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Mobile Speed Test</title>
+      <title>ZOLT</title>
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style>
         body {
@@ -53,10 +53,10 @@ app.get('/', (req, res) => {
     </head>
     <body>
       <div class="container">
-        <h1>Mobile Speed Test App</h1>
+        <h1>ZOLT</h1>
         <div class="info-box">
           <h2>🚀 Speed Test Application</h2>
-          <p>This is a React Native mobile speed test application.</p>
+          <p>This is the ZOLT React Native speed test application.</p>
           <p>To view on your phone:</p>
           <ol style="text-align: left; display: inline-block;">
             <li>Install Expo Go app from App Store/Play Store</li>
@@ -69,8 +69,15 @@ app.get('/', (req, res) => {
           <ul style="text-align: left; display: inline-block;">
             <li>Speed Test functionality</li>
             <li>History tracking</li>
-            <li>Mobile-optimized UI</li>
+            <li>Exportable history</li>
+            <li>In-app privacy and legal center</li>
           </ul>
+        </div>
+        <div class="info-box">
+          <h3>Legal Pages</h3>
+          <p><a href="/legal/privacy-policy.html" style="color: white;">Privacy Policy</a></p>
+          <p><a href="/legal/terms-of-use.html" style="color: white;">Terms of Use</a></p>
+          <p><a href="/legal/data-practices.html" style="color: white;">Data Practices</a></p>
         </div>
         <button class="button" onclick="window.location.reload()">🔄 Refresh</button>
       </div>

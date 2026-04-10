@@ -97,7 +97,7 @@ const CardSpeedLine = ({ index, color }) => {
 
 const FONT_FAMILY = Platform.OS === 'ios' ? 'System' : 'sans-serif';
 
-const StatCard = ({ label, value, unit = 'Mbps', activePhase }) => {
+const StatCard = ({ label, value, unit = 'Mbps', activePhase, footerText }) => {
   const { t } = useTheme();
   const animatedValue = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -209,7 +209,7 @@ const StatCard = ({ label, value, unit = 'Mbps', activePhase }) => {
             </Animated.Text>
           )}
           <Text style={[styles.peak, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>
-            {label === 'Ping' ? 'Best' : 'Peak'}
+            {footerText || (label === 'Ping' ? 'Best' : 'Peak')}
           </Text>
         </View>
     </Animated.View>
@@ -242,6 +242,7 @@ const styles = StyleSheet.create({
   value: { fontSize: 18, fontWeight: '900', letterSpacing: -0.5 },
   valueUnit: { fontSize: 11, fontWeight: '600' },
   loaderWrap: { height: 28, justifyContent: 'center', alignItems: 'center' },
+  peak: { fontSize: 10, fontWeight: '600', marginTop: 6, textAlign: 'center' },
 });
 
 export default StatCard;

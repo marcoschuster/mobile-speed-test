@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ZOLT Data Practices</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: #141414;
+        color: #f5f5f5;
+      }
+
+      main {
+        max-width: 880px;
+        margin: 0 auto;
+        padding: 48px 20px 72px;
+      }
+
+      article {
+        background: #1e1e1e;
+        border-radius: 24px;
+        padding: 32px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      h1, h2 {
+        margin: 0 0 16px;
+      }
+
+      p, li {
+        color: #c1c1c1;
+        line-height: 1.65;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <article>
+        <h1>ZOLT Data Practices</h1>
+        <p>
+          This page is meant to help keep the app’s Google Play Data safety declaration aligned
+          with the app’s real behavior.
+        </p>
+
+        <h2>Stored locally on-device</h2>
+        <ul>
+          <li>Speed test results and timestamps</li>
+          <li>Theme choice and measurement preferences</li>
+          <li>Sound and haptic settings</li>
+          <li>Privacy acknowledgement state</li>
+        </ul>
+
+        <h2>Sent off-device during tests</h2>
+        <ul>
+          <li>IP address and connection metadata required by speed test providers</li>
+          <li>Upload and download payload traffic generated to measure throughput</li>
+          <li>Latency timing information needed to complete the test</li>
+        </ul>
+
+        <h2>Not used in this project</h2>
+        <ul>
+          <li>No account creation</li>
+          <li>No ads or analytics SDKs</li>
+          <li>No exact location permission</li>
+          <li>No contact, camera, or microphone access</li>
+        </ul>
+      </article>
+    </main>
+  </body>
+</html>

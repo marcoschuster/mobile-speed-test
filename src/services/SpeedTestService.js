@@ -1,4 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loadAppSettings } from '../config/appSettings';
+import { pruneHistoryByRetention } from '../utils/history';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SpeedTestService
@@ -27,6 +29,7 @@ class SpeedTestService {
     this.currentTest = null;
     this.peaks = { download: 0, upload: 0, ping: 0 };
     this.selectedServer = null;
+    this.lastServerInfo = null;
   }
 
   // ── Peaks (AsyncStorage) ──────────────────────────────────────────────────
@@ -59,9 +62,10 @@ class SpeedTestService {
 
   async saveTestResult(testResult) {
     try {
-      const history = await this.getHistory();
+      let history = await this.getHistory();
       history.unshift(testResult);
-      if (history.length > 50) history.splice(50);
+      history = await this._applyRetention(history);
+      if (history.length > 200) history.splice(200);
       await AsyncStorage.setItem('speedTestHistory', JSON.stringify(history));
       return history;
     } catch (e) {
@@ -73,7 +77,14 @@ class SpeedTestService {
   async getHistory() {
     try {
       const stored = await AsyncStorage.getItem('speedTestHistory');
-      return stored ? JSON.parse(stored) : [];
+      const history = stored ? JSON.parse(stored) : [];
+      const retained = await this._applyRetention(history);
+
+      if (retained.length !== history.length) {
+        await AsyncStorage.setItem('speedTestHistory', JSON.stringify(retained));
+      }
+
+      return retained;
     } catch (e) {
       console.error('Error getting history:', e);
       return [];
@@ -88,6 +99,43 @@ class SpeedTestService {
       console.error('Error clearing history:', e);
       return [];
     }
+  }
+
+  async clearPeaks() {
+    this.peaks = { download: 0, upload: 0, ping: 0 };
+    try {
+      await AsyncStorage.removeItem('speedTestPeaks');
+      return this.getPeaks();
+    } catch (e) {
+      console.error('Error clearing peaks:', e);
+      return this.getPeaks();
+    }
+  }
+
+  async _applyRetention(history) {
+    const settings = await loadAppSettings();
+    return pruneHistoryByRetention(history, settings.historyRetentionDays);
+  }
+
+  _getServerInfo(server) {
+    if (!server) {
+      return {
+        provider: 'Cloudflare',
+        serverName: 'Cloudflare automatic',
+        serverLocation: 'Automatic selection',
+      };
+    }
+
+    const locationParts = [
+      server.location?.city,
+      server.location?.country,
+    ].filter(Boolean);
+
+    return {
+      provider: 'Measurement Lab + Cloudflare',
+      serverName: server.machine || 'M-Lab automatic',
+      serverLocation: locationParts.join(', ') || 'Automatic selection',
+    };
   }
 
   // ── Rolling window speed calculator ───────────────────────────────────────
@@ -375,7 +423,10 @@ class SpeedTestService {
       `Download done: ${(shared.totalBytes / 1048576).toFixed(1)} MB in ${elapsed.toFixed(1)}s — ` +
       `rolling: ${finalSpeed.toFixed(2)} Mbps`
     );
-    return finalSpeed;
+    return {
+      speedMbps: finalSpeed,
+      totalBytes: shared.totalBytes,
+    };
   }
 
   async _downloadWorkerXHR(chunkSizes, startTime, testDuration, shared, calc, idx) {
@@ -526,7 +577,10 @@ class SpeedTestService {
       `Upload done: ${(shared.totalBytes / 1048576).toFixed(1)} MB in ${elapsed.toFixed(1)}s — ` +
       `rolling: ${finalSpeed.toFixed(2)} Mbps`
     );
-    return finalSpeed;
+    return {
+      speedMbps: finalSpeed,
+      totalBytes: shared.totalBytes,
+    };
   }
 
   async _uploadWorkerXHR(payloads, startTime, testDuration, shared, calc, idx) {
@@ -611,12 +665,23 @@ class SpeedTestService {
       download: 0,
       upload: 0,
       ping: 0,
+      provider: 'Cloudflare',
+      serverName: 'Cloudflare automatic',
+      serverLocation: 'Automatic selection',
+      downloadBytes: 0,
+      uploadBytes: 0,
+      totalBytes: 0,
     };
 
     try {
       // Phase 1: Select nearest M-Lab NDT7 server
       onProgress('Selecting server...', 'server');
-      await this.selectBestServer();
+      const selectedServer = await this.selectBestServer();
+      this.lastServerInfo = this._getServerInfo(selectedServer);
+      this.currentTest = {
+        ...this.currentTest,
+        ...this.lastServerInfo,
+      };
 
       // Phase 2: Ping (WebSocket RTT, HTTP HEAD fallback)
       onProgress('Testing ping...', 'ping');
@@ -627,22 +692,25 @@ class SpeedTestService {
       // Phase 3: Download (6 parallel XHR with onprogress, rolling window)
       onProgress('Testing download speed...', 'download');
       const downloadResult = await this.runDownloadTest(onSpeedUpdate);
-      this.currentTest.download = downloadResult;
-      if (onPhaseComplete) onPhaseComplete('download', downloadResult);
+      this.currentTest.download = downloadResult.speedMbps;
+      this.currentTest.downloadBytes = downloadResult.totalBytes;
+      if (onPhaseComplete) onPhaseComplete('download', downloadResult.speedMbps);
 
-      if (downloadResult > this.peaks.download) {
-        this.peaks.download = downloadResult;
+      if (downloadResult.speedMbps > this.peaks.download) {
+        this.peaks.download = downloadResult.speedMbps;
         await this.savePeaks();
       }
 
       // Phase 4: Upload (6 parallel XHR with upload.onprogress, rolling window)
       onProgress('Testing upload speed...', 'upload');
       const uploadResult = await this.runUploadTest(onSpeedUpdate);
-      this.currentTest.upload = uploadResult;
-      if (onPhaseComplete) onPhaseComplete('upload', uploadResult);
+      this.currentTest.upload = uploadResult.speedMbps;
+      this.currentTest.uploadBytes = uploadResult.totalBytes;
+      this.currentTest.totalBytes = downloadResult.totalBytes + uploadResult.totalBytes;
+      if (onPhaseComplete) onPhaseComplete('upload', uploadResult.speedMbps);
 
-      if (uploadResult > this.peaks.upload) {
-        this.peaks.upload = uploadResult;
+      if (uploadResult.speedMbps > this.peaks.upload) {
+        this.peaks.upload = uploadResult.speedMbps;
         await this.savePeaks();
       }
 
