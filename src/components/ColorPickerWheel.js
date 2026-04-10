@@ -152,7 +152,10 @@ const ColorPickerWheel = ({ visible, onClose, onColorSelect, currentColorId }) =
             <Animated.View
               style={[
                 styles.wheelWrapper,
-                { transform: [{ rotate: wheelRotation }] },
+                { transform: [{ rotate: wheelRotation.interpolate({
+                  inputRange: [0, 360],
+                  outputRange: ['0deg', '360deg'],
+                }) }] },
               ]}
             >
               <Svg width={WHEEL_DIAMETER} height={WHEEL_DIAMETER}>
