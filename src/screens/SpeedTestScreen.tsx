@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 1.5,
   },
   autoButtonTextActive: { color: COLORS.black },
-  shareButton: { paddingVertical: 16, paddingHorizontal: 16, borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: 'transparent', flex: 1, alignItems: 'center', justifyContent: 'center' },
+  shareButton: { paddingVertical: 16, paddingHorizontal: 16, borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: 'transparent', width: 60, alignItems: 'center', justifyContent: 'center' },
   startButton: {
     backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 40,
     borderRadius: RADIUS.pill, flex: 1, ...SHADOWS.button,
