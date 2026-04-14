@@ -305,12 +305,12 @@ const styles = StyleSheet.create({
     textShadowRadius: 1.5,
   },
   startButton: {
-    backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 32,
+    backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 40,
     borderRadius: RADIUS.pill, flex: 1, ...SHADOWS.button,
   },
   startButtonText: { fontSize: 16, fontWeight: '800', letterSpacing: 1, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
   runningButton: {
-    backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 32,
+    backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 40,
     borderRadius: RADIUS.pill, flex: 1,
     shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 8,
   },
