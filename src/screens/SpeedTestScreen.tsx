@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
   controls: { alignItems: 'center', marginVertical: 8, width: '100%' },
   primaryControlsRow: { flexDirection: 'row', alignItems: 'center', width: '100%' },
   mergedButtonContainer: { flexDirection: 'row', flex: 1 },
-  autoButton: { paddingVertical: 16, paddingHorizontal: 16, borderTopLeftRadius: RADIUS.pill, borderBottomLeftRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, borderRightWidth: 0, backgroundColor: 'transparent', width: 90, marginRight: -20 },
+  autoButton: { paddingVertical: 16, paddingHorizontal: 16, borderTopLeftRadius: RADIUS.pill, borderBottomLeftRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, borderRightWidth: 0, backgroundColor: 'transparent', width: 90 },
   autoButtonActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
   autoButtonText: {
     color: COLORS.accent,
@@ -300,13 +300,13 @@ const styles = StyleSheet.create({
   shareButton: { paddingVertical: 16, paddingHorizontal: 16, borderRadius: RADIUS.pill, borderWidth: 0, backgroundColor: 'transparent', width: 60, alignItems: 'center', justifyContent: 'center' },
   startButton: {
     backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 40,
-    borderRadius: RADIUS.pill, flex: 1, ...SHADOWS.button,
+    borderRadius: RADIUS.pill, flex: 1, ...SHADOWS.button, marginLeft: -90,
   },
   startButtonText: { fontSize: 16, fontWeight: '800', letterSpacing: 1, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
   runningButton: {
     backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 40,
     borderRadius: RADIUS.pill, flex: 1,
-    shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 8,
+    shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 8, marginLeft: -90,
   },
   runningButtonText: { fontSize: 16, fontWeight: '800', letterSpacing: 1, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
   bgButton: { paddingVertical: 11, paddingHorizontal: 28, borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: 'transparent' },
