@@ -10,16 +10,38 @@ import SpeedTestService from '../services/SpeedTestService';
 import SoundEngine from '../services/SoundEngine';
 import { COLORS, RADIUS, SHADOWS, useTheme } from '../utils/theme';
 
-const INTERVALS = [
-  { key: '30m', label: '30 min', ms: 30 * 60 * 1000 },
-  { key: '1h', label: '1 h', ms: 60 * 60 * 1000 },
-  { key: '3h', label: '3 h', ms: 3 * 60 * 60 * 1000 },
-  { key: '6h', label: '6 h', ms: 6 * 60 * 60 * 1000 },
-  { key: '12h', label: '12 h', ms: 12 * 60 * 60 * 1000 },
-  { key: '24h', label: '24 h', ms: 24 * 60 * 60 * 1000 },
+// ── Type Definitions ─────────────────────────────────────────────────────────
+interface IntervalOption {
+  key: string;
+  label: string;
+  ms: number;
+}
+
+interface AnimatedButtonProps {
+  onPress: () => void;
+  style: any;
+  textStyle: any;
+  children: React.ReactNode;
+  disabled?: boolean;
+  glowing?: boolean;
+}
+
+interface InsightCardProps {
+  title: string;
+  value: string;
+  subtitle: string;
+}
+
+const INTERVALS: IntervalOption[] = [
+  { key: '30m', label: '30m', ms: 30 * 60 * 1000 },
+  { key: '1h', label: '1h', ms: 60 * 60 * 1000 },
+  { key: '3h', label: '3h', ms: 3 * 60 * 60 * 1000 },
+  { key: '6h', label: '6h', ms: 6 * 60 * 60 * 1000 },
+  { key: '12h', label: '12h', ms: 12 * 60 * 60 * 1000 },
+  { key: '24h', label: '24h', ms: 24 * 60 * 60 * 1000 },
 ];
 
-const AnimatedButton = ({ onPress, style, textStyle, children, disabled, glowing }) => {
+const AnimatedButton = ({ onPress, style, textStyle, children, disabled, glowing }: AnimatedButtonProps) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
   const handleIn = () => Animated.spring(scaleAnim, { toValue: 0.96, tension: 300, friction: 10, useNativeDriver: false }).start();
@@ -52,6 +74,19 @@ const AnimatedButton = ({ onPress, style, textStyle, children, disabled, glowing
   );
 };
 
+const InsightCard = ({ title, value, subtitle }: InsightCardProps) => {
+  const { t } = useTheme();
+
+  return (
+    <View style={[styles.insightCard, { backgroundColor: t.surface }]}>
+      <View style={[styles.insightTint, { backgroundColor: t.accentTintSoft }]} />
+      <Text style={[styles.insightTitle, { color: t.textMuted }]}>{title}</Text>
+      <Text style={[styles.insightValue, { color: t.textPrimary }]}>{value}</Text>
+      <Text style={[styles.insightSubtitle, { color: t.textSecondary }]}>{subtitle}</Text>
+    </View>
+  );
+};
+
 const SpeedTestScreen = () => {
   const { t } = useTheme();
   const [isTestRunning, setIsTestRunning] = useState(false);
@@ -63,12 +98,12 @@ const SpeedTestScreen = () => {
   const [liveUpload, setLiveUpload] = useState(0);
   const [livePing, setLivePing] = useState(0);
   const [backgroundMode, setBackgroundMode] = useState(false);
-  const [backgroundInterval, setBackgroundInterval] = useState(null);
+  const [backgroundInterval, setBackgroundInterval] = useState<string | null>(null);
   const [showIntervalOptions, setShowIntervalOptions] = useState(false);
   const [progressText, setProgressText] = useState('');
-  const backgroundTimerRef = useRef(null);
+  const backgroundTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const liveSpeedRef = useRef(0);
-  const gaugeWhirRef = useRef(null);
+  const gaugeWhirRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const contentFade = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -98,18 +133,18 @@ const SpeedTestScreen = () => {
     }, 350);
 
     await SpeedTestService.runSpeedTest(
-      (progress, type) => {
+      (progress: string, type: string) => {
         setProgressText(progress);
         if (type === 'ping') setCurrentType('Ping');
         else if (type === 'download') setCurrentType('Download');
         else if (type === 'upload') setCurrentType('Upload');
       },
-      (speed, type) => {
+      (speed: number, type: string) => {
         liveSpeedRef.current = speed; // keep ref fresh for gauge whir
         if (type === 'download') setLiveDownload(speed);
         else if (type === 'upload') setLiveUpload(speed);
       },
-      async (result) => {
+      async (result: any) => {
         if (gaugeWhirRef.current) { clearInterval(gaugeWhirRef.current); gaugeWhirRef.current = null; }
         setDownloadSpeed(result.download); setUploadSpeed(result.upload); setPing(result.ping);
         setLivePing(result.ping); setLiveDownload(result.download); setLiveUpload(result.upload);
@@ -117,12 +152,12 @@ const SpeedTestScreen = () => {
         SoundEngine.playTestComplete();
         setTimeout(() => { setIsTestRunning(false); setCurrentType('Ready'); setProgressText(''); setLiveDownload(0); setLiveUpload(0); setLivePing(0); }, 4000);
       },
-      (error) => {
+      (error: string) => {
         if (gaugeWhirRef.current) { clearInterval(gaugeWhirRef.current); gaugeWhirRef.current = null; }
         Alert.alert('Test Failed', error); setIsTestRunning(false); setCurrentType('Error'); setProgressText(''); setLiveDownload(0); setLiveUpload(0); setLivePing(0);
       },
-      (pingSample) => { setLivePing(pingSample); },
-      (type, value) => {
+      (pingSample: number) => { setLivePing(pingSample); },
+      (type: string, value: number) => {
         // Show result instantly when each phase completes + play sound
         SoundEngine.playPhaseComplete();
         if (type === 'ping') setPing(value);
@@ -146,16 +181,22 @@ const SpeedTestScreen = () => {
     } else { setShowIntervalOptions(!showIntervalOptions); }
   };
 
-  const selectInterval = (interval) => {
-    if (backgroundTimerRef.current) { clearInterval(backgroundTimerRef.current); backgroundTimerRef.current = null; }
-    setBackgroundInterval(interval.key); setBackgroundMode(true); setShowIntervalOptions(false);
-    backgroundTimerRef.current = setInterval(() => { if (!SpeedTestService.isTestRunning) runTest(); }, interval.ms);
-    Alert.alert('Background Testing', 'Enabled \u2014 every ' + interval.label, [{ text: 'OK' }]);
+  const selectInterval = (interval: IntervalOption) => {
+    if (interval.key === 'disabled') {
+      if (backgroundTimerRef.current) { clearInterval(backgroundTimerRef.current); backgroundTimerRef.current = null; }
+      setBackgroundInterval(null); setBackgroundMode(false);
+      Alert.alert('Background Testing', 'Disabled', [{ text: 'OK' }]);
+    } else {
+      if (backgroundTimerRef.current) { clearInterval(backgroundTimerRef.current); backgroundTimerRef.current = null; }
+      setBackgroundInterval(interval.key); setBackgroundMode(true);
+      backgroundTimerRef.current = setInterval(() => { if (!SpeedTestService.isTestRunning) runTest(); }, interval.ms);
+      Alert.alert('Background Testing', 'Enabled \u2014 every ' + interval.label, [{ text: 'OK' }]);
+    }
   };
 
-  const getIntervalLabel = () => { if (!backgroundInterval) return ''; const found = INTERVALS.find((i) => i.key === backgroundInterval); return found ? found.label : ''; };
+  const getIntervalLabel = (): string => { if (!backgroundInterval) return ''; const found = INTERVALS.find((i) => i.key === backgroundInterval); return found ? found.label : ''; };
 
-  const getNeedleColor = () => {
+  const getNeedleColor = (): string => {
     switch (currentType) {
       case 'Download': return COLORS.accent;
       case 'Upload':   return t.uploadLine;
@@ -165,33 +206,26 @@ const SpeedTestScreen = () => {
     }
   };
 
-  const getSpeedValue = () => {
+  const getSpeedValue = (): number => {
     switch (currentType) {
       case 'Download': return liveDownload; case 'Upload': return liveUpload;
       case 'Ping': return livePing; case 'Complete': return downloadSpeed; default: return 0;
     }
   };
-  const getMaxValue = () => currentType === 'Ping' ? 1500 : 200;
-  const getSpeedLabel = () => {
+  const getMaxValue = (): number => currentType === 'Ping' ? 1500 : 200;
+  const getSpeedLabel = (): string => {
     switch (currentType) {
       case 'Download': return 'DOWNLOAD'; case 'Upload': return 'UPLOAD'; case 'Ping': return 'PING';
       case 'Complete': return 'COMPLETE'; case 'Testing': return 'CONNECTING'; default: return '';
     }
   };
-  const getSpeedUnit = () => currentType === 'Ping' ? 'ms' : 'Mbps';
+  const getSpeedUnit = (): string => currentType === 'Ping' ? 'ms' : 'Mbps';
 
   return (
     <View style={[styles.container, { backgroundColor: t.bg }]}>
-
       <Animated.ScrollView style={{ opacity: contentFade }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.speedoWrap}>
           <Speedometer speed={getSpeedValue()} maxValue={getMaxValue()} label={getSpeedLabel()} unit={getSpeedUnit()} needleColor={getNeedleColor()} isRunning={isTestRunning} />
-        </View>
-        {progressText ? <Text style={[styles.progressText, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>{progressText}</Text> : null}
-        <View style={styles.statsGrid}>
-          <StatCard label="Download" value={downloadSpeed} activePhase={currentType} />
-          <StatCard label="Upload" value={uploadSpeed} activePhase={currentType} />
-          <StatCard label="Ping" value={ping} unit="ms" activePhase={currentType} />
         </View>
         <View style={styles.controls}>
           {!isTestRunning ? (
@@ -202,20 +236,32 @@ const SpeedTestScreen = () => {
           <AnimatedButton onPress={toggleBackgroundMode} style={[styles.bgButton, backgroundMode && styles.bgButtonActive]} textStyle={[styles.bgButtonText, backgroundMode && styles.bgButtonTextActive]}>
             {backgroundMode ? 'Background: ON (' + getIntervalLabel() + ')' : 'Background Testing'}
           </AnimatedButton>
-          {showIntervalOptions && !backgroundMode && (
-            <View style={[styles.intervalBox, { backgroundColor: t.glass }]}>
-              <View style={styles.intervalTitleWrap}>
-                <FlashTitle text="SELECT INTERVAL" size="small" interval={5000} center />
-              </View>
-              <View style={styles.intervalGrid}>
-                {INTERVALS.map((iv) => (
-                  <TouchableOpacity key={iv.key} style={styles.intervalBtn} onPress={() => selectInterval(iv)} activeOpacity={0.7}>
-                    <Text style={styles.intervalBtnText}>{iv.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          )}
+        </View>
+        <View style={[styles.intervalBox, { backgroundColor: t.surface }]}>
+          <View style={styles.intervalTitleWrap}>
+            <Text style={[styles.intervalTitle, { color: t.textPrimary }]}>SELECT INTERVAL</Text>
+          </View>
+          <View style={styles.intervalGrid}>
+            <TouchableOpacity key="disabled" style={[styles.intervalBtn, backgroundInterval === null && styles.intervalBtnActive]} onPress={() => selectInterval({ key: 'disabled', label: 'X', ms: 0 })} activeOpacity={0.7}>
+              <Text style={[styles.intervalBtnText, backgroundInterval === null && styles.intervalBtnTextActive]}>X</Text>
+            </TouchableOpacity>
+            {INTERVALS.map((iv) => (
+              <TouchableOpacity key={iv.key} style={[styles.intervalBtn, backgroundInterval === iv.key && styles.intervalBtnActive]} onPress={() => selectInterval(iv)} activeOpacity={0.7}>
+                <Text style={[styles.intervalBtnText, backgroundInterval === iv.key && styles.intervalBtnTextActive]}>{iv.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+        {progressText && <Text style={[styles.progressText, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>{progressText}</Text>}
+        <View style={styles.statsGrid}>
+          <StatCard label="Download" value={downloadSpeed} activePhase={currentType} />
+          <StatCard label="Upload" value={uploadSpeed} activePhase={currentType} />
+          <StatCard label="Ping" value={ping} unit="ms" activePhase={currentType} />
+        </View>
+        <View style={styles.insightsWrap}>
+          <InsightCard title="Connection Quality" value="Strong" subtitle="Excellent download and upload speeds with low latency" />
+          <InsightCard title="Last Test Traffic" value="0 MB" subtitle="Download + upload payload used by the latest completed test" />
+          <InsightCard title="Server Used" value="Automatic" subtitle="The app automatically picks the best available endpoint" />
         </View>
       </Animated.ScrollView>
     </View>
@@ -254,17 +300,26 @@ const styles = StyleSheet.create({
   bgButtonTextActive: { color: COLORS.black },
   intervalBox: { marginTop: 16, width: '100%', borderRadius: RADIUS.lg, padding: 18, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 8, elevation: 4 },
   intervalTitleWrap: { alignItems: 'center', marginBottom: 14 },
+  intervalTitle: { fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2, fontWeight: '700', color: '#666' },
   intervalGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
-  intervalBtn: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: RADIUS.pill, borderWidth: 1, borderColor: COLORS.accent, backgroundColor: 'transparent', minWidth: 72, alignItems: 'center' },
-  intervalBtnText: { 
-    color: COLORS.accent, 
-    fontSize: 13, 
-    fontWeight: '700', 
+  intervalBtn: { paddingVertical: 14, paddingHorizontal: 24, borderRadius: RADIUS.pill, borderWidth: 1, borderColor: COLORS.accent, backgroundColor: 'transparent', minWidth: 60, alignItems: 'center' },
+  intervalBtnActive: { backgroundColor: COLORS.accent },
+  intervalBtnText: {
+    color: COLORS.accent,
+    fontSize: 13,
+    fontWeight: '700',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
     textShadowColor: 'rgba(0, 0, 0, 0.2)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 1.5,
   },
+  intervalBtnTextActive: { color: COLORS.black },
+  insightsWrap: { width: '100%', marginTop: 20, gap: 12 },
+  insightCard: { borderRadius: RADIUS.lg, padding: 16, overflow: 'visible', ...SHADOWS.clayCard },
+  insightTint: { ...StyleSheet.absoluteFillObject },
+  insightTitle: { fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2, fontWeight: '700', marginBottom: 6 },
+  insightValue: { fontSize: 21, fontWeight: '800', marginBottom: 6 },
+  insightSubtitle: { fontSize: 13, lineHeight: 19 },
 });
 
 export default SpeedTestScreen;

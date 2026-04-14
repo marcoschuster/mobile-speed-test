@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, ReactNode } from 'react';
 import {
   View,
   Text,
@@ -9,60 +9,105 @@ import {
   Alert,
   RefreshControl,
   Animated,
+  Share,
+  ViewStyle,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Polygon, Path } from 'react-native-svg';
 import SpeedTestService from '../services/SpeedTestService';
 import FlashTitle from '../components/FlashTitle';
-import { COLORS, RADIUS, useTheme } from '../utils/theme';
+import { useAppSettings } from '../context/AppSettingsContext';
+import { buildHistoryCsv, summarizeHistory } from '../utils/history';
+import { formatBytes, formatSpeedValue, getSpeedUnitLabel } from '../utils/measurements';
+import { COLORS, RADIUS, SHADOWS, useTheme } from '../utils/theme';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+// ── Type Definitions ─────────────────────────────────────────────────────────
+interface IconProps {
+  size?: number;
+  color?: string;
+}
+
+interface CalendarProps {
+  history: any[];
+  selectedDate: string | null;
+  onSelectDate: (dateKey: string) => void;
+  onClearSelection: () => void;
+}
+
+interface CalendarCell {
+  day: number | null;
+  key: string;
+  dateKey?: string;
+}
+
+interface PulsingDateProps {
+  text: string;
+  baseColor: string;
+  accentColor: string;
+}
+
+interface HistoryCardProps {
+  item: any;
+  index: number;
+  formatDate: (dateString: string) => string;
+  speedUnit: string;
+  speedUnitLabel: string;
+}
+
+interface SummaryStripProps {
+  history: any[];
+  speedUnit: string;
+  speedUnitLabel: string;
+}
+
 // ── Small inline icons ──────────────────────────────────────────────────────
-const DownloadIcon = ({ size = 13, color = COLORS.accent }) => (
+const DownloadIcon = ({ size = 13, color }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 24 24">
     <Path d="M12 4v12m0 0l-5-5m5 5l5-5M5 20h14" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
   </Svg>
 );
-const UploadIcon = ({ size = 13, color }) => (
+const UploadIcon = ({ size = 13, color }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 24 24">
     <Path d="M12 20V8m0 0l-5 5m5-5l5 5M5 4h14" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
   </Svg>
 );
-const PingIcon = ({ size = 13, color = COLORS.success }) => (
+const PingIcon = ({ size = 13, color = COLORS.success }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 24 24">
     <Path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z" fill={color} />
   </Svg>
 );
-const CalendarIcon = ({ size = 16, color = COLORS.accent }) => (
+const CalendarIcon = ({ size = 16, color }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 24 24">
     <Path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z" fill={color} />
   </Svg>
 );
-const ChevronLeft = ({ size = 18, color }) => (
+const ChevronLeft = ({ size = 18, color }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 24 24">
     <Path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" fill={color} />
   </Svg>
 );
-const ChevronRight = ({ size = 18, color }) => (
+const ChevronRight = ({ size = 18, color }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 24 24">
     <Path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z" fill={color} />
   </Svg>
 );
 
 // ── Calendar helpers ────────────────────────────────────────────────────────
-const toDateKey = (d) => {
+const toDateKey = (d: Date): string => {
   const yr = d.getFullYear();
   const mo = String(d.getMonth() + 1).padStart(2, '0');
   const dy = String(d.getDate()).padStart(2, '0');
   return `${yr}-${mo}-${dy}`;
 };
 
-const getMonthName = (month, year) => {
+const getMonthName = (month: number, year: number): string => {
   const d = new Date(year, month);
   return d.toLocaleString('default', { month: 'long' });
 };
 
-const buildCalendarGrid = (year, month) => {
+const buildCalendarGrid = (year: number, month: number): CalendarCell[] => {
   // First day of the month
   const firstDay = new Date(year, month, 1);
   // Day of week: JS 0=Sun, we want Mon=0
@@ -71,7 +116,7 @@ const buildCalendarGrid = (year, month) => {
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  const cells = [];
+  const cells: CalendarCell[] = [];
 
   // Leading blanks
   for (let i = 0; i < startDow; i++) {
@@ -92,7 +137,7 @@ const buildCalendarGrid = (year, month) => {
 };
 
 // ── Calendar Component ──────────────────────────────────────────────────────
-const Calendar = ({ history, selectedDate, onSelectDate, onClearSelection }) => {
+const Calendar = ({ history, selectedDate, onSelectDate, onClearSelection }: CalendarProps) => {
   const { t } = useTheme();
   const isDark = t.mode === 'dark';
   const today = new Date();
@@ -101,7 +146,7 @@ const Calendar = ({ history, selectedDate, onSelectDate, onClearSelection }) => 
 
   // Build a Set of date keys that have test history
   const testDays = useMemo(() => {
-    const set = new Set();
+    const set = new Set<string>();
     history.forEach((item) => {
       const d = new Date(item.date);
       set.add(toDateKey(d));
@@ -131,7 +176,7 @@ const Calendar = ({ history, selectedDate, onSelectDate, onClearSelection }) => 
     }
   };
 
-  const cardTint = isDark ? 'rgba(245, 196, 0, 0.04)' : 'rgba(245, 196, 0, 0.02)';
+  const cardTint = t.accentTintCard;
 
   return (
     <View style={[calStyles.container, { backgroundColor: t.surface }]}>
@@ -166,7 +211,7 @@ const Calendar = ({ history, selectedDate, onSelectDate, onClearSelection }) => 
             return <View key={cell.key} style={calStyles.dayCell} />;
           }
 
-          const hasTest = testDays.has(cell.dateKey);
+          const hasTest = testDays.has(cell.dateKey!);
           const isSelected = selectedDate === cell.dateKey;
           const isToday = cell.dateKey === todayKey;
 
@@ -176,15 +221,15 @@ const Calendar = ({ history, selectedDate, onSelectDate, onClearSelection }) => 
               style={[
                 calStyles.dayCell,
                 hasTest && calStyles.dayCellHasTest,
-                hasTest && { backgroundColor: isDark ? 'rgba(245, 196, 0, 0.15)' : 'rgba(245, 196, 0, 0.12)' },
-                isSelected && calStyles.dayCellSelected,
+                hasTest && { backgroundColor: t.accentTintStrong },
+                isSelected && [calStyles.dayCellSelected, { backgroundColor: t.accent }],
               ]}
               activeOpacity={0.6}
               onPress={() => {
                 if (isSelected) {
                   onClearSelection();
                 } else {
-                  onSelectDate(cell.dateKey);
+                  onSelectDate(cell.dateKey!);
                 }
               }}
             >
@@ -192,7 +237,7 @@ const Calendar = ({ history, selectedDate, onSelectDate, onClearSelection }) => 
                 style={[
                   calStyles.dayText,
                   { color: t.textSecondary, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 },
-                  hasTest && { color: COLORS.accent, fontWeight: '800' },
+                  hasTest && { color: t.accent, fontWeight: '800' },
                   isSelected && { color: COLORS.black },
                   isToday && !isSelected && !hasTest && { color: t.textPrimary, fontWeight: '700' },
                 ]}
@@ -200,7 +245,7 @@ const Calendar = ({ history, selectedDate, onSelectDate, onClearSelection }) => 
                 {cell.day}
               </Text>
               {isToday && !isSelected && (
-                <View style={calStyles.todayDot} />
+                <View style={[calStyles.todayDot, { backgroundColor: t.accent }]} />
               )}
             </TouchableOpacity>
           );
@@ -210,17 +255,17 @@ const Calendar = ({ history, selectedDate, onSelectDate, onClearSelection }) => 
       {/* Filter indicator */}
       {selectedDate && (
         <TouchableOpacity style={calStyles.clearRow} onPress={onClearSelection} activeOpacity={0.7}>
-          <Text style={calStyles.clearText}>
+          <Text style={[calStyles.clearText, { color: t.accent }]}>
             Showing: {formatDateKeyNice(selectedDate)}
           </Text>
-          <Text style={calStyles.clearAction}>Show All</Text>
+          <Text style={[calStyles.clearAction, { color: t.accent }]}>Show All</Text>
         </TouchableOpacity>
       )}
     </View>
   );
 };
 
-const formatDateKeyNice = (dateKey) => {
+const formatDateKeyNice = (dateKey: string): string => {
   const [y, m, d] = dateKey.split('-');
   const date = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
   return date.toLocaleDateString('default', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
@@ -251,13 +296,12 @@ const calStyles = StyleSheet.create({
     borderRadius: 10,
   },
   dayCellSelected: {
-    backgroundColor: COLORS.accent,
     borderRadius: 10,
   },
   dayText: { fontSize: 13, fontWeight: '500' },
   todayDot: {
     width: 4, height: 4, borderRadius: 2,
-    backgroundColor: COLORS.accent, marginTop: 2,
+    marginTop: 2,
   },
   clearRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -267,7 +311,6 @@ const calStyles = StyleSheet.create({
   clearText: { 
     fontSize: 12, 
     fontWeight: '600', 
-    color: COLORS.accent,
     textShadowColor: 'rgba(0, 0, 0, 0.2)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 1.5,
@@ -275,7 +318,6 @@ const calStyles = StyleSheet.create({
   clearAction: { 
     fontSize: 12, 
     fontWeight: '700', 
-    color: COLORS.accent, 
     textDecorationLine: 'underline',
     textShadowColor: 'rgba(0, 0, 0, 0.2)',
     textShadowOffset: { width: 0, height: 1 },
@@ -284,9 +326,9 @@ const calStyles = StyleSheet.create({
 });
 
 // ── Animated date with pulsing yellow on hover ──────────────────────────────
-const PulsingDate = ({ text, baseColor }) => {
+const PulsingDate = ({ text, baseColor, accentColor }: PulsingDateProps) => {
   const pulseAnim = useRef(new Animated.Value(0)).current;
-  const pulseRef = useRef(null);
+  const pulseRef = useRef<Animated.CompositeAnimation | null>(null);
 
   const startPulse = () => {
     pulseRef.current = Animated.loop(Animated.sequence([
@@ -303,7 +345,7 @@ const PulsingDate = ({ text, baseColor }) => {
 
   const color = pulseAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [baseColor, COLORS.accent],
+    outputRange: [baseColor, accentColor],
   });
 
   return (
@@ -314,7 +356,7 @@ const PulsingDate = ({ text, baseColor }) => {
 };
 
 // ── Animated History Card ───────────────────────────────────────────────────
-const HistoryCard = ({ item, index, formatDate }) => {
+const HistoryCard = ({ item, index, formatDate, speedUnit, speedUnitLabel }: HistoryCardProps) => {
   const { t } = useTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -332,51 +374,65 @@ const HistoryCard = ({ item, index, formatDate }) => {
       style={[
         styles.historyItem,
         {
-          backgroundColor: t.surface,
           opacity: fadeAnim,
           transform: [{ translateY: slideAnim }],
+          overflow: 'visible',
         },
       ]}
     >
-      <View style={[styles.gradientTint, { backgroundColor: t.mode === 'dark' ? 'rgba(245, 196, 0, 0.04)' : 'rgba(245, 196, 0, 0.02)' }]} />
-      <View style={styles.historyContent}>
-        <PulsingDate text={formatDate(item.date)} baseColor={t.textSecondary} />
-        <View style={styles.historyStats}>
-          <View style={styles.historyStat}>
-            <View style={styles.statIconRow}>
-              <DownloadIcon />
-              <Text style={[styles.historyStatLabel, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Download</Text>
+      <View
+        style={[
+          styles.historyItemInner,
+          {
+            backgroundColor: t.surface,
+            ...SHADOWS.clayCard,
+            overflow: 'visible',
+          },
+        ]}
+      >
+        <View style={styles.historyContent}>
+          <PulsingDate text={formatDate(item.date)} baseColor={t.textSecondary} accentColor={t.accent} />
+          <View style={styles.historyStats}>
+            <View style={styles.historyStat}>
+              <View style={styles.statIconRow}>
+                <DownloadIcon />
+                <Text style={[styles.historyStatLabel, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Download</Text>
+              </View>
+              <Text style={[styles.historyStatValue, { color: t.textPrimary }]}>
+                {formatSpeedValue(item.download, speedUnit, 1)}
+                <Text style={[styles.historyStatUnit, { color: t.textSecondary }]}> {speedUnitLabel}</Text>
+              </Text>
             </View>
-            <Text style={[styles.historyStatValue, { color: t.textPrimary }]}>
-              {item.download.toFixed(1)}
-              <Text style={[styles.historyStatUnit, { color: t.textSecondary }]}> Mbps</Text>
-            </Text>
+
+            <View style={[styles.historyStatDivider, { backgroundColor: t.separator }]} />
+
+            <View style={styles.historyStat}>
+              <View style={styles.statIconRow}>
+                <UploadIcon color={t.uploadLine} />
+                <Text style={[styles.historyStatLabel, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Upload</Text>
+              </View>
+              <Text style={[styles.historyStatValue, { color: t.textPrimary }]}>
+                {formatSpeedValue(item.upload, speedUnit, 1)}
+                <Text style={[styles.historyStatUnit, { color: t.textSecondary }]}> {speedUnitLabel}</Text>
+              </Text>
+            </View>
+
+            <View style={[styles.historyStatDivider, { backgroundColor: t.separator }]} />
+
+            <View style={styles.historyStat}>
+              <View style={styles.statIconRow}>
+                <PingIcon />
+                <Text style={[styles.historyStatLabel, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Ping</Text>
+              </View>
+              <Text style={[styles.historyStatValue, { color: t.textPrimary }]}>
+                {item.ping}
+                <Text style={[styles.historyStatUnit, { color: t.textSecondary, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}> ms</Text>
+              </Text>
+            </View>
           </View>
-
-          <View style={[styles.historyStatDivider, { backgroundColor: t.separator }]} />
-
-          <View style={styles.historyStat}>
-            <View style={styles.statIconRow}>
-              <UploadIcon color={t.uploadLine} />
-              <Text style={[styles.historyStatLabel, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Upload</Text>
-            </View>
-            <Text style={[styles.historyStatValue, { color: t.textPrimary }]}>
-              {item.upload.toFixed(1)}
-              <Text style={[styles.historyStatUnit, { color: t.textSecondary }]}> Mbps</Text>
-            </Text>
-          </View>
-
-          <View style={[styles.historyStatDivider, { backgroundColor: t.separator }]} />
-
-          <View style={styles.historyStat}>
-            <View style={styles.statIconRow}>
-              <PingIcon />
-              <Text style={[styles.historyStatLabel, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Ping</Text>
-            </View>
-            <Text style={[styles.historyStatValue, { color: t.textPrimary }]}>
-              {item.ping}
-              <Text style={[styles.historyStatUnit, { color: t.textSecondary, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}> ms</Text>
-            </Text>
+          <View style={[styles.metaRow, { borderTopColor: t.separator }]}>
+            <Text style={[styles.metaText, { color: t.textMuted }]}>{formatBytes(item.totalBytes || 0)} used</Text>
+            <Text style={[styles.metaText, { color: t.textMuted }]}>{(item.serverName || 'Automatic')}{item.serverLocation ? ` • ${item.serverLocation}` : ''}</Text>
           </View>
         </View>
       </View>
@@ -384,25 +440,86 @@ const HistoryCard = ({ item, index, formatDate }) => {
   );
 };
 
+const SummaryStrip = ({ history, speedUnit, speedUnitLabel }: SummaryStripProps) => {
+  const { t } = useTheme();
+  const summary = summarizeHistory(history);
+
+  if (!summary.totalTests) return null;
+
+  const cards = [
+    {
+      label: 'Tests',
+      value: String(summary.totalTests),
+      subtitle: 'Visible in this view',
+    },
+    {
+      label: 'Average Download',
+      value: `${formatSpeedValue(summary.averageDownload, speedUnit, 1)} ${speedUnitLabel}`,
+      subtitle: 'Across filtered history',
+    },
+    {
+      label: 'Data Used',
+      value: formatBytes(summary.totalDataUsedBytes),
+      subtitle: 'Saved test traffic total',
+    },
+    {
+      label: 'Average Upload',
+      value: `${formatSpeedValue(summary.averageUpload, speedUnit, 1)} ${speedUnitLabel}`,
+      subtitle: 'Across filtered history',
+    },
+  ];
+
+  return (
+    <View style={styles.summaryRow}>
+      {cards.map((card) => (
+        <View
+          key={card.label}
+          style={[
+            styles.summaryCard,
+            {
+              backgroundColor: t.surface,
+              shadowColor: SHADOWS.clayCard.shadowColor,
+              shadowOffset: SHADOWS.clayCard.shadowOffset,
+              shadowOpacity: SHADOWS.clayCard.shadowOpacity,
+              shadowRadius: SHADOWS.clayCard.shadowRadius,
+              elevation: SHADOWS.clayCard.elevation,
+            },
+          ]}
+        >
+          <Text style={[styles.summaryLabel, { color: t.textMuted }]}>{card.label}</Text>
+          <Text style={[styles.summaryValue, { color: t.textPrimary }]}>{card.value}</Text>
+          <Text style={[styles.summarySubtitle, { color: t.textSecondary }]}>{card.subtitle}</Text>
+        </View>
+      ))}
+    </View>
+  );
+};
+
 // ── Screen ──────────────────────────────────────────────────────────────────
 const HistoryScreen = () => {
   const { t } = useTheme();
-  const [history, setHistory] = useState([]);
+  const { settings } = useAppSettings();
+  const [history, setHistory] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const contentFade = useRef(new Animated.Value(0)).current;
   const calHeight = useRef(new Animated.Value(0)).current;
+  const speedUnitLabel = getSpeedUnitLabel(settings.speedUnit);
+
+  const loadHistory = useCallback(async () => {
+    const historyData = await SpeedTestService.getHistory();
+    setHistory(historyData);
+  }, []);
 
   useEffect(() => {
     loadHistory();
     Animated.timing(contentFade, { toValue: 1, duration: 300, useNativeDriver: false }).start();
-  }, []);
+  }, [contentFade, loadHistory]);
 
-  const loadHistory = async () => {
-    const historyData = await SpeedTestService.getHistory();
-    setHistory(historyData);
-  };
+  useFocusEffect(useCallback(() => {
+    loadHistory();
+  }, [loadHistory]));
 
   const clearHistory = () => {
     Alert.alert('Clear History', 'Are you sure you want to clear all test history?', [
@@ -417,6 +534,22 @@ const HistoryScreen = () => {
     ]);
   };
 
+  const exportHistory = async () => {
+    if (!history.length) {
+      Alert.alert('No history', 'Run a speed test before exporting results.');
+      return;
+    }
+
+    try {
+      await Share.share({
+        title: 'Flash speed history',
+        message: buildHistoryCsv(history),
+      });
+    } catch (error) {
+      Alert.alert('Export failed', 'Could not open the share sheet on this device.');
+    }
+  };
+
   const onRefresh = async () => { setRefreshing(true); await loadHistory(); setRefreshing(false); };
 
   const toggleCalendar = useCallback(() => {
@@ -429,7 +562,7 @@ const HistoryScreen = () => {
     }).start();
   }, [calendarOpen]);
 
-  const handleSelectDate = useCallback((dateKey) => {
+  const handleSelectDate = useCallback((dateKey: string) => {
     setSelectedDate(dateKey);
   }, []);
 
@@ -446,10 +579,10 @@ const HistoryScreen = () => {
     });
   }, [history, selectedDate]);
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     const now = new Date();
-    const diffMs = now - date;
+    const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
@@ -460,8 +593,14 @@ const HistoryScreen = () => {
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const renderHistoryItem = ({ item, index }) => (
-    <HistoryCard item={item} index={index} formatDate={formatDate} />
+  const renderHistoryItem = ({ item, index }: { item: any; index: number }) => (
+    <HistoryCard
+      item={item}
+      index={index}
+      formatDate={formatDate}
+      speedUnit={settings.speedUnit}
+      speedUnitLabel={speedUnitLabel}
+    />
   );
 
   const calendarMaxHeight = calHeight.interpolate({
@@ -479,31 +618,40 @@ const HistoryScreen = () => {
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: t.separator }]}>
         <FlashTitle text="TEST HISTORY" size="small" interval={5000} />
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={[
-              styles.calendarButton,
-              calendarOpen && styles.calendarButtonActive,
-            ]}
-            onPress={toggleCalendar}
-            activeOpacity={0.7}
-          >
-            <CalendarIcon size={14} color={calendarOpen ? COLORS.black : COLORS.accent} />
-            <Text
-              style={[
-                styles.calendarButtonText,
-                calendarOpen && styles.calendarButtonTextActive,
-              ]}
-            >
-              Calendar
-            </Text>
+      </View>
+      
+      {/* Action buttons moved under title */}
+      <View style={styles.actionButtons}>
+        {history.length > 0 && (
+          <TouchableOpacity style={[styles.exportHeaderButton, { borderColor: t.accent }]} onPress={exportHistory} activeOpacity={0.7}>
+            <Text style={[styles.exportHeaderButtonText, { color: t.accent }]}>Export CSV</Text>
           </TouchableOpacity>
-          {history.length > 0 && (
-            <TouchableOpacity style={styles.clearButton} onPress={clearHistory} activeOpacity={0.7}>
-              <Text style={styles.clearButtonText}>Clear All</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        )}
+        <TouchableOpacity
+          style={[
+            styles.calendarButton,
+            { borderColor: t.accent },
+            calendarOpen && [styles.calendarButtonActive, { backgroundColor: t.accent, borderColor: t.accent }],
+          ]}
+          onPress={toggleCalendar}
+          activeOpacity={0.7}
+        >
+          <CalendarIcon size={14} color={calendarOpen ? COLORS.black : t.accent} />
+          <Text
+            style={[
+              styles.calendarButtonText,
+              { color: t.accent },
+              calendarOpen && styles.calendarButtonTextActive,
+            ]}
+          >
+            Calendar
+          </Text>
+        </TouchableOpacity>
+        {history.length > 0 && (
+          <TouchableOpacity style={styles.clearButton} onPress={clearHistory} activeOpacity={0.7}>
+            <Text style={styles.clearButtonText}>Clear All</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Calendar panel */}
@@ -542,7 +690,14 @@ const HistoryScreen = () => {
           renderItem={renderHistoryItem}
           keyExtractor={(item, index) => `${item.date}-${index}`}
           contentContainerStyle={styles.listContainer}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} colors={[COLORS.accent]} />}
+          ListHeaderComponent={(
+            <SummaryStrip
+              history={filteredHistory}
+              speedUnit={settings.speedUnit}
+              speedUnitLabel={speedUnitLabel}
+            />
+          )}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.accent} colors={[t.accent]} />}
           showsVerticalScrollIndicator={false}
         />
       )}
@@ -557,16 +712,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1,
   },
 
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  exportHeaderButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    backgroundColor: 'transparent',
+  },
+  exportHeaderButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
   calendarButton: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 14, paddingVertical: 7, borderRadius: RADIUS.pill,
-    borderWidth: 1, borderColor: COLORS.accent, backgroundColor: 'transparent',
+    borderWidth: 1, backgroundColor: 'transparent',
   },
-  calendarButtonActive: {
-    backgroundColor: COLORS.accent, borderColor: COLORS.accent,
-  },
-  calendarButtonText: { color: COLORS.accent, fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
+  calendarButtonActive: {},
+  calendarButtonText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
   calendarButtonTextActive: { color: COLORS.black },
   clearButton: {
     paddingHorizontal: 14, paddingVertical: 7, borderRadius: RADIUS.pill,
@@ -576,12 +749,14 @@ const styles = StyleSheet.create({
   listContainer: { padding: 16, paddingBottom: 32 },
 
   historyItem: {
-    borderRadius: RADIUS.lg, marginBottom: 12, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4,
+    borderRadius: 20, marginBottom: 12, overflow: 'hidden',
+  },
+  historyItemInner: {
+    borderRadius: 20,
   },
 
-  gradientTint: { ...StyleSheet.absoluteFillObject, borderRadius: 16 },
-  historyContent: { flex: 1, padding: 14, paddingLeft: 14 },
+  gradientTint: { ...StyleSheet.absoluteFillObject, borderRadius: 20 },
+  historyContent: { flex: 1, padding: 16, paddingLeft: 16 },
   historyDate: { fontSize: 11, marginBottom: 10, fontWeight: '500' },
   historyStats: { flexDirection: 'row', alignItems: 'center' },
   historyStat: { flex: 1, alignItems: 'center' },
@@ -590,6 +765,43 @@ const styles = StyleSheet.create({
   historyStatValue: { fontSize: 16, fontWeight: '900', letterSpacing: -0.5 },
   historyStatUnit: { fontSize: 10, fontWeight: '600' },
   historyStatDivider: { width: 1, height: 28, marginHorizontal: 2 },
+  metaRow: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: 4,
+  },
+  metaText: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 14,
+  },
+  summaryCard: {
+    width: '48.5%',
+    borderRadius: 20,
+    padding: 16,
+  },
+  summaryLabel: {
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  summaryValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  summarySubtitle: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
 
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
   emptyTitle: { fontSize: 20, fontWeight: '800', marginTop: 20, letterSpacing: 0.5 },

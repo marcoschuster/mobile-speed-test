@@ -1,11 +1,24 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// ZOLT — Premium Design System
+// Flash — Premium Design System
 // Inspired by McLaren, Apple, n8n, landonorris.com
 // ─────────────────────────────────────────────────────────────────────────────
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+export const withAlpha = (hex: string, alpha: number): string => {
+  const normalized = hex.replace('#', '');
+  const full = normalized.length === 3
+    ? normalized.split('').map((c) => c + c).join('')
+    : normalized;
+
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
 
 // ── Static palette (never changes) ─────────────────────────────────────────
 export const COLORS = {
@@ -21,7 +34,7 @@ export const COLORS = {
 
   white: '#FFFFFF',
   black: '#000000',
-};
+} as const;
 
 // ── Color Themes (10 themes) ─────────────────────────────────────────────────
 export const COLOR_THEMES = [
@@ -35,7 +48,7 @@ export const COLOR_THEMES = [
   { id: 'teal', name: 'Teal', accent: '#009688', accentDark: '#00796B', accentLight: '#26A69A' },
   { id: 'indigo', name: 'Indigo', accent: '#3F51B5', accentDark: '#303F9F', accentLight: '#5C6BC0' },
   { id: 'cyan', name: 'Cyan', accent: '#00BCD4', accentDark: '#0097A7', accentLight: '#26C6DA' },
-];
+] as const;
 
 // ── Theme-aware palettes ────────────────────────────────────────────────────
 const DARK = {
@@ -91,7 +104,7 @@ const DARK = {
 
   // Empty state bolt
   emptyBolt: '#333333',
-};
+} as const;
 
 const LIGHT = {
   mode: 'light',
@@ -146,7 +159,7 @@ const LIGHT = {
 
   // Empty state bolt
   emptyBolt: '#DDDDDD',
-};
+} as const;
 
 // ── Shared constants (independent of theme) ─────────────────────────────────
 export const RADIUS = {
@@ -155,7 +168,7 @@ export const RADIUS = {
   lg: 16,
   xl: 20,
   pill: 50,
-};
+} as const;
 
 export const SHADOWS = {
   card: {
@@ -186,10 +199,80 @@ export const SHADOWS = {
     shadowRadius: 12,
     elevation: 6,
   },
-};
+  // Claymorphism shadows - dual-layer (light + dark) for true clay-like 3D effect
+  clay: {
+    shadowColor: 'rgba(0, 0, 0, 0.15)',
+    shadowOffset: { width: 16, height: 16 },
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+  clayLight: {
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: -16, height: -16 },
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+  clayInner: {
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 10, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  clayInnerLight: {
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: -10, height: -10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  clayButton: {
+    shadowColor: 'rgba(0, 0, 0, 0.15)',
+    shadowOffset: { width: 8, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  clayButtonLight: {
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: -8, height: -8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  clayCard: {
+    shadowColor: 'rgba(0, 0, 0, 0.15)',
+    shadowOffset: { width: 16, height: 16 },
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
+    elevation: 18,
+  },
+  clayCardLight: {
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: -16, height: -16 },
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
+    elevation: 18,
+  },
+} as const;
+
+// ── Type Definitions ─────────────────────────────────────────────────────────
+type ThemeChoice = 'light' | 'dark' | 'system';
+type BaseTheme = typeof DARK | typeof LIGHT;
+type ColorTheme = typeof COLOR_THEMES[number];
+
+interface ThemeContextType {
+  t: Record<string, any>;
+  themeChoice: ThemeChoice;
+  colorThemeId: string;
+  setThemeChoice: (val: ThemeChoice) => void;
+  setColorThemeId: (val: string) => void;
+}
 
 // ── Context ─────────────────────────────────────────────────────────────────
-const ThemeContext = createContext({
+const ThemeContext = createContext<ThemeContextType>({
   t: DARK,
   themeChoice: 'dark',
   colorThemeId: 'gold',
@@ -197,14 +280,18 @@ const ThemeContext = createContext({
   setColorThemeId: () => {},
 });
 
-export const useTheme = () => useContext(ThemeContext);
+export const useTheme = (): ThemeContextType => useContext(ThemeContext);
 
-const STORAGE_KEY = '@zolt_theme';
-const COLOR_THEME_KEY = '@zolt_color_theme';
+const STORAGE_KEY = '@flash_theme';
+const COLOR_THEME_KEY = '@flash_color_theme';
 
-export const ThemeProvider = ({ children }) => {
+interface ThemeProviderProps {
+  children: ReactNode;
+}
+
+export const ThemeProvider = ({ children }: ThemeProviderProps) => {
   const systemScheme = useColorScheme(); // 'light' | 'dark' | null
-  const [themeChoice, setThemeChoiceState] = useState('dark'); // 'light' | 'dark' | 'system'
+  const [themeChoice, setThemeChoiceState] = useState<ThemeChoice>('dark');
   const [colorThemeId, setColorThemeIdState] = useState('gold');
   const [loaded, setLoaded] = useState(false);
 
@@ -215,7 +302,7 @@ export const ThemeProvider = ({ children }) => {
       AsyncStorage.getItem(COLOR_THEME_KEY),
     ]).then(([themeVal, colorVal]) => {
       if (themeVal === 'light' || themeVal === 'dark' || themeVal === 'system') {
-        setThemeChoiceState(themeVal);
+        setThemeChoiceState(themeVal as ThemeChoice);
       }
       if (colorVal && COLOR_THEMES.find(ct => ct.id === colorVal)) {
         setColorThemeIdState(colorVal);
@@ -224,12 +311,12 @@ export const ThemeProvider = ({ children }) => {
     }).catch(() => setLoaded(true));
   }, []);
 
-  const setThemeChoice = (val) => {
+  const setThemeChoice = (val: ThemeChoice) => {
     setThemeChoiceState(val);
     AsyncStorage.setItem(STORAGE_KEY, val).catch(() => {});
   };
 
-  const setColorThemeId = (val) => {
+  const setColorThemeId = (val: string) => {
     setColorThemeIdState(val);
     AsyncStorage.setItem(COLOR_THEME_KEY, val).catch(() => {});
   };
@@ -248,8 +335,14 @@ export const ThemeProvider = ({ children }) => {
   const t = {
     ...baseTheme,
     ...activeColorTheme,
-    accentGlow: `${activeColorTheme.accent}59`, // 35% opacity
-    accentSubtle: `${activeColorTheme.accent}14`, // 8% opacity
+    navActive: activeColorTheme.accent,
+    warning: activeColorTheme.accent,
+    accentGlow: withAlpha(activeColorTheme.accent, 0.35),
+    accentSubtle: withAlpha(activeColorTheme.accent, 0.08),
+    accentTintSoft: withAlpha(activeColorTheme.accent, effective === 'dark' ? 0.03 : 0.015),
+    accentTintCard: withAlpha(activeColorTheme.accent, effective === 'dark' ? 0.04 : 0.02),
+    accentTintStrong: withAlpha(activeColorTheme.accent, effective === 'dark' ? 0.15 : 0.12),
+    accentTintSelected: withAlpha(activeColorTheme.accent, 0.14),
   };
 
   return (

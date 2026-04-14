@@ -10,6 +10,7 @@ import GraphScreen from './src/screens/GraphScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import FlashTitle from './src/components/FlashTitle';
 import { COLORS, ThemeProvider, useTheme } from './src/utils/theme';
+import { AppSettingsProvider } from './src/context/AppSettingsContext';
 import SoundEngine from './src/services/SoundEngine';
 
 const Tab = createBottomTabNavigator();
@@ -91,7 +92,6 @@ const TabIcon = ({ focused, iconType, color }) => {
 
   return (
     <View style={{ alignItems: 'center' }}>
-      {focused && <View style={tabStyles.activeIndicator} />}
       <Animated.View style={{ transform: [{ scale }] }}>
         {getIcon()}
       </Animated.View>
@@ -106,7 +106,6 @@ const CustomHeader = ({ title }) => {
     <View style={[tabStyles.header, { backgroundColor: t.headerBg }]}>
       <View style={tabStyles.headerLeft}>
         <LightningLogo size={18} />
-        <Text style={[tabStyles.headerBrand, { color: t.headerText }]}>ZOLT</Text>
       </View>
       <View style={tabStyles.headerCenter}>
         <FlashTitle text={title.toUpperCase()} size="large" interval={5000} center glow />
@@ -224,7 +223,9 @@ function AppInner() {
 export default function App() {
   return (
     <ThemeProvider>
-      <AppInner />
+      <AppSettingsProvider>
+        <AppInner />
+      </AppSettingsProvider>
     </ThemeProvider>
   );
 }

@@ -1,28 +1,81 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions, Platform } from 'react-native';
+import React, { useEffect, useRef, ReactNode } from 'react';
+import { View, Text, StyleSheet, Animated, Dimensions, Platform, ViewStyle } from 'react-native';
 import Svg, { Path, Circle as SvgCircle } from 'react-native-svg';
-import { COLORS, RADIUS, useTheme } from '../utils/theme';
+import { COLORS, RADIUS, SHADOWS, useTheme } from '../utils/theme';
+
+// ── Type Definitions ─────────────────────────────────────────────────────────
+interface ClaymorphismViewProps {
+  children: ReactNode;
+  style?: ViewStyle;
+  shadowStyle?: 'button' | 'card';
+}
+
+interface IconProps {
+  size?: number;
+  color?: string;
+}
+
+interface SpinningLoaderProps {
+  size?: number;
+  color: string;
+}
+
+interface CardSpeedLineProps {
+  index: number;
+  color: string;
+}
+
+interface StatCardProps {
+  label: string;
+  value: number | string;
+  unit?: string;
+  activePhase?: string;
+  footerText?: string;
+}
+
+// ClaymorphismView helper component for dual-layer shadows
+export const ClaymorphismView = ({ children, style, shadowStyle = 'card' }: ClaymorphismViewProps) => {
+  const getShadows = () => {
+    switch (shadowStyle) {
+      case 'button':
+        return { dark: SHADOWS.clayButton, light: SHADOWS.clayButtonLight };
+      case 'card':
+      default:
+        return { dark: SHADOWS.clayCard, light: SHADOWS.clayCardLight };
+    }
+  };
+
+  const shadows = getShadows();
+  const borderRadius = style?.borderRadius || 24;
+
+  return (
+    <View style={[style, shadows.dark, { borderWidth: 2, borderColor: 'rgba(255, 255, 255, 0.3)', overflow: 'visible' }]}>
+      <View style={[StyleSheet.absoluteFillObject, { borderRadius, ...shadows.light, zIndex: -1 }]} />
+      {children}
+    </View>
+  );
+};
 
 const CARD_WIDTH = (Dimensions.get('window').width - 56) / 3;
 
-const DownloadIcon = ({ size = 14, color = COLORS.accent }) => (
+const DownloadIcon = ({ size = 14, color }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 24 24">
     <Path d="M12 4v12m0 0l-5-5m5 5l5-5M5 20h14" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
   </Svg>
 );
-const UploadIcon = ({ size = 14, color = COLORS.accent }) => (
+const UploadIcon = ({ size = 14, color }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 24 24">
     <Path d="M12 20V8m0 0l-5 5m5-5l5 5M5 4h14" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
   </Svg>
 );
-const PingIcon = ({ size = 14, color = COLORS.success }) => (
+const PingIcon = ({ size = 14, color = COLORS.success }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 24 24">
     <Path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z" fill={color} />
   </Svg>
 );
 
 // ── Spinning yellow loader ──────────────────────────────────────────────────
-const SpinningLoader = ({ size = 22, color = COLORS.accent }) => {
+const SpinningLoader = ({ size = 22, color }: SpinningLoaderProps) => {
   const spinAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -61,7 +114,7 @@ const SpinningLoader = ({ size = 22, color = COLORS.accent }) => {
 };
 
 // ── Mini speed line inside a card ───────────────────────────────────────────
-const CardSpeedLine = ({ index, color }) => {
+const CardSpeedLine = ({ index, color }: CardSpeedLineProps) => {
   const translateX = useRef(new Animated.Value(-CARD_WIDTH)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const delay = useRef(index * 250 + Math.random() * 200).current;
@@ -97,7 +150,7 @@ const CardSpeedLine = ({ index, color }) => {
 
 const FONT_FAMILY = Platform.OS === 'ios' ? 'System' : 'sans-serif';
 
-const StatCard = ({ label, value, unit = 'Mbps', activePhase, footerText }) => {
+export const StatCard = ({ label, value, unit = 'Mbps', activePhase, footerText }: StatCardProps) => {
   const { t } = useTheme();
   const animatedValue = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -116,7 +169,7 @@ const StatCard = ({ label, value, unit = 'Mbps', activePhase, footerText }) => {
   );
 
   useEffect(() => {
-    if (value > 0 && !isActive) {
+    if (typeof value === 'number' && value > 0 && !isActive) {
       Animated.sequence([
         Animated.timing(animatedValue, { toValue: 1.08, duration: 150, useNativeDriver: false }),
         Animated.spring(animatedValue, { toValue: 1, tension: 200, friction: 10, useNativeDriver: false }),
@@ -142,18 +195,15 @@ const StatCard = ({ label, value, unit = 'Mbps', activePhase, footerText }) => {
 
   const getIcon = () => {
     switch (label) {
-      case 'Download': return <DownloadIcon />;
+      case 'Download': return <DownloadIcon color={t.accent} />;
       case 'Upload':   return <UploadIcon color={t.uploadLine} />;
       case 'Ping':     return <PingIcon />;
       default:         return null;
     }
   };
 
-  const accentColor = label === 'Ping' ? COLORS.success : (label === 'Upload' ? t.uploadLine : COLORS.accent);
-
-  const uniformTint = isDark
-    ? 'rgba(245, 196, 0, 0.04)'
-    : 'rgba(245, 196, 0, 0.02)';
+  const accentColor = label === 'Ping' ? COLORS.success : (label === 'Upload' ? t.uploadLine : t.accent);
+  const uniformTint = t.accentTintCard;
 
   // Animated shadow for the pulsing glow
   const glowShadowOpacity = glowAnim.interpolate({
@@ -168,21 +218,25 @@ const StatCard = ({ label, value, unit = 'Mbps', activePhase, footerText }) => {
   return (
     <Animated.View
       style={[
-        styles.card,
+        styles.cardContainer,
         {
-          backgroundColor: t.surface,
           marginHorizontal: 4,
           opacity: fadeAnim,
           transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
-          shadowColor: isActive ? COLORS.accent : (isDark ? '#000' : '#888'),
-          shadowOpacity: isActive ? glowShadowOpacity : 0.18,
-          shadowRadius: isActive ? glowShadowRadius : 10,
+          overflow: 'visible',
         },
       ]}
     >
-        {/* Uniform gradient tint overlay */}
-        <View style={[styles.gradientTint, { backgroundColor: uniformTint }]} />
-
+      <Animated.View
+        style={[
+          styles.card,
+          {
+            backgroundColor: t.surface,
+            ...SHADOWS.clayCard,
+            overflow: 'visible',
+          },
+        ]}
+      >
         {/* Speed lines — only when actively being tested */}
         {isActive && (
           <View style={styles.speedLinesClip}>
@@ -212,37 +266,49 @@ const StatCard = ({ label, value, unit = 'Mbps', activePhase, footerText }) => {
             {footerText || (label === 'Ping' ? 'Best' : 'Peak')}
           </Text>
         </View>
+      </Animated.View>
     </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
+  shadowLayer: {
+    borderRadius: 24,
+  },
+  clayLayer: {
+    flex: 1,
+  },
+  cardContainer: {
+    flex: 1,
+  },
   card: {
     flex: 1,
-    borderRadius: RADIUS.lg,
+    borderRadius: 24,
+  },
+  cardInner: {
+    flex: 1,
+    borderRadius: 24,
     overflow: 'hidden',
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
   },
   gradientTint: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: RADIUS.lg,
+    borderRadius: 24,
   },
   speedLinesClip: {
     ...StyleSheet.absoluteFillObject,
     overflow: 'hidden',
-    borderRadius: RADIUS.lg,
+    borderRadius: 24,
   },
   cardContent: {
-    padding: 12,
+    padding: 16,
     alignItems: 'center',
   },
-  labelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 4 },
-  label: { fontSize: 10, textTransform: 'uppercase', fontWeight: '700', letterSpacing: 1.2 },
-  value: { fontSize: 18, fontWeight: '900', letterSpacing: -0.5 },
-  valueUnit: { fontSize: 11, fontWeight: '600' },
-  loaderWrap: { height: 28, justifyContent: 'center', alignItems: 'center' },
-  peak: { fontSize: 10, fontWeight: '600', marginTop: 6, textAlign: 'center' },
+  labelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 6 },
+  label: { fontSize: 11, textTransform: 'uppercase', fontWeight: '700', letterSpacing: 1.2 },
+  value: { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
+  valueUnit: { fontSize: 12, fontWeight: '600' },
+  loaderWrap: { height: 32, justifyContent: 'center', alignItems: 'center' },
+  peak: { fontSize: 11, fontWeight: '600', marginTop: 8, textAlign: 'center' },
 });
 
 export default StatCard;

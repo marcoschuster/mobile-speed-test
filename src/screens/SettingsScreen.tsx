@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, LayoutChangeEvent } from 'react';
 import {
   View,
   Text,
@@ -22,8 +22,29 @@ import { COLORS, RADIUS, useTheme } from '../utils/theme';
 
 const FONT_FAMILY = Platform.OS === 'ios' ? 'System' : 'sans-serif';
 
+// ── Type Definitions ─────────────────────────────────────────────────────────
+interface SegmentedControlProps {
+  options: { label: string; value: string }[];
+  selected: string;
+  onSelect: (value: string) => void;
+}
+
+interface DropdownProps {
+  options: { label: string; value: string }[];
+  selected: string;
+  onSelect: (value: string) => void;
+  isOpen: boolean;
+  onToggle: () => void;
+}
+
+interface SettingsRowProps {
+  label: string;
+  children: React.ReactNode;
+  isLast?: boolean;
+}
+
 // ── Pill Segmented Control with sliding indicator ───────────────────────────
-const SegmentedControl = ({ options, selected, onSelect }) => {
+const SegmentedControl = ({ options, selected, onSelect }: SegmentedControlProps) => {
   const { t } = useTheme();
   const isDark = t.mode === 'dark';
   const containerBg = isDark ? '#2A2A2A' : '#E8E8E8';
@@ -44,7 +65,7 @@ const SegmentedControl = ({ options, selected, onSelect }) => {
     }
   }, [selectedIndex, segmentWidth]);
 
-  const onLayout = (e) => {
+  const onLayout = (e: LayoutChangeEvent) => {
     const w = e.nativeEvent.layout.width;
     setContainerWidth(w);
     setSegmentWidth(w / options.length);
@@ -112,7 +133,7 @@ const segS = StyleSheet.create({
 });
 
 // ── Dropdown ────────────────────────────────────────────────────────────────
-const Dropdown = ({ options, selected, onSelect, isOpen, onToggle }) => {
+const Dropdown = ({ options, selected, onSelect, isOpen, onToggle }: DropdownProps) => {
   const { t } = useTheme();
   return (
     <View>
@@ -160,7 +181,7 @@ const dropS = StyleSheet.create({
 });
 
 // ── Settings Row ────────────────────────────────────────────────────────────
-const SettingsRow = ({ label, children, isLast }) => {
+const SettingsRow = ({ label, children, isLast }: SettingsRowProps) => {
   const { t } = useTheme();
   return (
     <View style={[rowS.container, !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.separator }]}>
@@ -202,7 +223,7 @@ const SettingsScreen = () => {
   }, []);
 
   // Toggle handler that plays the appropriate sound
-  const handleToggle = (currentVal, setter, engineProp) => {
+  const handleToggle = (currentVal: boolean, setter: React.Dispatch<React.SetStateAction<boolean>>, engineProp?: 'muted' | 'hapticsEnabled') => {
     const newVal = !currentVal;
     setter(newVal);
     if (engineProp) {
@@ -212,7 +233,7 @@ const SettingsScreen = () => {
     else SoundEngine.playToggleOff();
   };
 
-  const handleVolumeChange = (val) => {
+  const handleVolumeChange = (val: string) => {
     const v = parseFloat(val) || 0;
     const clamped = Math.max(0, Math.min(1, v));
     setSfxVolume(clamped);
@@ -369,7 +390,7 @@ const SettingsScreen = () => {
               <TouchableOpacity
                 key={v}
                 style={[styles.volumeDot, sfxVolume >= v && styles.volumeDotActive]}
-                onPress={() => { handleVolumeChange(v); SoundEngine.playNavTick(); }}
+                onPress={() => { handleVolumeChange(v.toString()); SoundEngine.playNavTick(); }}
                 activeOpacity={0.7}
               />
             ))}
@@ -406,7 +427,7 @@ const SettingsScreen = () => {
         </View>
       </View>
 
-      <Text style={[styles.versionText, { color: t.textMuted, fontFamily: FONT_FAMILY, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>ZOLT v1.0.0</Text>
+      <Text style={[styles.versionText, { color: t.textMuted, fontFamily: FONT_FAMILY, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Flash v1.1.0</Text>
     </Animated.ScrollView>
   );
 };

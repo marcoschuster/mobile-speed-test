@@ -18,6 +18,7 @@ const FONT_FAMILY = Platform.OS === 'ios' ? 'System' : 'sans-serif';
  * - style:    additional container styles
  * - center:   boolean — centre the title (default false)
  * - glow:     boolean — add a dim yellow glow behind the text (default false)
+ * - disableFlash: boolean — disable the flash animation (default false)
  */
 const FlashTitle = ({
   text,
@@ -26,6 +27,7 @@ const FlashTitle = ({
   style,
   center = false,
   glow = false,
+  disableFlash = false,
 }) => {
   const { t } = useTheme();
   const isDark = t.mode === 'dark';
@@ -37,7 +39,7 @@ const FlashTitle = ({
   const FLASH_WIDTH = 45; // width of the bright slit
 
   useEffect(() => {
-    if (textWidth === 0) return;
+    if (textWidth === 0 || disableFlash) return;
 
     const startX = -FLASH_WIDTH;
     const endX = textWidth + FLASH_WIDTH;
@@ -84,7 +86,7 @@ const FlashTitle = ({
       flashPos.stopAnimation();
       flashOpacity.stopAnimation();
     };
-  }, [textWidth, interval]);
+  }, [textWidth, interval, disableFlash]);
 
   const onTextLayout = (e) => {
     const w = e.nativeEvent.layout.width;

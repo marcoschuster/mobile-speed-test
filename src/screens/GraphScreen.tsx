@@ -10,6 +10,7 @@ import {
   Animated,
   Platform,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import Svg, {
   Rect,
   Line,
@@ -25,19 +26,62 @@ import Svg, {
 import SpeedTestService from '../services/SpeedTestService';
 import SoundEngine from '../services/SoundEngine';
 import FlashTitle from '../components/FlashTitle';
-import { COLORS, RADIUS, useTheme } from '../utils/theme';
+import { useAppSettings } from '../context/AppSettingsContext';
+import { summarizeHistory, type HistoryItem } from '../utils/history';
+import { convertSpeedFromMbps, formatBytes, formatSpeedValue, getSpeedUnitLabel } from '../utils/measurements';
+import { COLORS, RADIUS, SHADOWS, useTheme } from '../utils/theme';
+
+// ── Type Definitions ─────────────────────────────────────────────────────────
+interface Point {
+  x: number;
+  y: number;
+}
+
+interface Dataset {
+  values: number[];
+  color: string;
+  label: string;
+}
+
+interface AreaGradient {
+  color: string;
+}
+
+interface InteractiveChartProps {
+  dataPoints: HistoryItem[];
+  datasets: Dataset[];
+  yAxisSuffix: string;
+  title: string;
+  legends: { color: string; label: string }[];
+  areaGradients?: AreaGradient[];
+  formatXLabel: (date: string) => string;
+  isDark: boolean;
+  t: any;
+  chartId: string;
+}
+
+interface TrendSummaryProps {
+  history: HistoryItem[];
+  speedUnit: string;
+  speedUnitLabel: string;
+}
+
+interface TimeFilter {
+  key: string;
+  label: string;
+}
 
 const screenWidth = Dimensions.get('window').width;
 const FONT_FAMILY = Platform.OS === 'ios' ? 'System' : 'sans-serif';
 
-const TIME_FILTERS = [
+const TIME_FILTERS: TimeFilter[] = [
   { key: 'day', label: '1 Day' },
   { key: 'week', label: '1 Week' },
   { key: 'month', label: '1 Month' },
 ];
 
 // ── Catmull-Rom → cubic bezier spline helper ────────────────────────────────
-const buildSplinePath = (points, tension = 0.35) => {
+const buildSplinePath = (points: Point[], tension: number = 0.35): string => {
   if (points.length < 2) return '';
   if (points.length === 2) return `M${points[0].x},${points[0].y} L${points[1].x},${points[1].y}`;
 
@@ -60,7 +104,7 @@ const buildSplinePath = (points, tension = 0.35) => {
   return d;
 };
 
-const buildAreaPath = (points, baselineY, tension = 0.35) => {
+const buildAreaPath = (points: Point[], baselineY: number, tension: number = 0.35): string => {
   if (points.length < 2) return '';
   const spline = buildSplinePath(points, tension);
   const lastPt = points[points.length - 1];
@@ -69,7 +113,7 @@ const buildAreaPath = (points, baselineY, tension = 0.35) => {
 };
 
 // ── Tooltip helpers ─────────────────────────────────────────────────────────
-const formatTooltipDate = (dateString) => {
+const formatTooltipDate = (dateString: string): string => {
   const d = new Date(dateString);
   const mo = d.toLocaleString('default', { month: 'short' });
   const day = d.getDate();
@@ -82,8 +126,8 @@ const formatTooltipDate = (dateString) => {
 const InteractiveChart = ({
   dataPoints, datasets, yAxisSuffix, title, legends, areaGradients,
   formatXLabel, isDark, t, chartId,
-}) => {
-  const [selectedIndex, setSelectedIndex] = useState(null);
+}: InteractiveChartProps) => {
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
   const yLabelWidth = 48;
   const xLabelHeight = 50;
@@ -98,36 +142,36 @@ const InteractiveChart = ({
   let globalMax = 0;
   datasets.forEach((ds) => { ds.values.forEach((v) => { if (v > globalMax) globalMax = v; }); });
 
-  const getNiceTicks = (maxVal, tickCount = 5) => {
+  const getNiceTicks = (maxVal: number, tickCount: number = 5): { ticks: number[]; max: number } => {
     if (maxVal <= 0) maxVal = 10;
     const rawStep = maxVal / tickCount;
     const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
     const residual = rawStep / magnitude;
-    let niceStep;
+    let niceStep: number;
     if (residual <= 1.5) niceStep = 1 * magnitude;
     else if (residual <= 3) niceStep = 2 * magnitude;
     else if (residual <= 7) niceStep = 5 * magnitude;
     else niceStep = 10 * magnitude;
     niceStep = Math.max(1, Math.round(niceStep));
     const niceMax = Math.ceil(maxVal / niceStep) * niceStep;
-    const ticks = [];
+    const ticks: number[] = [];
     for (let v = 0; v <= niceMax; v += niceStep) ticks.push(Math.round(v));
     return { ticks, max: niceMax };
   };
 
   const { ticks, max: yMax } = getNiceTicks(globalMax);
 
-  const xPos = (index) => {
+  const xPos = (index: number): number => {
     if (dataPoints.length === 1) return yLabelWidth + chartAreaWidth / 2;
     return yLabelWidth + (index / (dataPoints.length - 1)) * chartAreaWidth;
   };
-  const yPos = (value) => paddingTop + chartHeight - (value / yMax) * chartHeight;
+  const yPos = (value: number): number => paddingTop + chartHeight - (value / yMax) * chartHeight;
 
   const maxXLabels = 6;
   const step = Math.max(1, Math.ceil(dataPoints.length / maxXLabels));
   const baselineY = paddingTop + chartHeight;
 
-  const chartTintBg = isDark ? 'rgba(245, 196, 0, 0.03)' : 'rgba(245, 196, 0, 0.015)';
+  const chartTintBg = t.accentTintSoft;
 
   const gradientDefs = (areaGradients || []).map((ag, i) => (
     <LinearGradient key={`areaGrad-${chartId}-${i}`} id={`areaGrad${chartId}${i}`} x1="0" y1="0" x2="0" y2="1">
@@ -136,7 +180,7 @@ const InteractiveChart = ({
     </LinearGradient>
   ));
 
-  const handleDotPress = (index) => {
+  const handleDotPress = (index: number): void => {
     if (selectedIndex !== index) SoundEngine.playGraphPing();
     setSelectedIndex(selectedIndex === index ? null : index);
   };
@@ -183,7 +227,7 @@ const InteractiveChart = ({
     <View style={[cStyles.chartCard, { backgroundColor: t.surface }]}>
       <View style={[cStyles.gradientTint, { backgroundColor: chartTintBg }]} />
       <View style={cStyles.chartTitleWrap}>
-        <FlashTitle text={title.toUpperCase()} size="small" interval={5000} center />
+        <FlashTitle text={title.toUpperCase()} size="small" interval={5000} center disableFlash />
       </View>
       <View style={cStyles.legendRow}>
         {legends.map((leg, i) => (
@@ -428,31 +472,80 @@ const cStyles = StyleSheet.create({
   legendText: { fontSize: 12, fontWeight: '600' },
 });
 
+const TrendSummary = ({ history, speedUnit, speedUnitLabel }: TrendSummaryProps) => {
+  const { t } = useTheme();
+  const summary = summarizeHistory(history);
+
+  if (!summary.totalTests) return null;
+
+  const trendLabel = summary.recentTrend === 'up'
+    ? 'Improving'
+    : summary.recentTrend === 'down'
+      ? 'Slower lately'
+      : 'Stable';
+
+  const cards = [
+    {
+      label: 'Avg Download',
+      value: `${formatSpeedValue(summary.averageDownload, speedUnit, 1)} ${speedUnitLabel}`,
+    },
+    {
+      label: 'Avg Ping',
+      value: `${Math.round(summary.averagePing)} ms`,
+    },
+    {
+      label: 'Trend',
+      value: trendLabel,
+    },
+    {
+      label: 'Traffic',
+      value: formatBytes(summary.totalDataUsedBytes),
+    },
+  ];
+
+  return (
+    <View style={[styles.summaryGrid, { overflow: 'visible' }]}>
+      {cards.map((card) => (
+        <View key={card.label} style={[styles.summaryCard, { backgroundColor: t.surface, ...SHADOWS.clayCard, overflow: 'visible' }]}>
+          <Text style={[styles.summaryLabel, { color: t.textMuted }]}>{card.label}</Text>
+          <Text style={[styles.summaryValue, { color: t.textPrimary }]}>{card.value}</Text>
+        </View>
+      ))}
+    </View>
+  );
+};
+
 // ── Main Screen ─────────────────────────────────────────────────────────────
 const GraphScreen = () => {
   const { t } = useTheme();
+  const { settings } = useAppSettings();
   const isDark = t.mode === 'dark';
-  const [allHistory, setAllHistory] = useState([]);
+  const [allHistory, setAllHistory] = useState<HistoryItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [timeFilter, setTimeFilter] = useState('month');
   const contentFade = useRef(new Animated.Value(0)).current;
+  const speedUnitLabel = getSpeedUnitLabel(settings.speedUnit);
+
+  const loadSpeedHistory = useCallback(async () => {
+    const history = await SpeedTestService.getHistory();
+    setAllHistory(history);
+  }, []);
 
   useEffect(() => {
     loadSpeedHistory();
     Animated.timing(contentFade, { toValue: 1, duration: 300, useNativeDriver: false }).start();
-  }, []);
+  }, [contentFade, loadSpeedHistory]);
 
-  const loadSpeedHistory = async () => {
-    const history = await SpeedTestService.getHistory();
-    setAllHistory(history);
-  };
+  useFocusEffect(useCallback(() => {
+    loadSpeedHistory();
+  }, [loadSpeedHistory]));
 
   const onRefresh = async () => { setRefreshing(true); await loadSpeedHistory(); setRefreshing(false); };
 
-  const getFilteredData = useCallback(() => {
+  const getFilteredData = useCallback((): HistoryItem[] => {
     if (allHistory.length === 0) return [];
     const now = new Date();
-    let cutoff;
+    let cutoff: Date;
     switch (timeFilter) {
       case 'day': cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000); break;
       case 'week': cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
@@ -462,7 +555,7 @@ const GraphScreen = () => {
     return [...filtered].reverse();
   }, [allHistory, timeFilter]);
 
-  const formatXLabel = useCallback((dateString) => {
+  const formatXLabel = useCallback((dateString: string): string => {
     const date = new Date(dateString);
     const hours = date.getHours().toString().padStart(2, '0');
     const mins = date.getMinutes().toString().padStart(2, '0');
@@ -499,39 +592,54 @@ const GraphScreen = () => {
 
     return (
       <>
+        <TrendSummary
+          history={data}
+          speedUnit={settings.speedUnit as any}
+          speedUnitLabel={speedUnitLabel}
+        />
         <InteractiveChart
           chartId="speed"
           dataPoints={data}
           datasets={[
-            { values: data.map((d) => d.download), color: COLORS.accent, label: 'Download' },
-            { values: data.map((d) => d.upload), color: t.uploadLine, label: 'Upload' },
+            {
+              values: data.map((d) => convertSpeedFromMbps(d.download || 0, settings.speedUnit as any)),
+              color: t.accent,
+              label: 'Download',
+            },
+            {
+              values: data.map((d) => convertSpeedFromMbps(d.upload || 0, settings.speedUnit as any)),
+              color: t.uploadLine,
+              label: 'Upload',
+            },
           ]}
           yAxisSuffix=""
-          title="Download & Upload Speed (Mbps)"
+          title={`Download & Upload Speed (${speedUnitLabel})`}
           legends={[
-            { color: COLORS.accent, label: 'Download' },
+            { color: t.accent, label: 'Download' },
             { color: t.uploadLine, label: 'Upload' },
           ]}
           areaGradients={[
-            { color: COLORS.accent },
+            { color: t.accent },
             { color: t.uploadLine },
           ]}
           formatXLabel={formatXLabel}
           isDark={isDark}
           t={t}
         />
-        <InteractiveChart
-          chartId="ping"
-          dataPoints={data}
-          datasets={[{ values: data.map((d) => d.ping), color: COLORS.success, label: 'Ping' }]}
-          yAxisSuffix=""
-          title="Ping / Latency (ms)"
-          legends={[{ color: COLORS.success, label: 'Ping' }]}
-          areaGradients={[{ color: COLORS.success }]}
-          formatXLabel={formatXLabel}
-          isDark={isDark}
-          t={t}
-        />
+        {settings.showPing && (
+          <InteractiveChart
+            chartId="ping"
+            dataPoints={data}
+            datasets={[{ values: data.map((d) => d.ping || 0), color: COLORS.success, label: 'Ping' }]}
+            yAxisSuffix=""
+            title="Ping / Latency (ms)"
+            legends={[{ color: COLORS.success, label: 'Ping' }]}
+            areaGradients={[{ color: COLORS.success }]}
+            formatXLabel={formatXLabel}
+            isDark={isDark}
+            t={t}
+          />
+        )}
       </>
     );
   };
@@ -542,11 +650,21 @@ const GraphScreen = () => {
         {TIME_FILTERS.map((f) => (
           <TouchableOpacity
             key={f.key}
-            style={[styles.filterButton, timeFilter === f.key && styles.filterButtonActive]}
+            style={[
+              styles.filterButton,
+              { borderColor: t.accent },
+              timeFilter === f.key && [styles.filterButtonActive, { backgroundColor: t.accent, borderColor: t.accent }],
+            ]}
             onPress={() => setTimeFilter(f.key)}
             activeOpacity={0.7}
           >
-            <Text style={[styles.filterButtonText, { fontFamily: FONT_FAMILY }, timeFilter === f.key && styles.filterButtonTextActive]}>
+            <Text
+              style={[
+                styles.filterButtonText,
+                { fontFamily: FONT_FAMILY, color: t.accent },
+                timeFilter === f.key && styles.filterButtonTextActive,
+              ]}
+            >
               {f.label}
             </Text>
           </TouchableOpacity>
@@ -556,7 +674,7 @@ const GraphScreen = () => {
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} colors={[COLORS.accent]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.accent} colors={[t.accent]} />}
         showsVerticalScrollIndicator={false}
       >
         {renderCharts()}
@@ -573,13 +691,12 @@ const styles = StyleSheet.create({
   },
   filterButton: {
     paddingHorizontal: 22, paddingVertical: 8, borderRadius: RADIUS.pill,
-    borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: 'transparent',
+    borderWidth: 1.5, backgroundColor: 'transparent',
   },
-  filterButtonActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
+  filterButtonActive: {},
   filterButtonText: { 
     fontSize: 13, 
     fontWeight: '700', 
-    color: COLORS.accent, 
     letterSpacing: 0.3,
     textShadowColor: 'rgba(0, 0, 0, 0.2)',
     textShadowOffset: { width: 0, height: 1 },
@@ -589,6 +706,33 @@ const styles = StyleSheet.create({
 
   content: { flex: 1 },
   contentContainer: { padding: 16, paddingBottom: 30 },
+  summaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 18,
+  },
+  summaryCard: {
+    width: '48.5%',
+    borderRadius: RADIUS.lg,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  summaryLabel: {
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  summaryValue: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
 
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 80 },
   emptyTitle: { fontSize: 18, fontWeight: '800', marginTop: 16, letterSpacing: 0.5 },
