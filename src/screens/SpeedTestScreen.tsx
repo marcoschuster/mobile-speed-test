@@ -231,14 +231,14 @@ const SpeedTestScreen = () => {
         <View style={styles.controls}>
           <View style={styles.primaryControlsRow}>
             <View style={styles.mergedButtonContainer}>
+              <AnimatedButton onPress={toggleBackgroundMode} style={[styles.autoButton, backgroundMode && styles.autoButtonActive]} textStyle={[styles.autoButtonText, backgroundMode && styles.autoButtonTextActive]}>
+                {backgroundMode ? 'Auto: ON (' + getIntervalLabel() + ')' : 'Auto'}
+              </AnimatedButton>
               {!isTestRunning ? (
                 <AnimatedButton onPress={startTest} style={styles.startButton} textStyle={[styles.startButtonText, { color: t.buttonText }]}>Start Test</AnimatedButton>
               ) : (
                 <AnimatedButton onPress={stopTest} style={styles.runningButton} textStyle={[styles.runningButtonText, { color: t.buttonText }]} glowing>Stop Test</AnimatedButton>
               )}
-              <AnimatedButton onPress={toggleBackgroundMode} style={[styles.autoButton, backgroundMode && styles.autoButtonActive]} textStyle={[styles.autoButtonText, backgroundMode && styles.autoButtonTextActive]}>
-                {backgroundMode ? 'Auto: ON (' + getIntervalLabel() + ')' : 'Auto'}
-              </AnimatedButton>
             </View>
             <TouchableOpacity onPress={() => {}} style={styles.shareButton}>
               <MaterialIcons name="share" size={20} color={COLORS.accent} />
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   controls: { alignItems: 'center', marginVertical: 8, width: '100%' },
   primaryControlsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' },
   mergedButtonContainer: { flexDirection: 'row', flex: 1 },
-  autoButton: { paddingVertical: 16, paddingHorizontal: 16, borderTopRightRadius: RADIUS.pill, borderBottomRightRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, borderLeftWidth: 0, backgroundColor: 'transparent', width: 90 },
+  autoButton: { paddingVertical: 16, paddingHorizontal: 16, borderTopLeftRadius: RADIUS.pill, borderBottomLeftRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, borderRightWidth: 0, backgroundColor: 'transparent', width: 90 },
   autoButtonActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
   autoButtonText: {
     color: COLORS.accent,
@@ -302,12 +302,12 @@ const styles = StyleSheet.create({
   shareButton: { paddingVertical: 16, paddingHorizontal: 16, borderRadius: RADIUS.pill, borderWidth: 0, backgroundColor: 'transparent', width: 60, alignItems: 'center', justifyContent: 'center' },
   startButton: {
     backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 40,
-    borderTopLeftRadius: RADIUS.pill, borderBottomLeftRadius: RADIUS.pill, flex: 1, ...SHADOWS.button,
+    borderRadius: RADIUS.pill, flex: 1, ...SHADOWS.button,
   },
   startButtonText: { fontSize: 16, fontWeight: '800', letterSpacing: 1, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
   runningButton: {
     backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 40,
-    borderTopLeftRadius: RADIUS.pill, borderBottomLeftRadius: RADIUS.pill, flex: 1,
+    borderRadius: RADIUS.pill, flex: 1,
     shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 8,
   },
   runningButtonText: { fontSize: 16, fontWeight: '800', letterSpacing: 1, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
