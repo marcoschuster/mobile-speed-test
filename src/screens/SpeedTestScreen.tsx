@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   statsGrid: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginVertical: 16 },
   controls: { alignItems: 'center', marginVertical: 8, width: '100%' },
   primaryControlsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' },
-  autoButton: { paddingVertical: 16, paddingHorizontal: 16, borderTopLeftRadius: RADIUS.pill, borderBottomLeftRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, borderRightWidth: 0, backgroundColor: 'transparent', flex: 1, marginRight: -1.5 },
+  autoButton: { paddingVertical: 16, paddingHorizontal: 16, borderTopLeftRadius: RADIUS.pill, borderBottomLeftRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, borderRightWidth: 0, backgroundColor: 'transparent', flex: 1, marginRight: -3 },
   autoButtonActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
   autoButtonText: {
     color: COLORS.accent,
