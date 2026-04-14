@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
   statsGrid: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginVertical: 16 },
   controls: { alignItems: 'center', marginVertical: 8, width: '100%' },
   primaryControlsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: 10 },
-  autoButton: { paddingVertical: 16, paddingHorizontal: 24, borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: 'transparent', flex: 1 },
+  autoButton: { paddingVertical: 16, paddingHorizontal: 16, borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: 'transparent', flex: 1 },
   autoButtonActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
   autoButtonText: {
     color: COLORS.accent,
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 1.5,
   },
   autoButtonTextActive: { color: COLORS.black },
-  shareButton: { paddingVertical: 16, paddingHorizontal: 24, borderRadius: RADIUS.pill, borderWidth: 1.5, backgroundColor: 'transparent', flex: 1 },
+  shareButton: { paddingVertical: 16, paddingHorizontal: 16, borderRadius: RADIUS.pill, borderWidth: 1.5, backgroundColor: 'transparent', flex: 1 },
   shareButtonText: {
     fontSize: 14,
     fontWeight: '700',
@@ -305,12 +305,12 @@ const styles = StyleSheet.create({
     textShadowRadius: 1.5,
   },
   startButton: {
-    backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 52,
+    backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 32,
     borderRadius: RADIUS.pill, flex: 1, ...SHADOWS.button,
   },
   startButtonText: { fontSize: 16, fontWeight: '800', letterSpacing: 1, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
   runningButton: {
-    backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 52,
+    backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 32,
     borderRadius: RADIUS.pill, flex: 1,
     shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 8,
   },
