@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   controls: { alignItems: 'center', marginVertical: 8, width: '100%' },
   primaryControlsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' },
   mergedButtonContainer: { flexDirection: 'row', flex: 1 },
-  autoButton: { paddingVertical: 16, paddingHorizontal: 16, borderTopLeftRadius: RADIUS.pill, borderBottomLeftRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, borderRightWidth: 0, backgroundColor: 'transparent', width: 90 },
+  autoButton: { paddingVertical: 16, paddingHorizontal: 16, borderTopLeftRadius: RADIUS.pill, borderBottomLeftRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, borderRightWidth: 0, backgroundColor: 'transparent', width: 90, marginRight: -1.5 },
   autoButtonActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
   autoButtonText: {
     color: COLORS.accent,
