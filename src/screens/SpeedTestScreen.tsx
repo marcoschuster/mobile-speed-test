@@ -228,30 +228,37 @@ const SpeedTestScreen = () => {
           <Speedometer speed={getSpeedValue()} maxValue={getMaxValue()} label={getSpeedLabel()} unit={getSpeedUnit()} needleColor={getNeedleColor()} isRunning={isTestRunning} />
         </View>
         <View style={styles.controls}>
-          {!isTestRunning ? (
-            <AnimatedButton onPress={startTest} style={styles.startButton} textStyle={[styles.startButtonText, { color: t.buttonText }]}>Start Test</AnimatedButton>
-          ) : (
-            <AnimatedButton onPress={stopTest} style={styles.runningButton} textStyle={[styles.runningButtonText, { color: t.buttonText }]} glowing>Stop Test</AnimatedButton>
-          )}
-          <AnimatedButton onPress={toggleBackgroundMode} style={[styles.bgButton, backgroundMode && styles.bgButtonActive]} textStyle={[styles.bgButtonText, backgroundMode && styles.bgButtonTextActive]}>
-            {backgroundMode ? 'Background: ON (' + getIntervalLabel() + ')' : 'Background Testing'}
-          </AnimatedButton>
-        </View>
-        <View style={[styles.intervalBox, { backgroundColor: t.surface }]}>
-          <View style={styles.intervalTitleWrap}>
-            <Text style={[styles.intervalTitle, { color: t.textPrimary }]}>SELECT INTERVAL</Text>
+          <View style={styles.primaryControlsRow}>
+            <AnimatedButton onPress={toggleBackgroundMode} style={[styles.autoButton, backgroundMode && styles.autoButtonActive]} textStyle={[styles.autoButtonText, backgroundMode && styles.autoButtonTextActive]}>
+              {backgroundMode ? 'Auto: ON (' + getIntervalLabel() + ')' : 'Auto'}
+            </AnimatedButton>
+            {!isTestRunning ? (
+              <AnimatedButton onPress={startTest} style={styles.startButton} textStyle={[styles.startButtonText, { color: t.buttonText }]}>Start Test</AnimatedButton>
+            ) : (
+              <AnimatedButton onPress={stopTest} style={styles.runningButton} textStyle={[styles.runningButtonText, { color: t.buttonText }]} glowing>Stop Test</AnimatedButton>
+            )}
+            <AnimatedButton onPress={() => {}} style={[styles.shareButton, { borderColor: t.accent }]} textStyle={[styles.shareButtonText, { color: t.accent }]}>
+              Share
+            </AnimatedButton>
           </View>
-          <View style={styles.intervalGrid}>
-            <TouchableOpacity key="disabled" style={[styles.intervalBtn, backgroundInterval === null && styles.intervalBtnActive]} onPress={() => selectInterval({ key: 'disabled', label: 'X', ms: 0 })} activeOpacity={0.7}>
-              <Text style={[styles.intervalBtnText, backgroundInterval === null && styles.intervalBtnTextActive]}>X</Text>
-            </TouchableOpacity>
-            {INTERVALS.map((iv) => (
-              <TouchableOpacity key={iv.key} style={[styles.intervalBtn, backgroundInterval === iv.key && styles.intervalBtnActive]} onPress={() => selectInterval(iv)} activeOpacity={0.7}>
-                <Text style={[styles.intervalBtnText, backgroundInterval === iv.key && styles.intervalBtnTextActive]}>{iv.label}</Text>
+        </View>
+        {showIntervalOptions && (
+          <View style={[styles.intervalBox, { backgroundColor: t.surface }]}>
+            <View style={styles.intervalTitleWrap}>
+              <Text style={[styles.intervalTitle, { color: t.textPrimary }]}>SELECT INTERVAL</Text>
+            </View>
+            <View style={styles.intervalGrid}>
+              <TouchableOpacity key="disabled" style={[styles.intervalBtn, backgroundInterval === null && styles.intervalBtnActive]} onPress={() => selectInterval({ key: 'disabled', label: 'X', ms: 0 })} activeOpacity={0.7}>
+                <Text style={[styles.intervalBtnText, backgroundInterval === null && styles.intervalBtnTextActive]}>X</Text>
               </TouchableOpacity>
-            ))}
+              {INTERVALS.map((iv) => (
+                <TouchableOpacity key={iv.key} style={[styles.intervalBtn, backgroundInterval === iv.key && styles.intervalBtnActive]} onPress={() => selectInterval(iv)} activeOpacity={0.7}>
+                  <Text style={[styles.intervalBtnText, backgroundInterval === iv.key && styles.intervalBtnTextActive]}>{iv.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
-        </View>
+        )}
         {progressText && <Text style={[styles.progressText, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>{progressText}</Text>}
         <View style={styles.statsGrid}>
           <StatCard label="Download" value={downloadSpeed} activePhase={currentType} />
@@ -275,14 +282,36 @@ const styles = StyleSheet.create({
   progressText: { fontSize: 12, fontStyle: 'italic', marginBottom: 8, letterSpacing: 0.5, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
   statsGrid: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginVertical: 16 },
   controls: { alignItems: 'center', marginVertical: 8, width: '100%' },
+  primaryControlsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: 10 },
+  autoButton: { paddingVertical: 16, paddingHorizontal: 24, borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: 'transparent', flex: 1 },
+  autoButtonActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
+  autoButtonText: {
+    color: COLORS.accent,
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1.5,
+  },
+  autoButtonTextActive: { color: COLORS.black },
+  shareButton: { paddingVertical: 16, paddingHorizontal: 24, borderRadius: RADIUS.pill, borderWidth: 1.5, backgroundColor: 'transparent', flex: 1 },
+  shareButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1.5,
+  },
   startButton: {
     backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 52,
-    borderRadius: RADIUS.pill, marginBottom: 14, ...SHADOWS.button,
+    borderRadius: RADIUS.pill, flex: 1, ...SHADOWS.button,
   },
   startButtonText: { fontSize: 16, fontWeight: '800', letterSpacing: 1, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
   runningButton: {
     backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 52,
-    borderRadius: RADIUS.pill, marginBottom: 14,
+    borderRadius: RADIUS.pill, flex: 1,
     shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 8,
   },
   runningButtonText: { fontSize: 16, fontWeight: '800', letterSpacing: 1, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
