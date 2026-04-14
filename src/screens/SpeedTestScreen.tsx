@@ -237,7 +237,7 @@ const SpeedTestScreen = () => {
             ) : (
               <AnimatedButton onPress={stopTest} style={styles.runningButton} textStyle={[styles.runningButtonText, { color: t.buttonText }]} glowing>Stop Test</AnimatedButton>
             )}
-            <AnimatedButton onPress={() => {}} style={[styles.shareButton, { borderColor: t.accent }]} textStyle={[styles.shareButtonText, { color: t.accent }]}>
+            <AnimatedButton onPress={() => {}} style={styles.shareButton} textStyle={styles.shareButtonText}>
               Share
             </AnimatedButton>
           </View>
@@ -295,8 +295,9 @@ const styles = StyleSheet.create({
     textShadowRadius: 1.5,
   },
   autoButtonTextActive: { color: COLORS.black },
-  shareButton: { paddingVertical: 16, paddingHorizontal: 16, borderRadius: RADIUS.pill, borderWidth: 1.5, backgroundColor: 'transparent', flex: 1 },
+  shareButton: { paddingVertical: 16, paddingHorizontal: 16, borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: 'transparent', flex: 1 },
   shareButtonText: {
+    color: COLORS.accent,
     fontSize: 14,
     fontWeight: '700',
     letterSpacing: 0.5,
