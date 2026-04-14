@@ -230,16 +230,14 @@ const SpeedTestScreen = () => {
         </View>
         <View style={styles.controls}>
           <View style={styles.primaryControlsRow}>
-            <View style={styles.mergedButtonContainer}>
-              <AnimatedButton onPress={toggleBackgroundMode} style={[styles.autoButton, backgroundMode && styles.autoButtonActive]} textStyle={[styles.autoButtonText, backgroundMode && styles.autoButtonTextActive]}>
-                {backgroundMode ? 'Auto: ON (' + getIntervalLabel() + ')' : 'Auto'}
-              </AnimatedButton>
-              {!isTestRunning ? (
-                <AnimatedButton onPress={startTest} style={styles.startButton} textStyle={[styles.startButtonText, { color: t.buttonText }]}>Start Test</AnimatedButton>
-              ) : (
-                <AnimatedButton onPress={stopTest} style={styles.runningButton} textStyle={[styles.runningButtonText, { color: t.buttonText }]} glowing>Stop Test</AnimatedButton>
-              )}
-            </View>
+            <AnimatedButton onPress={toggleBackgroundMode} style={[styles.autoButton, backgroundMode && styles.autoButtonActive]} textStyle={[styles.autoButtonText, backgroundMode && styles.autoButtonTextActive]}>
+              {backgroundMode ? 'Auto: ON (' + getIntervalLabel() + ')' : 'Auto'}
+            </AnimatedButton>
+            {!isTestRunning ? (
+              <AnimatedButton onPress={startTest} style={styles.startButton} textStyle={[styles.startButtonText, { color: t.buttonText }]}>Start Test</AnimatedButton>
+            ) : (
+              <AnimatedButton onPress={stopTest} style={styles.runningButton} textStyle={[styles.runningButtonText, { color: t.buttonText }]} glowing>Stop Test</AnimatedButton>
+            )}
             <TouchableOpacity onPress={() => {}} style={styles.shareButton}>
               <MaterialIcons name="share" size={20} color={COLORS.accent} />
             </TouchableOpacity>
@@ -285,9 +283,9 @@ const styles = StyleSheet.create({
   progressText: { fontSize: 12, fontStyle: 'italic', marginBottom: 8, letterSpacing: 0.5, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
   statsGrid: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginVertical: 16 },
   controls: { alignItems: 'center', marginVertical: 8, width: '100%' },
-  primaryControlsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' },
+  primaryControlsRow: { flexDirection: 'row', alignItems: 'center', width: '100%' },
   mergedButtonContainer: { flexDirection: 'row', flex: 1 },
-  autoButton: { paddingVertical: 16, paddingHorizontal: 16, borderTopLeftRadius: RADIUS.pill, borderBottomLeftRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, borderRightWidth: 0, backgroundColor: 'transparent', width: 90, marginRight: -10 },
+  autoButton: { paddingVertical: 16, paddingHorizontal: 16, borderTopLeftRadius: RADIUS.pill, borderBottomLeftRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, borderRightWidth: 0, backgroundColor: 'transparent', width: 90, marginRight: -20 },
   autoButtonActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
   autoButtonText: {
     color: COLORS.accent,
