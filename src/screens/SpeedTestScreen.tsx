@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   Alert, Animated, Platform,
 } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import Speedometer from '../components/Speedometer';
 import StatCard from '../components/StatCard';
 import FlashTitle from '../components/FlashTitle';
@@ -237,9 +238,9 @@ const SpeedTestScreen = () => {
             ) : (
               <AnimatedButton onPress={stopTest} style={styles.runningButton} textStyle={[styles.runningButtonText, { color: t.buttonText }]} glowing>Stop Test</AnimatedButton>
             )}
-            <AnimatedButton onPress={() => {}} style={styles.shareButton} textStyle={styles.shareButtonText}>
-              Share
-            </AnimatedButton>
+            <TouchableOpacity onPress={() => {}} style={styles.shareButton}>
+              <MaterialIcons name="share" size={20} color={COLORS.accent} />
+            </TouchableOpacity>
           </View>
         </View>
         {showIntervalOptions && (
@@ -295,16 +296,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 1.5,
   },
   autoButtonTextActive: { color: COLORS.black },
-  shareButton: { paddingVertical: 16, paddingHorizontal: 16, borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: 'transparent', flex: 1 },
-  shareButtonText: {
-    color: COLORS.accent,
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1.5,
-  },
+  shareButton: { paddingVertical: 16, paddingHorizontal: 16, borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: 'transparent', flex: 1, alignItems: 'center', justifyContent: 'center' },
   startButton: {
     backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 40,
     borderRadius: RADIUS.pill, flex: 1, ...SHADOWS.button,
