@@ -246,7 +246,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
             <TouchableOpacity
               key={index}
               onPress={onPress}
-              style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+              style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-start', paddingTop: 4 }}
               activeOpacity={0.7}
             >
               {getIcon()}
