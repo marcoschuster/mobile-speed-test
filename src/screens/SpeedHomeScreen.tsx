@@ -464,7 +464,7 @@ const SpeedHomeScreen = () => {
   const gaugeNeedleColor = (() => {
     switch (currentType) {
       case 'Download':
-        return t.accent;
+        return COLORS.accent;
       case 'Upload':
         return t.uploadLine;
       case 'Ping':

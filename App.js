@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, Animated, StyleSheet, Platform } from 'react-native';
+import { View, Text, Animated, StyleSheet, Platform, Easing } from 'react-native';
 import Svg, { Path, Polygon } from 'react-native-svg';
 import SpeedTestScreen from './src/screens/SpeedTestScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
@@ -25,20 +25,44 @@ const LightningLogo = ({ size = 22, isTestRunning = false }) => {
     if (isTestRunning) {
       const wiggle = Animated.loop(
         Animated.sequence([
-          Animated.timing(wiggleAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-          Animated.timing(wiggleAnim, { toValue: -1, duration: 400, useNativeDriver: true }),
+          // Quick left jab with easing
+          Animated.timing(wiggleAnim, { toValue: -1, duration: 120, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+          // Return to center smoothly
+          Animated.timing(wiggleAnim, { toValue: 0, duration: 180, useNativeDriver: true, easing: Easing.inOut(Easing.quad) }),
+          // Pause
+          Animated.delay(250),
+          // Quick right jab with easing
+          Animated.timing(wiggleAnim, { toValue: 1, duration: 120, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+          // Return to center smoothly
+          Animated.timing(wiggleAnim, { toValue: 0, duration: 180, useNativeDriver: true, easing: Easing.inOut(Easing.quad) }),
+          // Longer pause
+          Animated.delay(450),
+          // Double tap left
+          Animated.timing(wiggleAnim, { toValue: -0.6, duration: 70, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+          Animated.timing(wiggleAnim, { toValue: 0, duration: 90, useNativeDriver: true, easing: Easing.inOut(Easing.quad) }),
+          Animated.timing(wiggleAnim, { toValue: -0.6, duration: 70, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+          Animated.timing(wiggleAnim, { toValue: 0, duration: 120, useNativeDriver: true, easing: Easing.inOut(Easing.quad) }),
+          // Pause
+          Animated.delay(350),
+          // Double tap right
+          Animated.timing(wiggleAnim, { toValue: 0.6, duration: 70, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+          Animated.timing(wiggleAnim, { toValue: 0, duration: 90, useNativeDriver: true, easing: Easing.inOut(Easing.quad) }),
+          Animated.timing(wiggleAnim, { toValue: 0.6, duration: 70, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+          Animated.timing(wiggleAnim, { toValue: 0, duration: 120, useNativeDriver: true, easing: Easing.inOut(Easing.quad) }),
+          // Longer pause before loop
+          Animated.delay(550),
         ])
       );
       wiggle.start();
       return () => wiggle.stop();
     } else {
-      wiggleAnim.setValue(0);
+      Animated.timing(wiggleAnim, { toValue: 0, duration: 300, useNativeDriver: true, easing: Easing.out(Easing.quad) }).start();
     }
   }, [isTestRunning]);
 
   const rotation = wiggleAnim.interpolate({
-    inputRange: [-1, 1],
-    outputRange: ['-15deg', '15deg'],
+    inputRange: [-1, -0.6, 0, 0.6, 1],
+    outputRange: ['-10deg', '-6deg', '0deg', '6deg', '10deg'],
   });
 
   return (

@@ -234,7 +234,7 @@ const SpeedTestScreen = () => {
 
   const getNeedleColor = (): string => {
     switch (currentType) {
-      case 'Download': return t.accent;
+      case 'Download': return COLORS.accent;
       case 'Upload': return t.uploadLine;
       case 'Ping': return COLORS.success;
       case 'Complete': return t.accent;

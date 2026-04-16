@@ -195,14 +195,14 @@ export const StatCard = ({ label, value, unit = 'Mbps', activePhase, footerText 
 
   const getIcon = () => {
     switch (label) {
-      case 'Download': return <DownloadIcon color={t.accent} />;
+      case 'Download': return <DownloadIcon color={COLORS.accent} />;
       case 'Upload':   return <UploadIcon color={t.uploadLine} />;
       case 'Ping':     return <PingIcon />;
       default:         return null;
     }
   };
 
-  const accentColor = label === 'Ping' ? COLORS.success : (label === 'Upload' ? t.uploadLine : t.accent);
+  const accentColor = label === 'Ping' ? COLORS.success : (label === 'Upload' ? t.uploadLine : COLORS.accent);
   const uniformTint = t.accentTintCard;
 
   // Animated shadow for the pulsing glow
