@@ -149,7 +149,7 @@ const FlashTitle = ({
         <Text
           style={[textStyle, styles.absLayer, {
             color: 'transparent',
-            textShadowColor: isDark ? 'rgba(245,196,0,0.5)' : 'rgba(245,196,0,0.7)',
+            textShadowColor: isDark ? `${t.accent}80` : `${t.accent}b3`,
             textShadowOffset: { width: 0, height: 0 },
             textShadowRadius: 14,
             left: 0,

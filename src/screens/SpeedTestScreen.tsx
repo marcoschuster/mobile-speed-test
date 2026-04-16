@@ -11,6 +11,7 @@ import SpeedTestService from '../services/SpeedTestService';
 import SoundEngine from '../services/SoundEngine';
 import { COLORS, RADIUS, SHADOWS, useTheme } from '../utils/theme';
 import { getConnectionQuality } from '../utils/measurements';
+import { useTestContext } from '../context/TestContext';
 
 // ── Type Definitions ─────────────────────────────────────────────────────────
 interface IntervalOption {
@@ -93,7 +94,8 @@ const InsightCard = ({ title, value, subtitle }: InsightCardProps) => {
 
 const SpeedTestScreen = () => {
   const { t } = useTheme();
-  const [isTestRunning, setIsTestRunning] = useState(false);
+  const { setIsTestRunning } = useTestContext();
+  const [isTestRunning, setIsTestRunningLocal] = useState(false);
   const [currentType, setCurrentType] = useState('Ready');
   const [downloadSpeed, setDownloadSpeed] = useState(0);
   const [uploadSpeed, setUploadSpeed] = useState(0);
@@ -148,7 +150,9 @@ const SpeedTestScreen = () => {
   }, []);
 
   const runTest = async () => {
-    setIsTestRunning(true); setCurrentType('Testing');
+    setIsTestRunningLocal(true);
+    setIsTestRunning(true);
+    setCurrentType('Testing');
     setDownloadSpeed(0); setUploadSpeed(0); setPing(0);
     setLiveDownload(0); setLiveUpload(0); setLivePing(0);
 
@@ -182,11 +186,11 @@ const SpeedTestScreen = () => {
         setLivePing(result.ping); setLiveDownload(result.download); setLiveUpload(result.upload);
         setCurrentType('Complete');
         SoundEngine.playTestComplete();
-        setTimeout(() => { setIsTestRunning(false); setCurrentType('Ready'); setProgressText(''); setLiveDownload(0); setLiveUpload(0); setLivePing(0); }, 4000);
+        setTimeout(() => { setIsTestRunningLocal(false); setIsTestRunning(false); setCurrentType('Ready'); setProgressText(''); setLiveDownload(0); setLiveUpload(0); setLivePing(0); }, 4000);
       },
       (error: string) => {
         if (gaugeWhirRef.current) { clearInterval(gaugeWhirRef.current); gaugeWhirRef.current = null; }
-        Alert.alert('Test Failed', error); setIsTestRunning(false); setCurrentType('Error'); setProgressText(''); setLiveDownload(0); setLiveUpload(0); setLivePing(0);
+        Alert.alert('Test Failed', error); setIsTestRunningLocal(false); setIsTestRunning(false); setCurrentType('Error'); setProgressText(''); setLiveDownload(0); setLiveUpload(0); setLivePing(0);
       },
       (pingSample: number) => { setLivePing(pingSample); },
       (type: string, value: number) => {
@@ -202,7 +206,7 @@ const SpeedTestScreen = () => {
   const startTest = () => { SoundEngine.playStartTest(); runTest(); };
   const stopTest = () => {
     if (gaugeWhirRef.current) { clearInterval(gaugeWhirRef.current); gaugeWhirRef.current = null; }
-    SpeedTestService.stopTest(); setIsTestRunning(false); setCurrentType('Ready'); setProgressText(''); setLiveDownload(0); setLiveUpload(0); setLivePing(0);
+    SpeedTestService.stopTest(); setIsTestRunningLocal(false); setIsTestRunning(false); setCurrentType('Ready'); setProgressText(''); setLiveDownload(0); setLiveUpload(0); setLivePing(0);
   };
 
   const toggleBackgroundMode = () => {

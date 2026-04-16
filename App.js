@@ -11,20 +11,45 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import FlashTitle from './src/components/FlashTitle';
 import { COLORS, ThemeProvider, useTheme } from './src/utils/theme';
 import { AppSettingsProvider } from './src/context/AppSettingsContext';
+import { TestProvider, useTestContext } from './src/context/TestContext';
 import SoundEngine from './src/services/SoundEngine';
 
 const Tab = createBottomTabNavigator();
 
 // ── Lightning Bolt SVG Logo ─────────────────────────────────────────────────
-const LightningLogo = ({ size = 22 }) => {
+const LightningLogo = ({ size = 22, isTestRunning = false }) => {
   const { t } = useTheme();
+  const wiggleAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (isTestRunning) {
+      const wiggle = Animated.loop(
+        Animated.sequence([
+          Animated.timing(wiggleAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+          Animated.timing(wiggleAnim, { toValue: -1, duration: 400, useNativeDriver: true }),
+        ])
+      );
+      wiggle.start();
+      return () => wiggle.stop();
+    } else {
+      wiggleAnim.setValue(0);
+    }
+  }, [isTestRunning]);
+
+  const rotation = wiggleAnim.interpolate({
+    inputRange: [-1, 1],
+    outputRange: ['-15deg', '15deg'],
+  });
+
   return (
-    <Svg width={size} height={size * 1.4} viewBox="0 0 24 34">
-      <Polygon
-        points="14,0 4,18 12,18 10,34 20,14 12,14"
-        fill={t.accent}
-      />
-    </Svg>
+    <Animated.View style={{ transform: [{ rotate: rotation }] }}>
+      <Svg width={size} height={size * 1.4} viewBox="0 0 24 34">
+        <Polygon
+          points="14,0 4,18 12,18 10,34 20,14 12,14"
+          fill={t.accent}
+        />
+      </Svg>
+    </Animated.View>
   );
 };
 
@@ -106,10 +131,11 @@ const TabIcon = ({ focused, iconType, color }) => {
 // ── Custom Header ───────────────────────────────────────────────────────────
 const CustomHeader = ({ title }) => {
   const { t } = useTheme();
+  const { isTestRunning } = useTestContext();
   return (
     <View style={[tabStyles.header, { backgroundColor: t.headerBg }]}>
       <View style={tabStyles.headerLeft}>
-        <LightningLogo size={18} />
+        <LightningLogo size={18} isTestRunning={isTestRunning} />
       </View>
       <View style={tabStyles.headerCenter}>
         <FlashTitle text={title.toUpperCase()} size="large" interval={5000} center glow />
@@ -225,7 +251,9 @@ export default function App() {
   return (
     <ThemeProvider>
       <AppSettingsProvider>
-        <AppInner />
+        <TestProvider>
+          <AppInner />
+        </TestProvider>
       </AppSettingsProvider>
     </ThemeProvider>
   );
