@@ -393,6 +393,14 @@ const tabStyles = StyleSheet.create({
   headerRight: {
     minWidth: 80,
   },
+  headerFade: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 20,
+    pointerEvents: 'none',
+  },
   activeIndicator: {
     position: 'absolute',
     top: -8,
