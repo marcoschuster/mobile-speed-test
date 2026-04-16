@@ -603,7 +603,7 @@ const GraphScreen = () => {
           datasets={[
             {
               values: data.map((d) => convertSpeedFromMbps(d.download || 0, settings.speedUnit as any)),
-              color: t.accent,
+              color: COLORS.accent,
               label: 'Download',
             },
             {
@@ -615,11 +615,11 @@ const GraphScreen = () => {
           yAxisSuffix=""
           title={`Download & Upload Speed (${speedUnitLabel})`}
           legends={[
-            { color: t.accent, label: 'Download' },
+            { color: COLORS.accent, label: 'Download' },
             { color: t.uploadLine, label: 'Upload' },
           ]}
           areaGradients={[
-            { color: t.accent },
+            { color: COLORS.accent },
             { color: t.uploadLine },
           ]}
           formatXLabel={formatXLabel}
