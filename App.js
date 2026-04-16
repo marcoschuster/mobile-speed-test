@@ -184,7 +184,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 
   return (
     <View style={{ backgroundColor: t.navBar, position: 'relative' }}>
-      <View style={{ flexDirection: 'row', height: 44 }}>
+      <View style={{ flexDirection: 'row', height: 50 }}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;
@@ -278,9 +278,9 @@ function AppInner() {
           tabBarStyle: {
             backgroundColor: t.navBar,
             borderTopWidth: 0,
-            height: 44,
-            paddingBottom: 0,
-            paddingTop: 0,
+            height: 50,
+            paddingBottom: 2,
+            paddingTop: 2,
             elevation: 0,
             shadowOpacity: 0,
           },
@@ -295,7 +295,6 @@ function AppInner() {
             elevation: 0,
             shadowOpacity: 0,
             borderBottomWidth: 0,
-            height: 96,
           },
           headerTintColor: t.headerText,
           headerTitleStyle: {
