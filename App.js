@@ -2,8 +2,9 @@ import React, { useRef, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, Animated, StyleSheet, Platform, Easing } from 'react-native';
+import { View, Text, Animated, StyleSheet, Platform, Easing, TouchableOpacity } from 'react-native';
 import Svg, { Path, Polygon } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
 import SpeedTestScreen from './src/screens/SpeedTestScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import GraphScreen from './src/screens/GraphScreen';
@@ -156,6 +157,7 @@ const TabIcon = ({ focused, iconType, color }) => {
 const CustomHeader = ({ title }) => {
   const { t } = useTheme();
   const { isTestRunning } = useTestContext();
+  const isDark = t.mode === 'dark';
   return (
     <View style={[tabStyles.header, { backgroundColor: t.headerBg }]}>
       <View style={tabStyles.headerLeft}>
@@ -165,6 +167,99 @@ const CustomHeader = ({ title }) => {
         <FlashTitle text={title.toUpperCase()} size="large" interval={5000} center glow />
       </View>
       <View style={tabStyles.headerRight} />
+      <LinearGradient
+        colors={[isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.08)', 'transparent']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={tabStyles.headerFade}
+      />
+    </View>
+  );
+};
+
+// ── Custom Tab Bar with gradient fade ──────────────────────────────────────
+const CustomTabBar = ({ state, descriptors, navigation }) => {
+  const { t } = useTheme();
+  const isDark = t.mode === 'dark';
+
+  return (
+    <View style={{ backgroundColor: t.navBar, position: 'relative' }}>
+      <View style={{ flexDirection: 'row', height: 44 }}>
+        {state.routes.map((route, index) => {
+          const { options } = descriptors[route.key];
+          const isFocused = state.index === index;
+
+          const onPress = () => {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: route.key,
+              canPreventDefault: true,
+            });
+
+            if (!isFocused && !event.defaultPrevented) {
+              SoundEngine.playNavTick();
+              navigation.navigate(route.name);
+            }
+          };
+
+          const getIcon = () => {
+            switch (route.name) {
+              case 'Speed Test':
+                return (
+                  <Svg width={28} height={28} viewBox="0 0 24 24">
+                    <Polygon points="13,2 5,14 11,14 9,22 17,10 11,10" fill={isFocused ? t.navActive : t.navInactive} />
+                  </Svg>
+                );
+              case 'History':
+                return (
+                  <Svg width={28} height={28} viewBox="0 0 24 24">
+                    <Path
+                      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"
+                      fill={isFocused ? t.navActive : t.navInactive}
+                    />
+                  </Svg>
+                );
+              case 'Graphs':
+                return (
+                  <Svg width={28} height={28} viewBox="0 0 24 24">
+                    <Path
+                      d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"
+                      fill={isFocused ? t.navActive : t.navInactive}
+                    />
+                  </Svg>
+                );
+              case 'Settings':
+                return (
+                  <Svg width={28} height={28} viewBox="0 0 24 24">
+                    <Path
+                      d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
+                      fill={isFocused ? t.navActive : t.navInactive}
+                    />
+                  </Svg>
+                );
+              default:
+                return null;
+            }
+          };
+
+          return (
+            <TouchableOpacity
+              key={index}
+              onPress={onPress}
+              style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+              activeOpacity={0.7}
+            >
+              {getIcon()}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <LinearGradient
+        colors={[isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.08)', 'transparent']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 16, pointerEvents: 'none' }}
+      />
     </View>
   );
 };
@@ -178,19 +273,16 @@ function AppInner() {
     <NavigationContainer>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Tab.Navigator
+        tabBar={(props) => <CustomTabBar {...props} />}
         screenOptions={{
           tabBarStyle: {
             backgroundColor: t.navBar,
-            borderTopWidth: isDark ? 0 : 1,
-            borderTopColor: isDark ? 'transparent' : 'rgba(0,0,0,0.06)',
-            height: 50,
-            paddingBottom: 2,
-            paddingTop: 2,
-            elevation: isDark ? 0 : 2,
-            shadowOpacity: isDark ? 0 : 0.06,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -1 },
-            shadowRadius: 4,
+            borderTopWidth: 0,
+            height: 44,
+            paddingBottom: 0,
+            paddingTop: 0,
+            elevation: 0,
+            shadowOpacity: 0,
           },
           tabBarActiveTintColor: t.navActive,
           tabBarInactiveTintColor: t.navInactive,
@@ -200,13 +292,9 @@ function AppInner() {
           },
           headerStyle: {
             backgroundColor: t.headerBg,
-            elevation: isDark ? 0 : 2,
-            shadowOpacity: isDark ? 0 : 0.06,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 1 },
-            shadowRadius: 4,
-            borderBottomWidth: isDark ? 0 : 1,
-            borderBottomColor: isDark ? 'transparent' : 'rgba(0,0,0,0.06)',
+            elevation: 0,
+            shadowOpacity: 0,
+            borderBottomWidth: 0,
             height: 96,
           },
           headerTintColor: t.headerText,
@@ -288,21 +376,13 @@ const tabStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
     paddingBottom: 12,
-    paddingTop: 48,
-    height: 96,
+    paddingHorizontal: 16,
+    position: 'relative',
   },
   headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minWidth: 80,
-  },
-  headerBrand: {
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 3,
-    marginLeft: 8,
+    width: 32,
+    alignItems: 'flex-start',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   headerCenter: {
