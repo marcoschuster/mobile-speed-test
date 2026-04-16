@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import { View, Text, Animated, StyleSheet, Platform, Easing, TouchableOpacity } from 'react-native';
 import Svg, { Path, Polygon } from 'react-native-svg';
 import SpeedTestScreen from './src/screens/SpeedTestScreen';
@@ -156,7 +157,7 @@ const TabIcon = ({ focused, iconType, color }) => {
 const CustomHeader = ({ title }) => {
   const { t } = useTheme();
   const { isTestRunning } = useTestContext();
-  const isDark = t.mode === 'dark';
+
   return (
     <View style={[tabStyles.header, { backgroundColor: t.headerBg }]}>
       <View style={tabStyles.headerLeft}>
@@ -166,6 +167,11 @@ const CustomHeader = ({ title }) => {
         <FlashTitle text={title.toUpperCase()} size="large" interval={5000} center glow />
       </View>
       <View style={tabStyles.headerRight} />
+      <LinearGradient
+        pointerEvents="none"
+        colors={['transparent', t.glassBorderTop]}
+        style={tabStyles.chromeFadeBottom}
+      />
     </View>
   );
 };
@@ -173,10 +179,14 @@ const CustomHeader = ({ title }) => {
 // ── Custom Tab Bar with gradient fade ──────────────────────────────────────
 const CustomTabBar = ({ state, descriptors, navigation }) => {
   const { t } = useTheme();
-  const isDark = t.mode === 'dark';
 
   return (
-    <View style={{ backgroundColor: t.navBar, position: 'relative' }}>
+    <View style={[tabStyles.tabBarShell, { backgroundColor: t.navBar }]}>
+      <LinearGradient
+        pointerEvents="none"
+        colors={[t.glassBorderTop, 'transparent']}
+        style={tabStyles.chromeFadeTop}
+      />
       <View style={{ flexDirection: 'row', height: 50 }}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
@@ -379,6 +389,25 @@ const tabStyles = StyleSheet.create({
   },
   headerRight: {
     minWidth: 80,
+  },
+  tabBarShell: {
+    backgroundColor: 'transparent',
+    position: 'relative',
+  },
+  chromeFadeBottom: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 16,
+  },
+  chromeFadeTop: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 16,
+    zIndex: 2,
   },
   activeIndicator: {
     position: 'absolute',
