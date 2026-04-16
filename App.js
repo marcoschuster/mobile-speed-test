@@ -4,7 +4,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, Animated, StyleSheet, Platform, Easing, TouchableOpacity } from 'react-native';
 import Svg, { Path, Polygon } from 'react-native-svg';
-import { LinearGradient } from 'expo-linear-gradient';
 import SpeedTestScreen from './src/screens/SpeedTestScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import GraphScreen from './src/screens/GraphScreen';
@@ -167,12 +166,6 @@ const CustomHeader = ({ title }) => {
         <FlashTitle text={title.toUpperCase()} size="large" interval={5000} center glow />
       </View>
       <View style={tabStyles.headerRight} />
-      <LinearGradient
-        colors={[isDark ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.05)', 'transparent']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={tabStyles.headerFade}
-      />
     </View>
   );
 };
@@ -254,12 +247,6 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
           );
         })}
       </View>
-      <LinearGradient
-        colors={[isDark ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.05)', 'transparent']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 16, pointerEvents: 'none' }}
-      />
     </View>
   );
 };
@@ -392,14 +379,6 @@ const tabStyles = StyleSheet.create({
   },
   headerRight: {
     minWidth: 80,
-  },
-  headerFade: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 20,
-    pointerEvents: 'none',
   },
   activeIndicator: {
     position: 'absolute',
