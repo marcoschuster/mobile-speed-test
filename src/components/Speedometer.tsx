@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated } from 'react-native';
+import { View, StyleSheet, Animated, TouchableOpacity, Text } from 'react-native';
 import Svg, {
   Circle,
   Path,
@@ -11,6 +11,7 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 import { useTheme } from '../utils/theme';
+import { COLORS } from '../utils/theme';
 
 // ── Type Definitions ─────────────────────────────────────────────────────────
 interface SpeedometerProps {
@@ -20,6 +21,7 @@ interface SpeedometerProps {
   unit?: string;
   needleColor?: string;
   isRunning?: boolean;
+  onStart?: () => void;
 }
 
 const SIZE = 280;
@@ -63,10 +65,26 @@ const Speedometer = ({
   unit = 'Mbps',
   needleColor,
   isRunning = false,
+  onStart,
 }: SpeedometerProps) => {
   const { t } = useTheme();
   const needleAnim = useRef(new Animated.Value(MIN_DEG)).current;
   const glowAnim = useRef(new Animated.Value(0.3)).current;
+  const startPulseAnim = useRef(new Animated.Value(0)).current;
+
+  // Pulse animation for start button
+  useEffect(() => {
+    if (!isRunning) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(startPulseAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
+          Animated.timing(startPulseAnim, { toValue: 0, duration: 1500, useNativeDriver: true }),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
+    }
+  }, [isRunning]);
 
   const speedToAngle = (val: number): number => {
     const clamped = Math.max(0, Math.min(val, maxValue));
@@ -170,94 +188,155 @@ const Speedometer = ({
         <Animated.View style={[styles.outerGlow, { opacity: glowAnim, borderColor: t.accent, shadowColor: t.accent }]} />
       )}
 
-      <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-        <Defs>
-          <RadialGradient id="dialBg" cx="50%" cy="40%" r="55%">
-            <Stop offset="0%" stopColor={dialFaceCenter} />
-            <Stop offset="100%" stopColor={dialFaceEdge} />
-          </RadialGradient>
-          <LinearGradient id="bezelGrad" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0%" stopColor={bezelTop} />
-            <Stop offset="50%" stopColor={bezelMid} />
-            <Stop offset="100%" stopColor={bezelBottom} />
-          </LinearGradient>
-          <LinearGradient id="arcGlow" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0%" stopColor={t.accent} stopOpacity="0.9" />
-            <Stop offset="100%" stopColor={t.accentDark} stopOpacity="0.6" />
-          </LinearGradient>
-        </Defs>
+      {!isRunning ? (
+        // Start button mode
+        <TouchableOpacity onPress={onStart} style={styles.startButtonContainer} activeOpacity={0.9}>
+          <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
+            <Defs>
+              <RadialGradient id="startBg" cx="50%" cy="50%" r="50%">
+                <Stop offset="0%" stopColor={t.mode === 'dark' ? '#2A2A2A' : '#FAFAFA'} />
+                <Stop offset="100%" stopColor={t.mode === 'dark' ? '#1A1A1A' : '#F0F0F0'} />
+              </RadialGradient>
+              <LinearGradient id="sideLightLeft" x1="0" y1="0" x2="1" y2="0">
+                <Stop offset="0%" stopColor={t.accent} stopOpacity={0.6} />
+                <Stop offset="100%" stopColor={t.accent} stopOpacity={0} />
+              </LinearGradient>
+              <LinearGradient id="sideLightRight" x1="1" y1="0" x2="0" y2="0">
+                <Stop offset="0%" stopColor={t.accent} stopOpacity={0.6} />
+                <Stop offset="100%" stopColor={t.accent} stopOpacity={0} />
+              </LinearGradient>
+            </Defs>
+            
+            {/* Outer bezel */}
+            <Circle cx={CX} cy={CY} r={R + 12} fill={t.mode === 'dark' ? '#111111' : '#D0D0D0'} />
+            <Circle cx={CX} cy={CY} r={R + 10} fill={t.mode === 'dark' ? '#222222' : '#E8E8E8'} />
+            <Circle cx={CX} cy={CY} r={R + 6} fill={t.mode === 'dark' ? '#181818' : '#C8C8C8'} />
+            
+            {/* Inner circle background */}
+            <Circle cx={CX} cy={CY} r={R} fill="url(#startBg)" />
+          </Svg>
+          
+          {/* Side light effects */}
+          <Animated.View style={[
+            styles.sideLightLeft,
+            { opacity: startPulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.8] }) }
+          ]}>
+            <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
+              <Circle cx={CX} cy={CY} r={R} fill="url(#sideLightLeft)" />
+            </Svg>
+          </Animated.View>
+          <Animated.View style={[
+            styles.sideLightRight,
+            { opacity: startPulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.8] }) }
+          ]}>
+            <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
+              <Circle cx={CX} cy={CY} r={R} fill="url(#sideLightRight)" />
+            </Svg>
+          </Animated.View>
+          
+          {/* Start text */}
+          <Animated.View style={[
+            styles.startTextContainer,
+            { opacity: startPulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) }
+          ]}>
+            <Text style={[styles.startText, { color: t.accent, textShadowColor: t.accent }]}>START</Text>
+          </Animated.View>
+        </TouchableOpacity>
+      ) : (
+        // Full speedometer mode
+        <View style={styles.startButtonContainer}>
+          <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
+          <Defs>
+            <RadialGradient id="dialBg" cx="50%" cy="40%" r="55%">
+              <Stop offset="0%" stopColor={dialFaceCenter} />
+              <Stop offset="100%" stopColor={dialFaceEdge} />
+            </RadialGradient>
+            <LinearGradient id="bezelGrad" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%" stopColor={bezelTop} />
+              <Stop offset="50%" stopColor={bezelMid} />
+              <Stop offset="100%" stopColor={bezelBottom} />
+            </LinearGradient>
+            <LinearGradient id="arcGlow" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0%" stopColor={t.accent} stopOpacity={0.9} />
+              <Stop offset="100%" stopColor={t.accentDark} stopOpacity={0.6} />
+            </LinearGradient>
+          </Defs>
 
-        {/* Outer bezel — 3D bevel with shine */}
-        <Circle cx={CX} cy={CY} r={R + 12} fill={dialOuter} />
-        <Circle cx={CX} cy={CY} r={R + 10} fill="url(#bezelGrad)" />
-        <Path
-          d={describeArc(200, 340, R + 10)}
-          fill="none"
-          stroke={bezelShine}
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
-        <Circle cx={CX} cy={CY} r={R + 6} fill={dialInnerRing} />
+          {/* Outer bezel — 3D bevel with shine */}
+          <Circle cx={CX} cy={CY} r={R + 12} fill={dialOuter} />
+          <Circle cx={CX} cy={CY} r={R + 10} fill="url(#bezelGrad)" />
+          <Path
+            d={describeArc(200, 340, R + 10)}
+            fill="none"
+            stroke={bezelShine}
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
+          <Circle cx={CX} cy={CY} r={R + 6} fill={dialInnerRing} />
 
-        {/* Dial face */}
-        <Circle cx={CX} cy={CY} r={R + 3} fill={dialRim} />
-        <Circle cx={CX} cy={CY} r={R} fill="url(#dialBg)" />
+          {/* Dial face */}
+          <Circle cx={CX} cy={CY} r={R + 3} fill={dialRim} />
+          <Circle cx={CX} cy={CY} r={R} fill="url(#dialBg)" />
 
-        {/* Track arc (inactive) */}
-        <Path
-          d={describeArc(MIN_DEG, MIN_DEG - SWEEP, R)}
-          fill="none"
-          stroke={trackArc}
-          strokeWidth="6"
-          strokeLinecap="round"
-        />
+          {/* Track arc (inactive) */}
+          <Path
+            d={describeArc(MIN_DEG, MIN_DEG - SWEEP, R)}
+            fill="none"
+            stroke={trackArc}
+            strokeWidth="6"
+            strokeLinecap="round"
+          />
 
-        {/* Active colored arc with glow */}
-        {speed > 0.3 && (
-          <>
-            <Path d={coloredArcPath} fill="none" stroke={t.accentGlow} strokeWidth="14" strokeLinecap="round" />
-            <Path d={coloredArcPath} fill="none" stroke="url(#arcGlow)" strokeWidth="6" strokeLinecap="round" />
-          </>
-        )}
+          {/* Active colored arc with glow */}
+          {speed > 0.3 && (
+            <>
+              <Path d={coloredArcPath} fill="none" stroke={t.accentGlow} strokeWidth="14" strokeLinecap="round" />
+              <Path d={coloredArcPath} fill="none" stroke="url(#arcGlow)" strokeWidth="6" strokeLinecap="round" />
+            </>
+          )}
 
-        {ticks}
+          {ticks}
 
-        {/* Speed readout */}
-        <SvgText
-          x={CX} y={CY - 20}
-          fontSize="36" fontWeight="900"
-          fill={t.textPrimary}
-          textAnchor="middle"
-          letterSpacing="-1"
-        >
-          {displayValue}
-        </SvgText>
-
-        {/* Needle hub */}
-        <Circle cx={CX} cy={CY} r={14} fill={t.accentTintSelected} />
-        <Circle cx={CX} cy={CY} r={9} fill={resolvedNeedleColor} />
-        <Circle cx={CX} cy={CY} r={4.5} fill={hubInner} />
-        <Circle cx={CX - 2} cy={CY - 2} r={2.5} fill="rgba(255,255,255,0.3)" />
-
-        {/* Unit + label */}
-        <SvgText x={CX} y={CY + 28} fontSize="12" fontWeight="700" fill={unitLabel} textAnchor="middle" letterSpacing="1">
-          {unit}
-        </SvgText>
-        {label ? (
-          <SvgText x={CX} y={CY + 44} fontSize="10" fontWeight="800" fill={t.accent} textAnchor="middle" letterSpacing="2" opacity={0.9}>
-            {label}
+          {/* Speed readout */}
+          <SvgText
+            x={CX} y={CY - 20}
+            fontSize="36" fontWeight="900"
+            fill={t.textPrimary}
+            textAnchor="middle"
+            letterSpacing="-1"
+          >
+            {displayValue}
           </SvgText>
-        ) : null}
-      </Svg>
 
-      {/* Animated needle overlay */}
-      <Animated.View style={[styles.needleWrap, { transform: [{ rotate: needleRotation }] }]}>
-        <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-          <Path d={`M ${CX - 5} ${CY} L ${CX} ${CY - INNER_R + 2} L ${CX + 5} ${CY} Z`} fill={t.accentGlow} />
-          <Path d={`M ${CX - 3} ${CY} L ${CX} ${CY - INNER_R + 5} L ${CX + 3} ${CY} Z`} fill={resolvedNeedleColor} />
-          <Path d={`M ${CX - 0.8} ${CY - 10} L ${CX} ${CY - INNER_R + 10} L ${CX + 0.8} ${CY - 10} Z`} fill="rgba(255,255,255,0.25)" />
+          {/* Needle hub */}
+          <Circle cx={CX} cy={CY} r={14} fill={t.accentTintSelected} />
+          <Circle cx={CX} cy={CY} r={9} fill={resolvedNeedleColor} />
+          <Circle cx={CX} cy={CY} r={4.5} fill={hubInner} />
+          <Circle cx={CX - 2} cy={CY - 2} r={2.5} fill="rgba(255,255,255,0.3)" />
+
+          {/* Unit + label */}
+          <SvgText x={CX} y={CY + 28} fontSize="12" fontWeight="700" fill={unitLabel} textAnchor="middle" letterSpacing="1">
+            {unit}
+          </SvgText>
+          {label ? (
+            <SvgText x={CX} y={CY + 44} fontSize="10" fontWeight="800" fill={t.accent} textAnchor="middle" letterSpacing="2" opacity={0.9}>
+              {label}
+            </SvgText>
+          ) : null}
         </Svg>
-      </Animated.View>
+        
+        {/* Animated needle overlay */}
+        {isRunning && (
+          <Animated.View style={[styles.needleWrap, { transform: [{ rotate: needleRotation }] }]}>
+            <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
+              <Path d={`M ${CX - 5} ${CY} L ${CX} ${CY - INNER_R + 2} L ${CX + 5} ${CY} Z`} fill={t.accentGlow} />
+              <Path d={`M ${CX - 3} ${CY} L ${CX} ${CY - INNER_R + 5} L ${CX + 3} ${CY} Z`} fill={resolvedNeedleColor} />
+              <Path d={`M ${CX - 0.8} ${CY - 10} L ${CX} ${CY - INNER_R + 10} L ${CX + 0.8} ${CY - 10} Z`} fill="rgba(255,255,255,0.25)" />
+            </Svg>
+          </Animated.View>
+        )}
+      </View>
+      )}
     </View>
   );
 };
@@ -284,6 +363,40 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 20,
     elevation: 10,
+  },
+  startButtonContainer: {
+    position: 'relative',
+    width: SIZE + 24,
+    height: SIZE + 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sideLightLeft: {
+    position: 'absolute',
+    width: SIZE,
+    height: SIZE,
+    left: 0,
+    top: 0,
+  },
+  sideLightRight: {
+    position: 'absolute',
+    width: SIZE,
+    height: SIZE,
+    right: 0,
+    top: 0,
+  },
+  startTextContainer: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  startText: {
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 4,
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 15,
+    shadowOpacity: 0.8,
   },
 });
 

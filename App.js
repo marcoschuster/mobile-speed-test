@@ -54,13 +54,13 @@ const TabIcon = ({ focused, iconType, color }) => {
     switch (iconType) {
       case 'speed':
         return (
-          <Svg width={22} height={22} viewBox="0 0 24 24">
+          <Svg width={28} height={28} viewBox="0 0 24 24">
             <Polygon points="13,2 5,14 11,14 9,22 17,10 11,10" fill={color} />
           </Svg>
         );
       case 'history':
         return (
-          <Svg width={22} height={22} viewBox="0 0 24 24">
+          <Svg width={28} height={28} viewBox="0 0 24 24">
             <Path
               d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"
               fill={color}
@@ -69,7 +69,7 @@ const TabIcon = ({ focused, iconType, color }) => {
         );
       case 'graph':
         return (
-          <Svg width={22} height={22} viewBox="0 0 24 24">
+          <Svg width={28} height={28} viewBox="0 0 24 24">
             <Path
               d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"
               fill={color}
@@ -78,7 +78,7 @@ const TabIcon = ({ focused, iconType, color }) => {
         );
       case 'settings':
         return (
-          <Svg width={22} height={22} viewBox="0 0 24 24">
+          <Svg width={28} height={28} viewBox="0 0 24 24">
             <Path
               d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
               fill={color}
@@ -129,9 +129,9 @@ function AppInner() {
             backgroundColor: t.navBar,
             borderTopWidth: isDark ? 0 : 1,
             borderTopColor: isDark ? 'transparent' : 'rgba(0,0,0,0.06)',
-            height: 64,
-            paddingBottom: 8,
-            paddingTop: 4,
+            height: 50,
+            paddingBottom: 2,
+            paddingTop: 2,
             elevation: isDark ? 0 : 2,
             shadowOpacity: isDark ? 0 : 0.06,
             shadowColor: '#000',
@@ -141,11 +141,8 @@ function AppInner() {
           tabBarActiveTintColor: t.navActive,
           tabBarInactiveTintColor: t.navInactive,
           tabBarLabelStyle: {
-            fontSize: 10,
-            fontWeight: '600',
-            letterSpacing: 0.3,
-            marginTop: 2,
-            fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+            fontSize: 0,
+            display: 'none',
           },
           headerStyle: {
             backgroundColor: t.headerBg,

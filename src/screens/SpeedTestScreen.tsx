@@ -106,13 +106,41 @@ const SpeedTestScreen = () => {
   const liveSpeedRef = useRef(0);
   const gaugeWhirRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const contentFade = useRef(new Animated.Value(1)).current;
+  const autoFloatAnim = useRef(new Animated.Value(0)).current;
+  const shareFloatAnim = useRef(new Animated.Value(0)).current;
+  const startFloatAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     contentFade.setValue(0);
     Animated.timing(contentFade, { toValue: 1, duration: 400, useNativeDriver: false }).start();
+    
+    // Floating animation for auto button
+    const autoFloat = Animated.loop(Animated.sequence([
+      Animated.timing(autoFloatAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
+      Animated.timing(autoFloatAnim, { toValue: 0, duration: 2000, useNativeDriver: true }),
+    ]));
+    autoFloat.start();
+    
+    // Floating animation for share button (offset timing)
+    const shareFloat = Animated.loop(Animated.sequence([
+      Animated.timing(shareFloatAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
+      Animated.timing(shareFloatAnim, { toValue: 0, duration: 2000, useNativeDriver: true }),
+    ]));
+    shareFloat.start();
+    
+    // Floating animation for start button
+    const startFloat = Animated.loop(Animated.sequence([
+      Animated.timing(startFloatAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
+      Animated.timing(startFloatAnim, { toValue: 0, duration: 2000, useNativeDriver: true }),
+    ]));
+    startFloat.start();
+    
     return () => {
       if (backgroundTimerRef.current) clearInterval(backgroundTimerRef.current);
       if (gaugeWhirRef.current) clearInterval(gaugeWhirRef.current);
+      autoFloat.stop();
+      shareFloat.stop();
+      startFloat.stop();
     };
   }, []);
 
@@ -226,23 +254,15 @@ const SpeedTestScreen = () => {
     <View style={[styles.container, { backgroundColor: t.bg }]}>
       <Animated.ScrollView style={{ opacity: contentFade }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.speedoWrap}>
-          <Speedometer speed={getSpeedValue()} maxValue={getMaxValue()} label={getSpeedLabel()} unit={getSpeedUnit()} needleColor={getNeedleColor()} isRunning={isTestRunning} />
+          <Speedometer speed={getSpeedValue()} maxValue={getMaxValue()} label={getSpeedLabel()} unit={getSpeedUnit()} needleColor={getNeedleColor()} isRunning={isTestRunning} onStart={startTest} />
         </View>
         <View style={styles.controls}>
           <View style={styles.primaryControlsRow}>
-            <View style={styles.mergedButtonContainer}>
-              <AnimatedButton onPress={toggleBackgroundMode} style={[styles.autoButton, backgroundMode && styles.autoButtonActive]} textStyle={[styles.autoButtonText, backgroundMode && styles.autoButtonTextActive]}>
-                {backgroundMode ? 'Auto: ON (' + getIntervalLabel() + ')' : 'Auto'}
-              </AnimatedButton>
-              {!isTestRunning ? (
-                <AnimatedButton onPress={startTest} style={styles.startButton} textStyle={[styles.startButtonText, { color: t.buttonText }]}>Start Test</AnimatedButton>
-              ) : (
+            {isTestRunning && (
+              <Animated.View style={{ transform: [{ translateY: startFloatAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -5] }) }] }}>
                 <AnimatedButton onPress={stopTest} style={styles.runningButton} textStyle={[styles.runningButtonText, { color: t.buttonText }]} glowing>Stop Test</AnimatedButton>
-              )}
-            </View>
-            <TouchableOpacity onPress={() => {}} style={styles.shareButton}>
-              <MaterialIcons name="share" size={20} color={COLORS.accent} />
-            </TouchableOpacity>
+              </Animated.View>
+            )}
           </View>
         </View>
         {showIntervalOptions && (
@@ -273,6 +293,26 @@ const SpeedTestScreen = () => {
           <InsightCard title="Last Test Traffic" value="0 MB" subtitle="Download + upload payload used by the latest completed test" />
           <InsightCard title="Server Used" value="Automatic" subtitle="The app automatically picks the best available endpoint" />
         </View>
+
+        <View style={styles.bottomButtonsRow}>
+          <TouchableOpacity
+            style={[styles.bottomButton, { borderColor: COLORS.accent }]}
+            onPress={toggleBackgroundMode}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.bottomButtonText, { color: COLORS.accent }]}>Auto</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.bottomButton, { borderColor: COLORS.accent }]}
+            onPress={() => {}}
+            activeOpacity={0.7}
+          >
+            <View style={styles.bottomButtonContent}>
+              <MaterialIcons name="share" size={24} color={COLORS.accent} />
+              <Text style={[styles.bottomButtonText, { color: COLORS.accent }]}>Share</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
       </Animated.ScrollView>
     </View>
   );
@@ -285,13 +325,14 @@ const styles = StyleSheet.create({
   progressText: { fontSize: 12, fontStyle: 'italic', marginBottom: 8, letterSpacing: 0.5, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
   statsGrid: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginVertical: 16 },
   controls: { alignItems: 'center', marginVertical: 8, width: '100%' },
-  primaryControlsRow: { flexDirection: 'row', alignItems: 'center', width: '100%' },
+  primaryControlsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', width: '100%' },
+  mergedButtonGroup: { flexDirection: 'row', alignItems: 'center' },
   mergedButtonContainer: { flexDirection: 'row', flex: 1 },
-  autoButton: { paddingVertical: 16, paddingHorizontal: 16, borderTopLeftRadius: RADIUS.pill, borderBottomLeftRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, borderRightWidth: 0, backgroundColor: 'transparent', marginRight: -1.5 },
+  autoButton: { paddingVertical: 16, paddingHorizontal: 16, borderTopLeftRadius: RADIUS.pill, borderBottomLeftRadius: RADIUS.pill, backgroundColor: 'transparent', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 },
   autoButtonActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
   autoButtonText: {
     color: COLORS.accent,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     letterSpacing: 0.5,
     textShadowColor: 'rgba(0, 0, 0, 0.2)',
@@ -299,16 +340,16 @@ const styles = StyleSheet.create({
     textShadowRadius: 1.5,
   },
   autoButtonTextActive: { color: COLORS.black },
-  shareButton: { paddingVertical: 16, paddingHorizontal: 16, borderRadius: RADIUS.pill, borderWidth: 0, backgroundColor: 'transparent', width: 60, alignItems: 'center', justifyContent: 'center' },
+  shareButton: { paddingVertical: 16, paddingHorizontal: 16, borderRadius: RADIUS.pill, borderWidth: 0, backgroundColor: 'transparent', width: 60, alignItems: 'center', justifyContent: 'center', marginLeft: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 },
   startButton: {
     backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 40,
-    borderRadius: RADIUS.pill, flex: 1, ...SHADOWS.button, borderLeftWidth: 0,
+    borderRadius: RADIUS.pill, ...SHADOWS.button, borderWidth: 1.5, borderColor: COLORS.accent, marginLeft: 10,
   },
   startButtonText: { fontSize: 16, fontWeight: '800', letterSpacing: 1, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
   runningButton: {
     backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 40,
-    borderRadius: RADIUS.pill, flex: 1,
-    shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 8, borderLeftWidth: 0,
+    borderRadius: RADIUS.pill,
+    shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 8, borderWidth: 1.5, borderColor: COLORS.accent, marginLeft: 10,
   },
   runningButtonText: { fontSize: 16, fontWeight: '800', letterSpacing: 1, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
   bgButton: { paddingVertical: 11, paddingHorizontal: 28, borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: 'transparent' },
@@ -345,6 +386,33 @@ const styles = StyleSheet.create({
   insightTitle: { fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2, fontWeight: '700', marginBottom: 6 },
   insightValue: { fontSize: 21, fontWeight: '800', marginBottom: 6 },
   insightSubtitle: { fontSize: 13, lineHeight: 19 },
+  bottomButtonsRow: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 12,
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  bottomButton: {
+    flex: 1,
+    height: 56,
+    borderRadius: RADIUS.pill,
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bottomButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bottomButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+  },
 });
 
 export default SpeedTestScreen;

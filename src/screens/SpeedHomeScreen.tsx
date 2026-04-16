@@ -527,14 +527,6 @@ const SpeedHomeScreen = () => {
 
         <View style={styles.disclosureActions}>
           <View style={styles.primaryControlsRow}>
-            <AnimatedButton
-              onPress={() => setBackgroundIntervalOpen(!backgroundIntervalOpen)}
-              style={[styles.backgroundTestButtonSmall, { borderColor: t.accent, shadowColor: SHADOWS.clayButton.shadowColor, shadowOffset: SHADOWS.clayButton.shadowOffset, shadowOpacity: SHADOWS.clayButton.shadowOpacity, shadowRadius: SHADOWS.clayButton.shadowRadius, elevation: SHADOWS.clayButton.elevation }]}
-              textStyle={[styles.backgroundTestTextSmall, { color: t.accent }]}
-            >
-              Auto
-            </AnimatedButton>
-
             {!isTestRunning ? (
               <AnimatedButton
                 onPress={startTest}
@@ -554,56 +546,7 @@ const SpeedHomeScreen = () => {
                 Stop Test
               </AnimatedButton>
             )}
-
-            {lastTest && (
-              <AnimatedButton
-                onPress={shareLastResult}
-                style={[styles.shareIconButton, { borderColor: t.accent, shadowColor: SHADOWS.clayButton.shadowColor, shadowOffset: SHADOWS.clayButton.shadowOffset, shadowOpacity: SHADOWS.clayButton.shadowOpacity, shadowRadius: SHADOWS.clayButton.shadowRadius, elevation: SHADOWS.clayButton.elevation }]}
-                disabled={false}
-              >
-                <ShareIcon size={24} color={t.accent} />
-              </AnimatedButton>
-            )}
           </View>
-        </View>
-
-        <View style={[styles.backgroundTestOptions, { backgroundColor: t.surface, shadowColor: SHADOWS.clayCard.shadowColor, shadowOffset: SHADOWS.clayCard.shadowOffset, shadowOpacity: SHADOWS.clayCard.shadowOpacity, shadowRadius: SHADOWS.clayCard.shadowRadius, elevation: SHADOWS.clayCard.elevation }]}>
-          <TouchableOpacity
-            style={[
-              styles.backgroundTestOption,
-              settings.backgroundTestInterval === null && [styles.backgroundTestOptionActive, { backgroundColor: t.accent, borderColor: t.accent }],
-            ]}
-            onPress={() => {
-              updateSettings({ backgroundTestInterval: null });
-              if (backgroundTestRef) {
-                clearInterval(backgroundTestRef);
-                setBackgroundTestRef(null);
-              }
-            }}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.backgroundTestOptionText, { color: settings.backgroundTestInterval === null ? COLORS.black : t.textPrimary }]}>
-              Disabled
-            </Text>
-          </TouchableOpacity>
-          {BACKGROUND_TEST_INTERVALS.map((interval) => (
-            <TouchableOpacity
-              key={interval.value}
-              style={[
-                styles.backgroundTestOption,
-                settings.backgroundTestInterval === interval.value && [styles.backgroundTestOptionActive, { backgroundColor: t.accent, borderColor: t.accent }],
-              ]}
-              onPress={() => {
-                updateSettings({ backgroundTestInterval: interval.value });
-                startBackgroundTest(interval.value);
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.backgroundTestOptionText, { color: settings.backgroundTestInterval === interval.value ? COLORS.black : t.textPrimary }]}>
-                {interval.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
         </View>
 
         {progressText && (
@@ -664,6 +607,28 @@ const SpeedHomeScreen = () => {
             value={lastTest ? lastTest.serverName : 'Automatic'}
             subtitle={lastTest ? `${lastTest.serverLocation} • ${lastTest.provider}` : 'The app automatically picks the best available endpoint.'}
           />
+        </View>
+
+        <View style={styles.bottomButtonsRow}>
+          <TouchableOpacity
+            style={[styles.bottomButton, { borderColor: t.accent }]}
+            onPress={() => setBackgroundIntervalOpen(!backgroundIntervalOpen)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.bottomButtonText, { color: t.accent }]}>Auto</Text>
+          </TouchableOpacity>
+          {lastTest && (
+            <TouchableOpacity
+              style={[styles.bottomButton, { borderColor: t.accent }]}
+              onPress={shareLastResult}
+              activeOpacity={0.7}
+            >
+              <View style={styles.bottomButtonContent}>
+                <ShareIcon size={24} color={t.accent} />
+                <Text style={[styles.bottomButtonText, { color: t.accent }]}>Share</Text>
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
       </Animated.ScrollView>
 
@@ -962,6 +927,33 @@ const styles = StyleSheet.create({
     color: COLORS.black,
     fontWeight: '800',
     fontSize: 12,
+  },
+  bottomButtonsRow: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 12,
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  bottomButton: {
+    flex: 1,
+    height: 56,
+    borderRadius: RADIUS.pill,
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bottomButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bottomButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
 });
 
