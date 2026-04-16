@@ -611,6 +611,23 @@ const SpeedHomeScreen = () => {
 
         <View style={styles.bottomButtonsRow}>
           <TouchableOpacity
+            style={[styles.backgroundTestIconButton, { borderColor: t.accent }]}
+            onPress={toggleBackgroundMode}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="autorenew" size={20} color={t.accent} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.shareIconButton, { borderColor: t.accent }]}
+            onPress={() => {}}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="share" size={20} color={t.accent} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.bottomButtonsRow}>
+          <TouchableOpacity
             style={[styles.bottomButton, { borderColor: t.accent }]}
             onPress={() => setBackgroundIntervalOpen(!backgroundIntervalOpen)}
             activeOpacity={0.7}
@@ -762,7 +779,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: 'transparent',
     borderWidth: 1.5,
-    borderColor: COLORS.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -782,7 +798,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: 'transparent',
     borderWidth: 1.5,
-    borderColor: COLORS.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backgroundTestIconButton: {
+    height: 48,
+    width: 64,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -10,6 +10,7 @@ import FlashTitle from '../components/FlashTitle';
 import SpeedTestService from '../services/SpeedTestService';
 import SoundEngine from '../services/SoundEngine';
 import { COLORS, RADIUS, SHADOWS, useTheme } from '../utils/theme';
+import { getConnectionQuality } from '../utils/measurements';
 
 // ── Type Definitions ─────────────────────────────────────────────────────────
 interface IntervalOption {
@@ -59,13 +60,15 @@ const AnimatedButton = ({ onPress, style, textStyle, children, disabled, glowing
     } else { glowAnim.setValue(0); }
   }, [glowing]);
 
-  const glowShadowRadius = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 28] });
   const glowShadowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.7] });
+  const glowShadowRadius = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 28] });
+
+  const { t } = useTheme();
 
   return (
     <TouchableOpacity activeOpacity={1} onPress={onPress} onPressIn={handleIn} onPressOut={handleOut} disabled={disabled}>
       <Animated.View style={[
-        glowing ? { shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: glowShadowOpacity, shadowRadius: glowShadowRadius, elevation: 12, borderRadius: RADIUS.pill } : null,
+        glowing ? { shadowColor: t.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: glowShadowOpacity, shadowRadius: glowShadowRadius, elevation: 12, borderRadius: RADIUS.pill } : null,
       ]}>
         <Animated.View style={[style, { transform: [{ scale: scaleAnim }] }]}>
           <Text style={textStyle}>{children}</Text>
@@ -227,11 +230,11 @@ const SpeedTestScreen = () => {
 
   const getNeedleColor = (): string => {
     switch (currentType) {
-      case 'Download': return COLORS.accent;
-      case 'Upload':   return t.uploadLine;
-      case 'Ping':     return COLORS.success;
-      case 'Complete': return COLORS.accent;
-      default:         return t.gaugeLabelMinor;
+      case 'Download': return t.accent;
+      case 'Upload': return t.uploadLine;
+      case 'Ping': return COLORS.success;
+      case 'Complete': return t.accent;
+      default: return t.accent;
     }
   };
 
@@ -250,6 +253,8 @@ const SpeedTestScreen = () => {
   };
   const getSpeedUnit = (): string => currentType === 'Ping' ? 'ms' : 'Mbps';
 
+  const connectionQuality = getConnectionQuality({ download: downloadSpeed, upload: uploadSpeed, ping });
+
   return (
     <View style={[styles.container, { backgroundColor: t.bg }]}>
       <Animated.ScrollView style={{ opacity: contentFade }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -260,7 +265,7 @@ const SpeedTestScreen = () => {
           <View style={styles.primaryControlsRow}>
             {isTestRunning && (
               <Animated.View style={{ transform: [{ translateY: startFloatAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -5] }) }] }}>
-                <AnimatedButton onPress={stopTest} style={styles.runningButton} textStyle={[styles.runningButtonText, { color: t.buttonText }]} glowing>Stop Test</AnimatedButton>
+                <AnimatedButton onPress={stopTest} style={[styles.runningButton, { backgroundColor: t.accent, borderColor: t.accent, shadowColor: t.accent }]} textStyle={[styles.runningButtonText, { color: t.buttonText }]} glowing>Stop Test</AnimatedButton>
               </Animated.View>
             )}
           </View>
@@ -271,12 +276,12 @@ const SpeedTestScreen = () => {
               <Text style={[styles.intervalTitle, { color: t.textPrimary }]}>SELECT INTERVAL</Text>
             </View>
             <View style={styles.intervalGrid}>
-              <TouchableOpacity key="disabled" style={[styles.intervalBtn, backgroundInterval === null && styles.intervalBtnActive]} onPress={() => selectInterval({ key: 'disabled', label: 'X', ms: 0 })} activeOpacity={0.7}>
-                <Text style={[styles.intervalBtnText, backgroundInterval === null && styles.intervalBtnTextActive]}>X</Text>
+              <TouchableOpacity key="disabled" style={[styles.intervalBtn, { borderColor: t.accent }, backgroundInterval === null && [styles.intervalBtnActive, { backgroundColor: t.accent }]]} onPress={() => selectInterval({ key: 'disabled', label: 'X', ms: 0 })} activeOpacity={0.7}>
+                <Text style={[styles.intervalBtnText, backgroundInterval === null && [styles.intervalBtnTextActive, { color: COLORS.black }]]}>X</Text>
               </TouchableOpacity>
               {INTERVALS.map((iv) => (
-                <TouchableOpacity key={iv.key} style={[styles.intervalBtn, backgroundInterval === iv.key && styles.intervalBtnActive]} onPress={() => selectInterval(iv)} activeOpacity={0.7}>
-                  <Text style={[styles.intervalBtnText, backgroundInterval === iv.key && styles.intervalBtnTextActive]}>{iv.label}</Text>
+                <TouchableOpacity key={iv.key} style={[styles.intervalBtn, { borderColor: t.accent }, backgroundInterval === iv.key && [styles.intervalBtnActive, { backgroundColor: t.accent }]]} onPress={() => selectInterval(iv)} activeOpacity={0.7}>
+                  <Text style={[styles.intervalBtnText, backgroundInterval === iv.key && [styles.intervalBtnTextActive, { color: COLORS.black }]]}>{iv.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -289,27 +294,27 @@ const SpeedTestScreen = () => {
           <StatCard label="Ping" value={ping} unit="ms" activePhase={currentType} />
         </View>
         <View style={styles.insightsWrap}>
-          <InsightCard title="Connection Quality" value="Strong" subtitle="Excellent download and upload speeds with low latency" />
+          <InsightCard title="Connection Quality" value={connectionQuality.label} subtitle={connectionQuality.summary} />
           <InsightCard title="Last Test Traffic" value="0 MB" subtitle="Download + upload payload used by the latest completed test" />
           <InsightCard title="Server Used" value="Automatic" subtitle="The app automatically picks the best available endpoint" />
         </View>
 
         <View style={styles.bottomButtonsRow}>
           <TouchableOpacity
-            style={[styles.bottomButton, { borderColor: COLORS.accent }]}
+            style={[styles.bottomButton, { borderColor: t.accent }]}
             onPress={toggleBackgroundMode}
             activeOpacity={0.7}
           >
-            <Text style={[styles.bottomButtonText, { color: COLORS.accent }]}>Auto</Text>
+            <Text style={[styles.bottomButtonText, { color: t.accent }]}>Auto</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.bottomButton, { borderColor: COLORS.accent }]}
+            style={[styles.bottomButton, { borderColor: t.accent }]}
             onPress={() => {}}
             activeOpacity={0.7}
           >
             <View style={styles.bottomButtonContent}>
-              <MaterialIcons name="share" size={24} color={COLORS.accent} />
-              <Text style={[styles.bottomButtonText, { color: COLORS.accent }]}>Share</Text>
+              <MaterialIcons name="share" size={24} color={t.accent} />
+              <Text style={[styles.bottomButtonText, { color: t.accent }]}>Share</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -329,9 +334,8 @@ const styles = StyleSheet.create({
   mergedButtonGroup: { flexDirection: 'row', alignItems: 'center' },
   mergedButtonContainer: { flexDirection: 'row', flex: 1 },
   autoButton: { paddingVertical: 16, paddingHorizontal: 16, borderTopLeftRadius: RADIUS.pill, borderBottomLeftRadius: RADIUS.pill, backgroundColor: 'transparent', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 },
-  autoButtonActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
+  autoButtonActive: {},
   autoButtonText: {
-    color: COLORS.accent,
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: 0.5,
@@ -342,22 +346,21 @@ const styles = StyleSheet.create({
   autoButtonTextActive: { color: COLORS.black },
   shareButton: { paddingVertical: 16, paddingHorizontal: 16, borderRadius: RADIUS.pill, borderWidth: 0, backgroundColor: 'transparent', width: 60, alignItems: 'center', justifyContent: 'center', marginLeft: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 },
   startButton: {
-    backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 40,
-    borderRadius: RADIUS.pill, ...SHADOWS.button, borderWidth: 1.5, borderColor: COLORS.accent, marginLeft: 10,
+    paddingVertical: 16, paddingHorizontal: 40,
+    borderRadius: RADIUS.pill, ...SHADOWS.button, borderWidth: 1.5, marginLeft: 10,
   },
   startButtonText: { fontSize: 16, fontWeight: '800', letterSpacing: 1, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
   runningButton: {
-    backgroundColor: COLORS.accent, paddingVertical: 16, paddingHorizontal: 40,
+    paddingVertical: 16, paddingHorizontal: 40,
     borderRadius: RADIUS.pill,
-    shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 8, borderWidth: 1.5, borderColor: COLORS.accent, marginLeft: 10,
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 8, borderWidth: 1.5, marginLeft: 10,
   },
   runningButtonText: { fontSize: 16, fontWeight: '800', letterSpacing: 1, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
-  bgButton: { paddingVertical: 11, paddingHorizontal: 28, borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: 'transparent' },
-  bgButtonActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
-  bgButtonText: { 
-    color: COLORS.accent, 
-    fontSize: 13, 
-    fontWeight: '700', 
+  bgButton: { paddingVertical: 11, paddingHorizontal: 28, borderRadius: RADIUS.pill, borderWidth: 1.5, backgroundColor: 'transparent' },
+  bgButtonActive: {},
+  bgButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
     letterSpacing: 0.5,
     textShadowColor: 'rgba(0, 0, 0, 0.2)',
     textShadowOffset: { width: 0, height: 1 },
@@ -368,10 +371,9 @@ const styles = StyleSheet.create({
   intervalTitleWrap: { alignItems: 'center', marginBottom: 14 },
   intervalTitle: { fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2, fontWeight: '700', color: '#666' },
   intervalGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
-  intervalBtn: { paddingVertical: 14, paddingHorizontal: 24, borderRadius: RADIUS.pill, borderWidth: 1, borderColor: COLORS.accent, backgroundColor: 'transparent', minWidth: 60, alignItems: 'center' },
-  intervalBtnActive: { backgroundColor: COLORS.accent },
+  intervalBtn: { paddingVertical: 14, paddingHorizontal: 24, borderRadius: RADIUS.pill, borderWidth: 1, backgroundColor: 'transparent', minWidth: 60, alignItems: 'center' },
+  intervalBtnActive: {},
   intervalBtnText: {
-    color: COLORS.accent,
     fontSize: 13,
     fontWeight: '700',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',

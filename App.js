@@ -16,17 +16,21 @@ import SoundEngine from './src/services/SoundEngine';
 const Tab = createBottomTabNavigator();
 
 // ── Lightning Bolt SVG Logo ─────────────────────────────────────────────────
-const LightningLogo = ({ size = 22 }) => (
-  <Svg width={size} height={size * 1.4} viewBox="0 0 24 34">
-    <Polygon
-      points="14,0 4,18 12,18 10,34 20,14 12,14"
-      fill={COLORS.accent}
-    />
-  </Svg>
-);
+const LightningLogo = ({ size = 22 }) => {
+  const { t } = useTheme();
+  return (
+    <Svg width={size} height={size * 1.4} viewBox="0 0 24 34">
+      <Polygon
+        points="14,0 4,18 12,18 10,34 20,14 12,14"
+        fill={t.accent}
+      />
+    </Svg>
+  );
+};
 
 // ── Tab Bar Icon with scale animation ───────────────────────────────────────
 const TabIcon = ({ focused, iconType, color }) => {
+  const { t } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -262,7 +266,6 @@ const tabStyles = StyleSheet.create({
     top: -8,
     width: 24,
     height: 2,
-    backgroundColor: COLORS.accent,
     borderRadius: 1,
   },
 });

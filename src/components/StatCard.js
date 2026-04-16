@@ -5,12 +5,12 @@ import { COLORS, RADIUS, useTheme } from '../utils/theme';
 
 const CARD_WIDTH = (Dimensions.get('window').width - 56) / 3;
 
-const DownloadIcon = ({ size = 14, color = COLORS.accent }) => (
+const DownloadIcon = ({ size = 14, color }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24">
     <Path d="M12 4v12m0 0l-5-5m5 5l5-5M5 20h14" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
   </Svg>
 );
-const UploadIcon = ({ size = 14, color = COLORS.accent }) => (
+const UploadIcon = ({ size = 14, color }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24">
     <Path d="M12 20V8m0 0l-5 5m5-5l5 5M5 4h14" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
   </Svg>
@@ -22,7 +22,7 @@ const PingIcon = ({ size = 14, color = COLORS.success }) => (
 );
 
 // ── Spinning yellow loader ──────────────────────────────────────────────────
-const SpinningLoader = ({ size = 22, color = COLORS.accent }) => {
+const SpinningLoader = ({ size = 22, color }) => {
   const spinAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -142,18 +142,16 @@ const StatCard = ({ label, value, unit = 'Mbps', activePhase, footerText }) => {
 
   const getIcon = () => {
     switch (label) {
-      case 'Download': return <DownloadIcon />;
+      case 'Download': return <DownloadIcon color={t.accent} />;
       case 'Upload':   return <UploadIcon color={t.uploadLine} />;
       case 'Ping':     return <PingIcon />;
       default:         return null;
     }
   };
 
-  const accentColor = label === 'Ping' ? COLORS.success : (label === 'Upload' ? t.uploadLine : COLORS.accent);
+  const accentColor = label === 'Ping' ? COLORS.success : (label === 'Upload' ? t.uploadLine : t.accent);
 
-  const uniformTint = isDark
-    ? 'rgba(245, 196, 0, 0.04)'
-    : 'rgba(245, 196, 0, 0.02)';
+  const uniformTint = t.accentTintSoft;
 
   // Animated shadow for the pulsing glow
   const glowShadowOpacity = glowAnim.interpolate({
@@ -174,7 +172,7 @@ const StatCard = ({ label, value, unit = 'Mbps', activePhase, footerText }) => {
           marginHorizontal: 4,
           opacity: fadeAnim,
           transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
-          shadowColor: isActive ? COLORS.accent : (isDark ? '#000' : '#888'),
+          shadowColor: isActive ? t.accent : (isDark ? '#000' : '#888'),
           shadowOpacity: isActive ? glowShadowOpacity : 0.18,
           shadowRadius: isActive ? glowShadowRadius : 10,
         },

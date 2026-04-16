@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, LayoutChangeEvent } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,13 @@ import {
   Platform,
   LayoutAnimation,
   UIManager,
+  LayoutChangeEvent,
 } from 'react-native';
 import SpeedTestService from '../services/SpeedTestService';
 import SoundEngine from '../services/SoundEngine';
 import FlashTitle from '../components/FlashTitle';
-import { COLORS, RADIUS, useTheme } from '../utils/theme';
+import ColorPickerWheel from '../components/ColorPickerWheel';
+import { COLORS, RADIUS, useTheme, COLOR_THEMES } from '../utils/theme';
 
 // LayoutAnimation is now enabled by default on Android
 
@@ -83,6 +85,7 @@ const SegmentedControl = ({ options, selected, onSelect }: SegmentedControlProps
             segS.indicator,
             {
               width: segmentWidth - 4,
+              backgroundColor: t.accent,
               transform: [{ translateX: Animated.add(slideAnim, 2) }],
             },
           ]}
@@ -120,7 +123,6 @@ const segS = StyleSheet.create({
   },
   indicator: {
     position: 'absolute', top: 2, bottom: 2,
-    backgroundColor: COLORS.accent,
     borderRadius: 20,
     zIndex: 0,
   },
@@ -149,11 +151,19 @@ const Dropdown = ({ options, selected, onSelect, isOpen, onToggle }: DropdownPro
           {options.map((opt) => (
             <TouchableOpacity
               key={opt.value}
-              style={[dropS.menuItem, { borderBottomColor: t.controlSepLight }, selected === opt.value && dropS.menuItemActive]}
+              style={[
+                dropS.menuItem,
+                { borderBottomColor: t.controlSepLight },
+                selected === opt.value && [dropS.menuItemActive, { backgroundColor: t.accentTintSelected }],
+              ]}
               onPress={() => { onSelect(opt.value); onToggle(); }}
               activeOpacity={0.7}
             >
-              <Text style={[dropS.menuItemText, { color: t.textSecondary, fontFamily: FONT_FAMILY, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }, selected === opt.value && dropS.menuItemTextActive]}>
+              <Text style={[
+                dropS.menuItemText,
+                { color: t.textSecondary, fontFamily: FONT_FAMILY, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 },
+                selected === opt.value && [dropS.menuItemTextActive, { color: t.accent }],
+              ]}>
                 {opt.label}
               </Text>
             </TouchableOpacity>
@@ -170,14 +180,9 @@ const dropS = StyleSheet.create({
   arrow: { fontSize: 10, marginLeft: 8 },
   menu: { marginTop: 4, borderRadius: 10, borderWidth: 1, overflow: 'hidden' },
   menuItem: { paddingVertical: 10, paddingHorizontal: 14, borderBottomWidth: 1 },
-  menuItemActive: { backgroundColor: 'rgba(245,196,0,0.1)' },
+  menuItemActive: {},
   menuItemText: { fontSize: 13, fontWeight: '600' },
-  menuItemTextActive: { 
-    color: COLORS.accent,
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1.5,
-  },
+  menuItemTextActive: {},
 });
 
 // ── Settings Row ────────────────────────────────────────────────────────────
@@ -199,7 +204,7 @@ const rowS = StyleSheet.create({
 
 // ── Main Settings Screen ────────────────────────────────────────────────────
 const SettingsScreen = () => {
-  const { t, themeChoice, setThemeChoice } = useTheme();
+  const { t, themeChoice, setThemeChoice, colorThemeId, setColorThemeId } = useTheme();
   const isDark = t.mode === 'dark';
   const cardTint = isDark ? 'rgba(245, 196, 0, 0.03)' : 'rgba(245, 196, 0, 0.015)';
 
@@ -210,6 +215,7 @@ const SettingsScreen = () => {
   const [notifyComplete, setNotifyComplete] = useState(false);
   const [alertThreshold, setAlertThreshold] = useState('');
   const [intervalOpen, setIntervalOpen] = useState(false);
+  const [colorPickerVisible, setColorPickerVisible] = useState(false);
 
   // Sound & Haptics state
   const [sfxMuted, setSfxMuted] = useState(SoundEngine.muted);
@@ -273,10 +279,16 @@ const SettingsScreen = () => {
           </View>
         </SettingsRow>
         <SettingsRow label="Accent Color" isLast>
-          <View style={styles.accentSwatch}>
-            <View style={styles.accentDot} />
-            <Text style={[styles.accentLabel, { color: t.textSecondary, fontFamily: FONT_FAMILY, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Speed Yellow</Text>
-          </View>
+          <TouchableOpacity
+            style={styles.accentSwatch}
+            onPress={() => setColorPickerVisible(true)}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.accentDot, { backgroundColor: t.accent, borderColor: t.accentDark }]} />
+            <Text style={[styles.accentLabel, { color: t.textSecondary, fontFamily: FONT_FAMILY, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>
+              {COLOR_THEMES.find(ct => ct.id === colorThemeId)?.name || 'Gold'}
+            </Text>
+          </TouchableOpacity>
         </SettingsRow>
       </View>
 
@@ -287,7 +299,7 @@ const SettingsScreen = () => {
         <SettingsRow label="Auto Background Test">
           <Switch
             value={autoBackground} onValueChange={() => handleToggle(autoBackground, setAutoBackground)}
-            trackColor={{ false: t.switchTrackOff, true: COLORS.accent }}
+            trackColor={{ false: t.switchTrackOff, true: t.accent }}
             thumbColor={autoBackground ? COLORS.white : t.switchThumbOff}
             ios_backgroundColor={t.switchTrackOff}
           />
@@ -310,7 +322,7 @@ const SettingsScreen = () => {
           <View style={styles.serverRow}>
             <Text style={[styles.serverText, { color: t.textSecondary, fontFamily: FONT_FAMILY, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Auto (Nearest)</Text>
             <TouchableOpacity activeOpacity={0.7}>
-              <Text style={[styles.changeLink, { fontFamily: FONT_FAMILY }]}>Change</Text>
+              <Text style={[styles.changeLink, { fontFamily: FONT_FAMILY, color: t.accent }]}>Change</Text>
             </TouchableOpacity>
           </View>
         </SettingsRow>
@@ -335,7 +347,7 @@ const SettingsScreen = () => {
         <SettingsRow label="Show Ping" isLast>
           <Switch
             value={showPing} onValueChange={() => handleToggle(showPing, setShowPing)}
-            trackColor={{ false: t.switchTrackOff, true: COLORS.accent }}
+            trackColor={{ false: t.switchTrackOff, true: t.accent }}
             thumbColor={showPing ? COLORS.white : t.switchThumbOff}
             ios_backgroundColor={t.switchTrackOff}
           />
@@ -349,7 +361,7 @@ const SettingsScreen = () => {
         <SettingsRow label="Notify on test complete">
           <Switch
             value={notifyComplete} onValueChange={() => handleToggle(notifyComplete, setNotifyComplete)}
-            trackColor={{ false: t.switchTrackOff, true: COLORS.accent }}
+            trackColor={{ false: t.switchTrackOff, true: t.accent }}
             thumbColor={notifyComplete ? COLORS.white : t.switchThumbOff}
             ios_backgroundColor={t.switchTrackOff}
           />
@@ -379,7 +391,7 @@ const SettingsScreen = () => {
               SoundEngine.muted = newMuted;
               if (!newMuted) SoundEngine.playToggleOn();
             }}
-            trackColor={{ false: t.switchTrackOff, true: COLORS.accent }}
+            trackColor={{ false: t.switchTrackOff, true: t.accent }}
             thumbColor={!sfxMuted ? COLORS.white : t.switchThumbOff}
             ios_backgroundColor={t.switchTrackOff}
           />
@@ -389,7 +401,7 @@ const SettingsScreen = () => {
             {[0.25, 0.5, 0.75, 1.0].map((v) => (
               <TouchableOpacity
                 key={v}
-                style={[styles.volumeDot, sfxVolume >= v && styles.volumeDotActive]}
+                style={[styles.volumeDot, { borderColor: t.accent }, sfxVolume >= v && [styles.volumeDotActive, { backgroundColor: t.accent }]]}
                 onPress={() => { handleVolumeChange(v.toString()); SoundEngine.playNavTick(); }}
                 activeOpacity={0.7}
               />
@@ -406,7 +418,7 @@ const SettingsScreen = () => {
               if (newVal) SoundEngine.playToggleOn();
               else SoundEngine.playToggleOff();
             }}
-            trackColor={{ false: t.switchTrackOff, true: COLORS.accent }}
+            trackColor={{ false: t.switchTrackOff, true: t.accent }}
             thumbColor={hapticsOn ? COLORS.white : t.switchThumbOff}
             ios_backgroundColor={t.switchTrackOff}
           />
@@ -421,13 +433,20 @@ const SettingsScreen = () => {
           <TouchableOpacity style={styles.destructiveButton} onPress={handleClearHistory} activeOpacity={0.7}>
             <Text style={[styles.destructiveButtonText, { fontFamily: FONT_FAMILY }]}>Clear Test History</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.exportButton} onPress={handleExport} activeOpacity={0.7}>
-            <Text style={[styles.exportButtonText, { fontFamily: FONT_FAMILY }]}>Export History as CSV</Text>
+          <TouchableOpacity style={[styles.exportButton, { borderColor: t.accent }]} onPress={handleExport} activeOpacity={0.7}>
+            <Text style={[styles.exportButtonText, { fontFamily: FONT_FAMILY, color: t.accent }]}>Export History as CSV</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       <Text style={[styles.versionText, { color: t.textMuted, fontFamily: FONT_FAMILY, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Flash v1.1.0</Text>
+
+      <ColorPickerWheel
+        visible={colorPickerVisible}
+        onClose={() => setColorPickerVisible(false)}
+        onColorSelect={setColorThemeId}
+        currentColorId={colorThemeId}
+      />
     </Animated.ScrollView>
   );
 };
@@ -441,14 +460,13 @@ const styles = StyleSheet.create({
   gradientTint: { ...StyleSheet.absoluteFillObject, borderRadius: RADIUS.lg },
 
   accentSwatch: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  accentDot: { width: 20, height: 20, borderRadius: 10, backgroundColor: COLORS.accent, borderWidth: 2, borderColor: COLORS.accentDark },
+  accentDot: { width: 20, height: 20, borderRadius: 10, borderWidth: 2 },
   accentLabel: { fontSize: 13, fontWeight: '600' },
 
   serverRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   serverText: { fontSize: 13, fontWeight: '500' },
-  changeLink: { 
-    fontSize: 13, 
-    color: COLORS.accent, 
+  changeLink: {
+    fontSize: 13,
     fontWeight: '700',
     textShadowColor: 'rgba(0, 0, 0, 0.2)',
     textShadowOffset: { width: 0, height: 1 },
@@ -462,10 +480,9 @@ const styles = StyleSheet.create({
   dataButtons: { padding: 16, gap: 12 },
   destructiveButton: { paddingVertical: 13, borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.danger, backgroundColor: 'transparent', alignItems: 'center' },
   destructiveButtonText: { color: COLORS.danger, fontSize: 14, fontWeight: '700' },
-  exportButton: { paddingVertical: 13, borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: 'transparent', alignItems: 'center' },
-  exportButtonText: { 
-    color: COLORS.accent, 
-    fontSize: 14, 
+  exportButton: { paddingVertical: 13, borderRadius: RADIUS.pill, borderWidth: 1.5, backgroundColor: 'transparent', alignItems: 'center' },
+  exportButtonText: {
+    fontSize: 14,
     fontWeight: '700',
     textShadowColor: 'rgba(0, 0, 0, 0.4)',
     textShadowOffset: { width: 0, height: 1 },
@@ -473,8 +490,8 @@ const styles = StyleSheet.create({
   },
 
   volumeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  volumeDot: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: COLORS.accent, backgroundColor: 'transparent' },
-  volumeDotActive: { backgroundColor: COLORS.accent },
+  volumeDot: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, backgroundColor: 'transparent' },
+  volumeDotActive: {},
   volumeLabel: { fontSize: 12, fontWeight: '700', marginLeft: 4, minWidth: 36, textAlign: 'right' },
 
   versionText: { textAlign: 'center', fontSize: 11, marginTop: 32, letterSpacing: 1, fontWeight: '500' },

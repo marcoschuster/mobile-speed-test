@@ -164,7 +164,7 @@ const FlashTitle = ({
       {/* Layer 3b: Main yellow text (determines layout size) */}
       <Text
         style={[textStyle, {
-          color: COLORS.accent,
+          color: t.accent,
           textShadowColor: isDark ? 'rgba(0,0,0,0.7)' : 'rgba(0, 0, 0, 0.2)',
           textShadowOffset: { width: 0, height: 1 },
           textShadowRadius: 1.5,
@@ -206,7 +206,7 @@ const FlashTitle = ({
             <Text
               style={[textStyle, {
                 color: flashColor,
-                textShadowColor: COLORS.accent,
+                textShadowColor: t.accent,
                 textShadowOffset: { width: 0, height: 0 },
                 textShadowRadius: 8,
                 width: textWidth + 20,

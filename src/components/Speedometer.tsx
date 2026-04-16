@@ -197,43 +197,22 @@ const Speedometer = ({
                 <Stop offset="0%" stopColor={t.mode === 'dark' ? '#2A2A2A' : '#FAFAFA'} />
                 <Stop offset="100%" stopColor={t.mode === 'dark' ? '#1A1A1A' : '#F0F0F0'} />
               </RadialGradient>
-              <LinearGradient id="sideLightLeft" x1="0" y1="0" x2="1" y2="0">
-                <Stop offset="0%" stopColor={t.accent} stopOpacity={0.6} />
-                <Stop offset="100%" stopColor={t.accent} stopOpacity={0} />
-              </LinearGradient>
-              <LinearGradient id="sideLightRight" x1="1" y1="0" x2="0" y2="0">
-                <Stop offset="0%" stopColor={t.accent} stopOpacity={0.6} />
-                <Stop offset="100%" stopColor={t.accent} stopOpacity={0} />
+              <LinearGradient id="bezelGrad" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0%" stopColor={t.mode === 'dark' ? '#444444' : '#E8E8E8'} />
+                <Stop offset="50%" stopColor={t.mode === 'dark' ? '#222222' : '#D0D0D0'} />
+                <Stop offset="100%" stopColor={t.mode === 'dark' ? '#111111' : '#B8B8B8'} />
               </LinearGradient>
             </Defs>
-            
+
             {/* Outer bezel */}
             <Circle cx={CX} cy={CY} r={R + 12} fill={t.mode === 'dark' ? '#111111' : '#D0D0D0'} />
-            <Circle cx={CX} cy={CY} r={R + 10} fill={t.mode === 'dark' ? '#222222' : '#E8E8E8'} />
+            <Circle cx={CX} cy={CY} r={R + 10} fill="url(#bezelGrad)" />
             <Circle cx={CX} cy={CY} r={R + 6} fill={t.mode === 'dark' ? '#181818' : '#C8C8C8'} />
-            
+
             {/* Inner circle background */}
             <Circle cx={CX} cy={CY} r={R} fill="url(#startBg)" />
           </Svg>
-          
-          {/* Side light effects */}
-          <Animated.View style={[
-            styles.sideLightLeft,
-            { opacity: startPulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.8] }) }
-          ]}>
-            <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-              <Circle cx={CX} cy={CY} r={R} fill="url(#sideLightLeft)" />
-            </Svg>
-          </Animated.View>
-          <Animated.View style={[
-            styles.sideLightRight,
-            { opacity: startPulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.8] }) }
-          ]}>
-            <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-              <Circle cx={CX} cy={CY} r={R} fill="url(#sideLightRight)" />
-            </Svg>
-          </Animated.View>
-          
+
           {/* Start text */}
           <Animated.View style={[
             styles.startTextContainer,
@@ -370,20 +349,6 @@ const styles = StyleSheet.create({
     height: SIZE + 24,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  sideLightLeft: {
-    position: 'absolute',
-    width: SIZE,
-    height: SIZE,
-    left: 0,
-    top: 0,
-  },
-  sideLightRight: {
-    position: 'absolute',
-    width: SIZE,
-    height: SIZE,
-    right: 0,
-    top: 0,
   },
   startTextContainer: {
     position: 'absolute',
