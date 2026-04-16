@@ -7,6 +7,19 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+export const withAlpha = (hex, alpha) => {
+  const normalized = hex.replace('#', '');
+  const full = normalized.length === 3
+    ? normalized.split('').map((c) => c + c).join('')
+    : normalized;
+
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
 // ── Static palette (never changes) ─────────────────────────────────────────
 export const COLORS = {
   accent: '#F5C400',
@@ -40,23 +53,32 @@ export const COLOR_THEMES = [
 // ── Theme-aware palettes ────────────────────────────────────────────────────
 const DARK = {
   mode: 'dark',
-  bg: '#141414',
-  surface: '#1E1E1E',
-  surfaceElevated: '#282828',
-  glass: 'rgba(30, 30, 30, 0.92)',
-  glassBorder: 'rgba(255, 255, 255, 0.08)',
-  glassBorderTop: 'rgba(255,255,255,0.12)',
+  bg: '#08111a',
+  surface: 'rgba(12, 24, 38, 0.68)',
+  surfaceElevated: 'rgba(16, 29, 45, 0.84)',
+  glass: 'rgba(11, 22, 35, 0.74)',
+  glassStrong: 'rgba(10, 20, 31, 0.88)',
+  glassSoft: 'rgba(255, 255, 255, 0.05)',
+  glassBorder: 'rgba(255, 255, 255, 0.14)',
+  glassBorderStrong: 'rgba(255, 255, 255, 0.24)',
+  glassBorderTop: 'rgba(255,255,255,0.34)',
+  glassHighlight: 'rgba(255,255,255,0.18)',
+  glassGlow: 'rgba(255,255,255,0.05)',
+  glassShadow: 'rgba(1, 7, 16, 0.46)',
+  backdropStart: '#07101a',
+  backdropMid: '#0d1724',
+  backdropEnd: '#04070c',
   textPrimary: '#F5F5F5',
-  textSecondary: '#A8A8A8',       // bumped from #999 → 4.6:1 vs #1E1E1E (AA)
-  textMuted: '#8C8C8C',           // bumped from #888 → still distinct, passes AA on surface
-  separator: 'rgba(255, 255, 255, 0.07)',
+  textSecondary: '#B3C0D1',
+  textMuted: '#7C8CA0',
+  separator: 'rgba(255, 255, 255, 0.10)',
 
   // Header & Nav
-  headerBg: '#111111',
+  headerBg: 'rgba(9, 18, 29, 0.84)',
   headerText: '#FFFFFF',
-  navBar: '#111111',
+  navBar: 'rgba(9, 18, 29, 0.84)',
   navActive: '#F5C400',
-  navInactive: '#666666',
+  navInactive: '#75839A',
 
   // Buttons
   buttonText: '#000000',
@@ -82,12 +104,12 @@ const DARK = {
   uploadLine: '#4FC3F7',
 
   // Settings controls
-  controlBg: '#1E1E1E',
-  controlBorder: '#333333',
-  controlSepLight: 'rgba(255,255,255,0.05)',
-  switchTrackOff: '#3A3A3A',
-  switchThumbOff: '#888888',
-  placeholderText: '#606060',
+  controlBg: 'rgba(255,255,255,0.08)',
+  controlBorder: 'rgba(255,255,255,0.16)',
+  controlSepLight: 'rgba(255,255,255,0.08)',
+  switchTrackOff: 'rgba(255,255,255,0.16)',
+  switchThumbOff: '#B4C0CE',
+  placeholderText: '#6F8094',
 
   // Empty state bolt
   emptyBolt: '#333333',
@@ -95,23 +117,32 @@ const DARK = {
 
 const LIGHT = {
   mode: 'light',
-  bg: '#FAFAFA',
-  surface: '#FFFFFF',
-  surfaceElevated: '#F0F0F0',
-  glass: 'rgba(255, 255, 255, 0.88)',
-  glassBorder: 'rgba(0, 0, 0, 0.06)',
-  glassBorderTop: 'rgba(255,255,255,0.7)',
+  bg: '#e7f0f8',
+  surface: 'rgba(255, 255, 255, 0.62)',
+  surfaceElevated: 'rgba(255, 255, 255, 0.82)',
+  glass: 'rgba(255, 255, 255, 0.74)',
+  glassStrong: 'rgba(255, 255, 255, 0.86)',
+  glassSoft: 'rgba(255,255,255,0.46)',
+  glassBorder: 'rgba(118, 141, 171, 0.18)',
+  glassBorderStrong: 'rgba(118, 141, 171, 0.28)',
+  glassBorderTop: 'rgba(255,255,255,0.92)',
+  glassHighlight: 'rgba(255,255,255,0.78)',
+  glassGlow: 'rgba(255,255,255,0.32)',
+  glassShadow: 'rgba(70, 93, 123, 0.18)',
+  backdropStart: '#f5fbff',
+  backdropMid: '#e7f0f8',
+  backdropEnd: '#d6e2ef',
   textPrimary: '#111111',
-  textSecondary: '#555555',        // bumped from #666 for AA
-  textMuted: '#888888',            // bumped from #AAA → readable on white
-  separator: 'rgba(0, 0, 0, 0.07)',
+  textSecondary: '#415066',
+  textMuted: '#75839A',
+  separator: 'rgba(113, 135, 162, 0.18)',
 
   // Header & Nav
-  headerBg: '#FFFFFF',
+  headerBg: 'rgba(255, 255, 255, 0.84)',
   headerText: '#111111',
-  navBar: '#FFFFFF',
+  navBar: 'rgba(255, 255, 255, 0.86)',
   navActive: '#F5C400',
-  navInactive: '#AAAAAA',
+  navInactive: '#8A98AA',
 
   // Buttons
   buttonText: '#FFFFFF',
@@ -137,12 +168,12 @@ const LIGHT = {
   uploadLine: '#2196F3',
 
   // Settings controls
-  controlBg: '#F0F0F0',
-  controlBorder: '#DDDDDD',
-  controlSepLight: 'rgba(0,0,0,0.04)',
-  switchTrackOff: '#DDDDDD',
-  switchThumbOff: '#BBBBBB',
-  placeholderText: '#BBBBBB',
+  controlBg: 'rgba(255,255,255,0.64)',
+  controlBorder: 'rgba(118, 141, 171, 0.18)',
+  controlSepLight: 'rgba(118, 141, 171, 0.12)',
+  switchTrackOff: 'rgba(118, 141, 171, 0.18)',
+  switchThumbOff: '#C7D1DE',
+  placeholderText: '#97A6B8',
 
   // Empty state bolt
   emptyBolt: '#DDDDDD',
@@ -185,6 +216,62 @@ export const SHADOWS = {
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 6,
+  },
+  clay: {
+    shadowColor: 'rgba(0, 0, 0, 0.15)',
+    shadowOffset: { width: 16, height: 16 },
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+  clayLight: {
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: -16, height: -16 },
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+  clayInner: {
+    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowOffset: { width: 10, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  clayInnerLight: {
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: -10, height: -10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  clayButton: {
+    shadowColor: '#07101A',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  clayButtonLight: {
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 0,
+  },
+  clayCard: {
+    shadowColor: '#07101A',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.2,
+    shadowRadius: 28,
+    elevation: 14,
+  },
+  clayCardLight: {
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+    elevation: 0,
   },
 };
 
@@ -248,8 +335,21 @@ export const ThemeProvider = ({ children }) => {
   const t = {
     ...baseTheme,
     ...activeColorTheme,
-    accentGlow: `${activeColorTheme.accent}59`, // 35% opacity
-    accentSubtle: `${activeColorTheme.accent}14`, // 8% opacity
+    navActive: activeColorTheme.accent,
+    warning: activeColorTheme.accent,
+    accentGlow: withAlpha(activeColorTheme.accent, 0.35),
+    accentSubtle: withAlpha(activeColorTheme.accent, 0.08),
+    accentTintSoft: withAlpha(activeColorTheme.accent, effective === 'dark' ? 0.03 : 0.015),
+    accentTintCard: withAlpha(activeColorTheme.accent, effective === 'dark' ? 0.04 : 0.02),
+    accentTintStrong: withAlpha(activeColorTheme.accent, effective === 'dark' ? 0.15 : 0.12),
+    accentTintSelected: withAlpha(activeColorTheme.accent, 0.14),
+    glassTintSoft: withAlpha(activeColorTheme.accent, effective === 'dark' ? 0.08 : 0.05),
+    glassTintStrong: withAlpha(activeColorTheme.accent, effective === 'dark' ? 0.16 : 0.08),
+    glassBorderAccent: withAlpha(activeColorTheme.accent, effective === 'dark' ? 0.22 : 0.14),
+    backdropOrbPrimary: withAlpha(activeColorTheme.accent, effective === 'dark' ? 0.20 : 0.12),
+    backdropOrbSecondary: withAlpha(activeColorTheme.accentLight, effective === 'dark' ? 0.12 : 0.08),
+    backdropOrbNeutral: effective === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.44)',
+    chromeFadeEdge: withAlpha(activeColorTheme.accentLight, effective === 'dark' ? 0.16 : 0.12),
   };
 
   return (

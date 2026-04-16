@@ -16,10 +16,11 @@ import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Polygon, Path } from 'react-native-svg';
 import SpeedTestService from '../services/SpeedTestService';
 import FlashTitle from '../components/FlashTitle';
+import GlassSurface from '../components/GlassSurface';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { buildHistoryCsv, summarizeHistory } from '../utils/history';
 import { formatBytes, formatSpeedValue, getSpeedUnitLabel } from '../utils/measurements';
-import { COLORS, RADIUS, SHADOWS, useTheme } from '../utils/theme';
+import { COLORS, RADIUS, useTheme } from '../utils/theme';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -52,13 +53,13 @@ interface HistoryCardProps {
   item: any;
   index: number;
   formatDate: (dateString: string) => string;
-  speedUnit: string;
+  speedUnit: any;
   speedUnitLabel: string;
 }
 
 interface SummaryStripProps {
   history: any[];
-  speedUnit: string;
+  speedUnit: any;
   speedUnitLabel: string;
 }
 
@@ -179,7 +180,7 @@ const Calendar = ({ history, selectedDate, onSelectDate, onClearSelection }: Cal
   const cardTint = t.accentTintCard;
 
   return (
-    <View style={[calStyles.container, { backgroundColor: t.surface }]}>
+    <GlassSurface style={calStyles.container} radius={RADIUS.lg} tintColor={t.accent}>
       <View style={[calStyles.gradientTint, { backgroundColor: cardTint }]} />
 
       {/* Month navigation */}
@@ -261,7 +262,7 @@ const Calendar = ({ history, selectedDate, onSelectDate, onClearSelection }: Cal
           <Text style={[calStyles.clearAction, { color: t.accent }]}>Show All</Text>
         </TouchableOpacity>
       )}
-    </View>
+    </GlassSurface>
   );
 };
 
@@ -380,16 +381,7 @@ const HistoryCard = ({ item, index, formatDate, speedUnit, speedUnitLabel }: His
         },
       ]}
     >
-      <View
-        style={[
-          styles.historyItemInner,
-          {
-            backgroundColor: t.surface,
-            ...SHADOWS.clayCard,
-            overflow: 'visible',
-          },
-        ]}
-      >
+      <GlassSurface style={styles.historyItemInner} radius={20} tintColor={t.accent}>
         <View style={styles.historyContent}>
           <PulsingDate text={formatDate(item.date)} baseColor={t.textSecondary} accentColor={t.accent} />
           <View style={styles.historyStats}>
@@ -399,7 +391,7 @@ const HistoryCard = ({ item, index, formatDate, speedUnit, speedUnitLabel }: His
                 <Text style={[styles.historyStatLabel, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Download</Text>
               </View>
               <Text style={[styles.historyStatValue, { color: t.textPrimary }]}>
-                {formatSpeedValue(item.download, speedUnit, 1)}
+                {formatSpeedValue(item.download, speedUnit as any, 1)}
                 <Text style={[styles.historyStatUnit, { color: t.textSecondary }]}> {speedUnitLabel}</Text>
               </Text>
             </View>
@@ -412,7 +404,7 @@ const HistoryCard = ({ item, index, formatDate, speedUnit, speedUnitLabel }: His
                 <Text style={[styles.historyStatLabel, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Upload</Text>
               </View>
               <Text style={[styles.historyStatValue, { color: t.textPrimary }]}>
-                {formatSpeedValue(item.upload, speedUnit, 1)}
+                {formatSpeedValue(item.upload, speedUnit as any, 1)}
                 <Text style={[styles.historyStatUnit, { color: t.textSecondary }]}> {speedUnitLabel}</Text>
               </Text>
             </View>
@@ -435,7 +427,7 @@ const HistoryCard = ({ item, index, formatDate, speedUnit, speedUnitLabel }: His
             <Text style={[styles.metaText, { color: t.textMuted }]}>{(item.serverName || 'Automatic')}{item.serverLocation ? ` • ${item.serverLocation}` : ''}</Text>
           </View>
         </View>
-      </View>
+      </GlassSurface>
     </Animated.View>
   );
 };
@@ -454,7 +446,7 @@ const SummaryStrip = ({ history, speedUnit, speedUnitLabel }: SummaryStripProps)
     },
     {
       label: 'Average Download',
-      value: `${formatSpeedValue(summary.averageDownload, speedUnit, 1)} ${speedUnitLabel}`,
+      value: `${formatSpeedValue(summary.avgDownload, speedUnit as any, 1)} ${speedUnitLabel}`,
       subtitle: 'Across filtered history',
     },
     {
@@ -464,7 +456,7 @@ const SummaryStrip = ({ history, speedUnit, speedUnitLabel }: SummaryStripProps)
     },
     {
       label: 'Average Upload',
-      value: `${formatSpeedValue(summary.averageUpload, speedUnit, 1)} ${speedUnitLabel}`,
+      value: `${formatSpeedValue(summary.avgUpload, speedUnit as any, 1)} ${speedUnitLabel}`,
       subtitle: 'Across filtered history',
     },
   ];
@@ -472,24 +464,11 @@ const SummaryStrip = ({ history, speedUnit, speedUnitLabel }: SummaryStripProps)
   return (
     <View style={styles.summaryRow}>
       {cards.map((card) => (
-        <View
-          key={card.label}
-          style={[
-            styles.summaryCard,
-            {
-              backgroundColor: t.surface,
-              shadowColor: SHADOWS.clayCard.shadowColor,
-              shadowOffset: SHADOWS.clayCard.shadowOffset,
-              shadowOpacity: SHADOWS.clayCard.shadowOpacity,
-              shadowRadius: SHADOWS.clayCard.shadowRadius,
-              elevation: SHADOWS.clayCard.elevation,
-            },
-          ]}
-        >
+        <GlassSurface key={card.label} style={styles.summaryCard} radius={20} tintColor={t.accent}>
           <Text style={[styles.summaryLabel, { color: t.textMuted }]}>{card.label}</Text>
           <Text style={[styles.summaryValue, { color: t.textPrimary }]}>{card.value}</Text>
           <Text style={[styles.summarySubtitle, { color: t.textSecondary }]}>{card.subtitle}</Text>
-        </View>
+        </GlassSurface>
       ))}
     </View>
   );
@@ -505,7 +484,7 @@ const HistoryScreen = () => {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const contentFade = useRef(new Animated.Value(0)).current;
   const calHeight = useRef(new Animated.Value(0)).current;
-  const speedUnitLabel = getSpeedUnitLabel(settings.speedUnit);
+  const speedUnitLabel = getSpeedUnitLabel(settings.speedUnit as any);
 
   const loadHistory = useCallback(async () => {
     const historyData = await SpeedTestService.getHistory();
@@ -598,7 +577,7 @@ const HistoryScreen = () => {
       item={item}
       index={index}
       formatDate={formatDate}
-      speedUnit={settings.speedUnit}
+      speedUnit={settings.speedUnit as any}
       speedUnitLabel={speedUnitLabel}
     />
   );
@@ -614,23 +593,23 @@ const HistoryScreen = () => {
   });
 
   return (
-    <Animated.View style={[styles.container, { backgroundColor: t.bg, opacity: contentFade }]}>
+    <Animated.View style={[styles.container, { opacity: contentFade }]}>
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: t.separator }]}>
+      <View style={styles.header}>
         <FlashTitle text="TEST HISTORY" size="small" interval={5000} />
       </View>
       
       {/* Action buttons moved under title */}
       <View style={styles.actionButtons}>
         {history.length > 0 && (
-          <TouchableOpacity style={[styles.exportHeaderButton, { borderColor: t.accent }]} onPress={exportHistory} activeOpacity={0.7}>
+          <TouchableOpacity style={[styles.exportHeaderButton, { borderColor: t.glassBorderAccent, backgroundColor: t.glass }]} onPress={exportHistory} activeOpacity={0.7}>
             <Text style={[styles.exportHeaderButtonText, { color: t.accent }]}>Export CSV</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity
           style={[
             styles.calendarButton,
-            { borderColor: t.accent },
+            { borderColor: t.glassBorderAccent, backgroundColor: t.glass },
             calendarOpen && [styles.calendarButtonActive, { backgroundColor: t.accent, borderColor: t.accent }],
           ]}
           onPress={toggleCalendar}
@@ -648,7 +627,7 @@ const HistoryScreen = () => {
           </Text>
         </TouchableOpacity>
         {history.length > 0 && (
-          <TouchableOpacity style={styles.clearButton} onPress={clearHistory} activeOpacity={0.7}>
+          <TouchableOpacity style={[styles.clearButton, { backgroundColor: t.glass }]} onPress={clearHistory} activeOpacity={0.7}>
             <Text style={styles.clearButtonText}>Clear All</Text>
           </TouchableOpacity>
         )}
@@ -706,10 +685,10 @@ const HistoryScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: 'transparent' },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1,
+    paddingHorizontal: 20, paddingVertical: 14,
   },
 
   actionButtons: {

@@ -1,8 +1,7 @@
 import React, { useRef, useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
-import { LinearGradient } from 'expo-linear-gradient';
 import { View, Text, Animated, StyleSheet, Platform, Easing, TouchableOpacity } from 'react-native';
 import Svg, { Path, Polygon } from 'react-native-svg';
 import SpeedTestScreen from './src/screens/SpeedTestScreen';
@@ -10,6 +9,8 @@ import HistoryScreen from './src/screens/HistoryScreen';
 import GraphScreen from './src/screens/GraphScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import FlashTitle from './src/components/FlashTitle';
+import GlassSurface from './src/components/GlassSurface';
+import LiquidBackdrop from './src/components/LiquidBackdrop';
 import { COLORS, ThemeProvider, useTheme } from './src/utils/theme';
 import { AppSettingsProvider } from './src/context/AppSettingsContext';
 import { TestProvider, useTestContext } from './src/context/TestContext';
@@ -159,20 +160,17 @@ const CustomHeader = ({ title }) => {
   const { isTestRunning } = useTestContext();
 
   return (
-    <View style={[tabStyles.header, { backgroundColor: t.headerBg }]}>
-      <View style={tabStyles.headerLeft}>
-        <LightningLogo size={18} isTestRunning={isTestRunning} />
+    <GlassSurface style={tabStyles.headerShell} radius={28} variant="chrome" edgeFade="bottom" tintColor={t.accent}>
+      <View style={tabStyles.header}>
+        <View style={tabStyles.headerLeft}>
+          <LightningLogo size={18} isTestRunning={isTestRunning} />
+        </View>
+        <View style={tabStyles.headerCenter}>
+          <FlashTitle text={title.toUpperCase()} size="large" interval={5000} center glow />
+        </View>
+        <View style={tabStyles.headerRight} />
       </View>
-      <View style={tabStyles.headerCenter}>
-        <FlashTitle text={title.toUpperCase()} size="large" interval={5000} center glow />
-      </View>
-      <View style={tabStyles.headerRight} />
-      <LinearGradient
-        pointerEvents="none"
-        colors={['transparent', t.glassBorderTop]}
-        style={tabStyles.chromeFadeBottom}
-      />
-    </View>
+    </GlassSurface>
   );
 };
 
@@ -181,12 +179,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
   const { t } = useTheme();
 
   return (
-    <View style={[tabStyles.tabBarShell, { backgroundColor: t.navBar }]}>
-      <LinearGradient
-        pointerEvents="none"
-        colors={[t.glassBorderTop, 'transparent']}
-        style={tabStyles.chromeFadeTop}
-      />
+    <GlassSurface style={tabStyles.tabBarShell} radius={28} variant="chrome" edgeFade="top" tintColor={t.accent}>
       <View style={{ flexDirection: 'row', height: 50 }}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
@@ -257,7 +250,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
           );
         })}
       </View>
-    </View>
+    </GlassSurface>
   );
 };
 
@@ -265,93 +258,111 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 function AppInner() {
   const { t } = useTheme();
   const isDark = t.mode === 'dark';
+  const navTheme = {
+    ...DefaultTheme,
+    colors: {
+      ...DefaultTheme.colors,
+      background: 'transparent',
+      card: 'transparent',
+      border: 'transparent',
+      primary: t.accent,
+      text: t.textPrimary,
+      notification: t.accent,
+    },
+  };
 
   return (
-    <NavigationContainer>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-      <Tab.Navigator
-        tabBar={(props) => <CustomTabBar {...props} />}
-        screenOptions={{
-          tabBarStyle: {
-            backgroundColor: t.navBar,
-            borderTopWidth: 0,
-            height: 50,
-            paddingBottom: 2,
-            paddingTop: 2,
-            elevation: 0,
-            shadowOpacity: 0,
-          },
-          tabBarActiveTintColor: t.navActive,
-          tabBarInactiveTintColor: t.navInactive,
-          tabBarLabelStyle: {
-            fontSize: 0,
-            display: 'none',
-          },
-          headerStyle: {
-            backgroundColor: t.headerBg,
-            elevation: 0,
-            shadowOpacity: 0,
-            borderBottomWidth: 0,
-          },
-          headerTintColor: t.headerText,
-          headerTitleStyle: {
-            fontWeight: '700',
-            fontSize: 17,
-            letterSpacing: 0.5,
-            fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-          },
-        }}
-      >
-        <Tab.Screen
-          name="Speed Test"
-          component={SpeedTestScreen}
-          listeners={{ tabPress: () => SoundEngine.playNavTick() }}
-          options={{
-            tabBarLabel: 'Speed',
-            header: () => <CustomHeader title="Speed Test" />,
-            tabBarIcon: ({ color, focused }) => (
-              <TabIcon focused={focused} iconType="speed" color={color} />
-            ),
+    <View style={[appStyles.root, { backgroundColor: t.bg }]}>
+      <LiquidBackdrop />
+      <NavigationContainer theme={navTheme}>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <Tab.Navigator
+          tabBar={(props) => <CustomTabBar {...props} />}
+          screenOptions={{
+            sceneStyle: {
+              backgroundColor: 'transparent',
+            },
+            tabBarStyle: {
+              backgroundColor: 'transparent',
+              borderTopWidth: 0,
+              height: 50,
+              paddingBottom: 2,
+              paddingTop: 2,
+              elevation: 0,
+              shadowOpacity: 0,
+            },
+            tabBarActiveTintColor: t.navActive,
+            tabBarInactiveTintColor: t.navInactive,
+            tabBarLabelStyle: {
+              fontSize: 0,
+              display: 'none',
+            },
+            headerStyle: {
+              backgroundColor: 'transparent',
+              elevation: 0,
+              shadowOpacity: 0,
+              borderBottomWidth: 0,
+            },
+            headerTintColor: t.headerText,
+            headerTitleStyle: {
+              fontWeight: '700',
+              fontSize: 17,
+              letterSpacing: 0.5,
+              fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+            },
           }}
-        />
-        <Tab.Screen
-          name="History"
-          component={HistoryScreen}
-          listeners={{ tabPress: () => SoundEngine.playNavTick() }}
-          options={{
-            tabBarLabel: 'History',
-            header: () => <CustomHeader title="History" />,
-            tabBarIcon: ({ color, focused }) => (
-              <TabIcon focused={focused} iconType="history" color={color} />
-            ),
-          }}
-        />
-        <Tab.Screen
-          name="Graphs"
-          component={GraphScreen}
-          listeners={{ tabPress: () => SoundEngine.playNavTick() }}
-          options={{
-            tabBarLabel: 'Graphs',
-            header: () => <CustomHeader title="Graphs" />,
-            tabBarIcon: ({ color, focused }) => (
-              <TabIcon focused={focused} iconType="graph" color={color} />
-            ),
-          }}
-        />
-        <Tab.Screen
-          name="Settings"
-          component={SettingsScreen}
-          listeners={{ tabPress: () => SoundEngine.playNavTick() }}
-          options={{
-            tabBarLabel: 'Settings',
-            header: () => <CustomHeader title="Settings" />,
-            tabBarIcon: ({ color, focused }) => (
-              <TabIcon focused={focused} iconType="settings" color={color} />
-            ),
-          }}
-        />
-      </Tab.Navigator>
-    </NavigationContainer>
+        >
+          <Tab.Screen
+            name="Speed Test"
+            component={SpeedTestScreen}
+            listeners={{ tabPress: () => SoundEngine.playNavTick() }}
+            options={{
+              tabBarLabel: 'Speed',
+              header: () => <CustomHeader title="Speed Test" />,
+              tabBarIcon: ({ color, focused }) => (
+                <TabIcon focused={focused} iconType="speed" color={color} />
+              ),
+            }}
+          />
+          <Tab.Screen
+            name="History"
+            component={HistoryScreen}
+            listeners={{ tabPress: () => SoundEngine.playNavTick() }}
+            options={{
+              tabBarLabel: 'History',
+              header: () => <CustomHeader title="History" />,
+              tabBarIcon: ({ color, focused }) => (
+                <TabIcon focused={focused} iconType="history" color={color} />
+              ),
+            }}
+          />
+          <Tab.Screen
+            name="Graphs"
+            component={GraphScreen}
+            listeners={{ tabPress: () => SoundEngine.playNavTick() }}
+            options={{
+              tabBarLabel: 'Graphs',
+              header: () => <CustomHeader title="Graphs" />,
+              tabBarIcon: ({ color, focused }) => (
+                <TabIcon focused={focused} iconType="graph" color={color} />
+              ),
+            }}
+          />
+          <Tab.Screen
+            name="Settings"
+            component={SettingsScreen}
+            listeners={{ tabPress: () => SoundEngine.playNavTick() }}
+            options={{
+              tabBarLabel: 'Settings',
+              header: () => <CustomHeader title="Settings" />,
+              tabBarIcon: ({ color, focused }) => (
+                <TabIcon focused={focused} iconType="settings" color={color} />
+              ),
+            }}
+          />
+        </Tab.Navigator>
+      </NavigationContainer>
+    </View>
   );
 }
 
@@ -367,16 +378,25 @@ export default function App() {
   );
 }
 
+const appStyles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});
+
 const tabStyles = StyleSheet.create({
+  headerShell: {
+    marginHorizontal: 12,
+    marginTop: 8,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingBottom: 12,
-    paddingTop: 48,
-    height: 96,
-    position: 'relative',
+    paddingBottom: 10,
+    paddingTop: 42,
+    height: 88,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -391,23 +411,8 @@ const tabStyles = StyleSheet.create({
     minWidth: 80,
   },
   tabBarShell: {
-    backgroundColor: 'transparent',
-    position: 'relative',
-  },
-  chromeFadeBottom: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 16,
-  },
-  chromeFadeTop: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    height: 16,
-    zIndex: 2,
+    marginHorizontal: 12,
+    marginBottom: 10,
   },
   activeIndicator: {
     position: 'absolute',

@@ -24,7 +24,7 @@ const FlashTitle = ({
   text,
   size = 'medium',
   interval = 5000,
-  style,
+  style = undefined,
   center = false,
   glow = false,
   disableFlash = false,

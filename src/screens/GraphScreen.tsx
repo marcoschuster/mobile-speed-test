@@ -26,10 +26,11 @@ import Svg, {
 import SpeedTestService from '../services/SpeedTestService';
 import SoundEngine from '../services/SoundEngine';
 import FlashTitle from '../components/FlashTitle';
+import GlassSurface from '../components/GlassSurface';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { summarizeHistory, type HistoryItem } from '../utils/history';
 import { convertSpeedFromMbps, formatBytes, formatSpeedValue, getSpeedUnitLabel } from '../utils/measurements';
-import { COLORS, RADIUS, SHADOWS, useTheme } from '../utils/theme';
+import { COLORS, RADIUS, useTheme } from '../utils/theme';
 
 // ── Type Definitions ─────────────────────────────────────────────────────────
 interface Point {
@@ -62,7 +63,7 @@ interface InteractiveChartProps {
 
 interface TrendSummaryProps {
   history: HistoryItem[];
-  speedUnit: string;
+  speedUnit: any;
   speedUnitLabel: string;
 }
 
@@ -224,7 +225,7 @@ const InteractiveChart = ({
   const HIT_SIZE = 36;
 
   return (
-    <View style={[cStyles.chartCard, { backgroundColor: t.surface }]}>
+    <GlassSurface style={cStyles.chartCard} radius={RADIUS.lg} tintColor={t.accent}>
       <View style={[cStyles.gradientTint, { backgroundColor: chartTintBg }]} />
       <View style={cStyles.chartTitleWrap}>
         <FlashTitle text={title.toUpperCase()} size="small" interval={5000} center disableFlash />
@@ -455,7 +456,7 @@ const InteractiveChart = ({
           )}
         </View>
       </ScrollView>
-    </View>
+    </GlassSurface>
   );
 };
 
@@ -478,20 +479,22 @@ const TrendSummary = ({ history, speedUnit, speedUnitLabel }: TrendSummaryProps)
 
   if (!summary.totalTests) return null;
 
-  const trendLabel = summary.recentTrend === 'up'
+  const firstSample = history[0]?.download ?? 0;
+  const lastSample = history[history.length - 1]?.download ?? 0;
+  const trendLabel = lastSample > firstSample * 1.08
     ? 'Improving'
-    : summary.recentTrend === 'down'
+    : lastSample < firstSample * 0.92
       ? 'Slower lately'
       : 'Stable';
 
   const cards = [
     {
       label: 'Avg Download',
-      value: `${formatSpeedValue(summary.averageDownload, speedUnit, 1)} ${speedUnitLabel}`,
+      value: `${formatSpeedValue(summary.avgDownload, speedUnit as any, 1)} ${speedUnitLabel}`,
     },
     {
       label: 'Avg Ping',
-      value: `${Math.round(summary.averagePing)} ms`,
+      value: `${Math.round(summary.avgPing)} ms`,
     },
     {
       label: 'Trend',
@@ -506,10 +509,10 @@ const TrendSummary = ({ history, speedUnit, speedUnitLabel }: TrendSummaryProps)
   return (
     <View style={[styles.summaryGrid, { overflow: 'visible' }]}>
       {cards.map((card) => (
-        <View key={card.label} style={[styles.summaryCard, { backgroundColor: t.surface, ...SHADOWS.clayCard, overflow: 'visible' }]}>
+        <GlassSurface key={card.label} style={styles.summaryCard} radius={RADIUS.lg} tintColor={t.accent}>
           <Text style={[styles.summaryLabel, { color: t.textMuted }]}>{card.label}</Text>
           <Text style={[styles.summaryValue, { color: t.textPrimary }]}>{card.value}</Text>
-        </View>
+        </GlassSurface>
       ))}
     </View>
   );
@@ -524,7 +527,7 @@ const GraphScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [timeFilter, setTimeFilter] = useState('month');
   const contentFade = useRef(new Animated.Value(0)).current;
-  const speedUnitLabel = getSpeedUnitLabel(settings.speedUnit);
+  const speedUnitLabel = getSpeedUnitLabel(settings.speedUnit as any);
 
   const loadSpeedHistory = useCallback(async () => {
     const history = await SpeedTestService.getHistory();
@@ -645,14 +648,14 @@ const GraphScreen = () => {
   };
 
   return (
-    <Animated.View style={[styles.container, { backgroundColor: t.bg, opacity: contentFade }]}>
+    <Animated.View style={[styles.container, { opacity: contentFade }]}>
       <View style={[styles.filterRow, { borderBottomColor: t.separator }]}>
         {TIME_FILTERS.map((f) => (
           <TouchableOpacity
             key={f.key}
             style={[
               styles.filterButton,
-              { borderColor: t.accent },
+              { borderColor: t.glassBorderAccent, backgroundColor: t.glass },
               timeFilter === f.key && [styles.filterButtonActive, { backgroundColor: t.accent, borderColor: t.accent }],
             ]}
             onPress={() => setTimeFilter(f.key)}
@@ -684,7 +687,7 @@ const GraphScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: 'transparent' },
   filterRow: {
     flexDirection: 'row', justifyContent: 'center',
     paddingVertical: 14, paddingHorizontal: 16, gap: 10, borderBottomWidth: 1,

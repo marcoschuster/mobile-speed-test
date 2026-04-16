@@ -168,18 +168,18 @@ const Speedometer = ({
       : speed;
 
   // Map old bezel tokens to new theme keys
-  const dialOuter = t.mode === 'dark' ? '#111111' : '#D0D0D0';
-  const bezelTop = t.mode === 'dark' ? '#444444' : '#E8E8E8';
-  const bezelMid = t.mode === 'dark' ? '#222222' : '#D0D0D0';
-  const bezelBottom = t.mode === 'dark' ? '#111111' : '#B8B8B8';
-  const bezelShine = t.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.6)';
-  const dialInnerRing = t.mode === 'dark' ? '#181818' : '#C8C8C8';
-  const dialRim = t.mode === 'dark' ? '#222222' : '#E0E0E0';
-  const dialFaceCenter = t.mode === 'dark' ? '#2A2A2A' : '#FAFAFA';
-  const dialFaceEdge = t.mode === 'dark' ? '#1A1A1A' : '#F0F0F0';
-  const trackArc = t.mode === 'dark' ? '#333333' : '#D8D8D8';
-  const hubInner = t.mode === 'dark' ? '#1A1A1A' : '#FFFFFF';
-  const unitLabel = t.mode === 'dark' ? '#777777' : '#888888';
+  const dialOuter = t.mode === 'dark' ? 'rgba(5, 12, 20, 0.82)' : 'rgba(255, 255, 255, 0.82)';
+  const bezelTop = t.glassBorderTop;
+  const bezelMid = t.glassBorder;
+  const bezelBottom = t.glassStrong;
+  const bezelShine = t.glassHighlight;
+  const dialInnerRing = t.glassStrong;
+  const dialRim = t.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.78)';
+  const dialFaceCenter = t.surfaceElevated;
+  const dialFaceEdge = t.glass;
+  const trackArc = t.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(113,135,162,0.18)';
+  const hubInner = t.mode === 'dark' ? '#04111C' : '#FFFFFF';
+  const unitLabel = t.textMuted;
   const resolvedNeedleColor = needleColor || t.accent;
 
   return (
@@ -194,20 +194,20 @@ const Speedometer = ({
           <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
             <Defs>
               <RadialGradient id="startBg" cx="50%" cy="50%" r="50%">
-                <Stop offset="0%" stopColor={t.mode === 'dark' ? '#2A2A2A' : '#FAFAFA'} />
-                <Stop offset="100%" stopColor={t.mode === 'dark' ? '#1A1A1A' : '#F0F0F0'} />
+                <Stop offset="0%" stopColor={dialFaceCenter} />
+                <Stop offset="100%" stopColor={dialFaceEdge} />
               </RadialGradient>
               <LinearGradient id="bezelGrad" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0%" stopColor={t.mode === 'dark' ? '#444444' : '#E8E8E8'} />
-                <Stop offset="50%" stopColor={t.mode === 'dark' ? '#222222' : '#D0D0D0'} />
-                <Stop offset="100%" stopColor={t.mode === 'dark' ? '#111111' : '#B8B8B8'} />
+                <Stop offset="0%" stopColor={bezelTop} />
+                <Stop offset="50%" stopColor={bezelMid} />
+                <Stop offset="100%" stopColor={bezelBottom} />
               </LinearGradient>
             </Defs>
 
             {/* Outer bezel */}
-            <Circle cx={CX} cy={CY} r={R + 12} fill={t.mode === 'dark' ? '#111111' : '#D0D0D0'} />
+            <Circle cx={CX} cy={CY} r={R + 12} fill={dialOuter} />
             <Circle cx={CX} cy={CY} r={R + 10} fill="url(#bezelGrad)" />
-            <Circle cx={CX} cy={CY} r={R + 6} fill={t.mode === 'dark' ? '#181818' : '#C8C8C8'} />
+            <Circle cx={CX} cy={CY} r={R + 6} fill={dialInnerRing} />
 
             {/* Inner circle background */}
             <Circle cx={CX} cy={CY} r={R} fill="url(#startBg)" />

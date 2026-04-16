@@ -7,6 +7,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Speedometer from '../components/Speedometer';
 import StatCard from '../components/StatCard';
 import FlashTitle from '../components/FlashTitle';
+import GlassSurface from '../components/GlassSurface';
 import SpeedTestService from '../services/SpeedTestService';
 import SoundEngine from '../services/SoundEngine';
 import { COLORS, RADIUS, SHADOWS, useTheme } from '../utils/theme';
@@ -83,12 +84,12 @@ const InsightCard = ({ title, value, subtitle }: InsightCardProps) => {
   const { t } = useTheme();
 
   return (
-    <View style={[styles.insightCard, { backgroundColor: t.surface }]}>
+    <GlassSurface style={styles.insightCard} radius={RADIUS.lg} tintColor={t.accent}>
       <View style={[styles.insightTint, { backgroundColor: t.accentTintSoft }]} />
       <Text style={[styles.insightTitle, { color: t.textMuted }]}>{title}</Text>
       <Text style={[styles.insightValue, { color: t.textPrimary }]}>{value}</Text>
       <Text style={[styles.insightSubtitle, { color: t.textSecondary }]}>{subtitle}</Text>
-    </View>
+    </GlassSurface>
   );
 };
 
@@ -275,7 +276,7 @@ const SpeedTestScreen = () => {
           </View>
         </View>
         {showIntervalOptions && (
-          <View style={[styles.intervalBox, { backgroundColor: t.surface }]}>
+          <GlassSurface style={styles.intervalBox} radius={RADIUS.lg} tintColor={t.accent}>
             <View style={styles.intervalTitleWrap}>
               <Text style={[styles.intervalTitle, { color: t.textPrimary }]}>SELECT INTERVAL</Text>
             </View>
@@ -289,7 +290,7 @@ const SpeedTestScreen = () => {
                 </TouchableOpacity>
               ))}
             </View>
-          </View>
+          </GlassSurface>
         )}
         {progressText && <Text style={[styles.progressText, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>{progressText}</Text>}
         <View style={styles.statsGrid}>
@@ -305,14 +306,14 @@ const SpeedTestScreen = () => {
 
         <View style={styles.bottomButtonsRow}>
           <TouchableOpacity
-            style={[styles.bottomButton, { borderColor: t.accent }]}
+            style={[styles.bottomButton, { borderColor: t.glassBorderAccent, backgroundColor: t.glass }]}
             onPress={toggleBackgroundMode}
             activeOpacity={0.7}
           >
             <Text style={[styles.bottomButtonText, { color: t.accent }]}>Auto</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.bottomButton, { borderColor: t.accent }]}
+            style={[styles.bottomButton, { borderColor: t.glassBorderAccent, backgroundColor: t.glass }]}
             onPress={() => {}}
             activeOpacity={0.7}
           >
@@ -328,7 +329,7 @@ const SpeedTestScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: 'transparent' },
   content: { padding: 20, alignItems: 'center', paddingBottom: 40, zIndex: 2 },
   speedoWrap: { marginTop: 0, marginBottom: 4, alignItems: 'center' },
   progressText: { fontSize: 12, fontStyle: 'italic', marginBottom: 8, letterSpacing: 0.5, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
@@ -387,7 +388,7 @@ const styles = StyleSheet.create({
   },
   intervalBtnTextActive: { color: COLORS.black },
   insightsWrap: { width: '100%', marginTop: 20, gap: 12 },
-  insightCard: { borderRadius: RADIUS.lg, padding: 16, overflow: 'visible', ...SHADOWS.clayCard },
+  insightCard: { borderRadius: RADIUS.lg, padding: 16, overflow: 'visible' },
   insightTint: { ...StyleSheet.absoluteFillObject },
   insightTitle: { fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2, fontWeight: '700', marginBottom: 6 },
   insightValue: { fontSize: 21, fontWeight: '800', marginBottom: 6 },

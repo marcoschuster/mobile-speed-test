@@ -2,6 +2,7 @@ import React, { useEffect, useRef, ReactNode } from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions, Platform, ViewStyle } from 'react-native';
 import Svg, { Path, Circle as SvgCircle } from 'react-native-svg';
 import { COLORS, RADIUS, SHADOWS, useTheme } from '../utils/theme';
+import GlassSurface from './GlassSurface';
 
 // ── Type Definitions ─────────────────────────────────────────────────────────
 interface ClaymorphismViewProps {
@@ -231,41 +232,39 @@ export const StatCard = ({ label, value, unit = 'Mbps', activePhase, footerText 
         style={[
           styles.card,
           {
-            backgroundColor: t.surface,
-            ...SHADOWS.clayCard,
             overflow: 'visible',
           },
         ]}
       >
-        {/* Speed lines — only when actively being tested */}
-        {isActive && (
-          <View style={styles.speedLinesClip}>
-            {[0, 1, 2].map(i => <CardSpeedLine key={i} index={i} color={accentColor} />)}
-          </View>
-        )}
-
-        <View style={styles.cardContent}>
-          <View style={styles.labelRow}>
-            {getIcon()}
-            <Text style={[styles.label, { color: t.textSecondary, fontFamily: FONT_FAMILY, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>{label}</Text>
-          </View>
-
-          {isActive ? (
-            /* Loading state — spinning icon instead of value */
-            <View style={styles.loaderWrap}>
-              <SpinningLoader size={24} color={accentColor} />
+        <GlassSurface variant={isActive ? 'strong' : 'panel'} radius={24} tintColor={accentColor} style={styles.cardGlass}>
+          {/* Speed lines — only when actively being tested */}
+          {isActive && (
+            <View style={styles.speedLinesClip}>
+              {[0, 1, 2].map(i => <CardSpeedLine key={i} index={i} color={accentColor} />)}
             </View>
-          ) : (
-            /* Result state — show the value */
-            <Animated.Text style={[styles.value, { color: t.textPrimary, fontFamily: FONT_FAMILY, transform: [{ scale: animatedValue }] }]}>
-              {typeof value === 'number' ? value.toFixed(2) : value}
-              <Text style={[styles.valueUnit, { color: t.textSecondary, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}> {unit}</Text>
-            </Animated.Text>
           )}
-          <Text style={[styles.peak, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>
-            {footerText || (label === 'Ping' ? 'Best' : 'Peak')}
-          </Text>
-        </View>
+
+          <View style={styles.cardContent}>
+            <View style={styles.labelRow}>
+              {getIcon()}
+              <Text style={[styles.label, { color: t.textSecondary, fontFamily: FONT_FAMILY, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>{label}</Text>
+            </View>
+
+            {isActive ? (
+              <View style={styles.loaderWrap}>
+                <SpinningLoader size={24} color={accentColor} />
+              </View>
+            ) : (
+              <Animated.Text style={[styles.value, { color: t.textPrimary, fontFamily: FONT_FAMILY, transform: [{ scale: animatedValue }] }]}>
+                {typeof value === 'number' ? value.toFixed(2) : value}
+                <Text style={[styles.valueUnit, { color: t.textSecondary, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}> {unit}</Text>
+              </Animated.Text>
+            )}
+            <Text style={[styles.peak, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>
+              {footerText || (label === 'Ping' ? 'Best' : 'Peak')}
+            </Text>
+          </View>
+        </GlassSurface>
       </Animated.View>
     </Animated.View>
   );
@@ -282,6 +281,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   card: {
+    flex: 1,
+    borderRadius: 24,
+  },
+  cardGlass: {
     flex: 1,
     borderRadius: 24,
   },
