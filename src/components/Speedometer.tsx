@@ -149,15 +149,6 @@ const Speedometer = ({
   const currentAngle = speedToAngle(Math.min(speed, maxValue));
   const coloredArcPath = speed > 0.3 ? describeArc(MIN_DEG, currentAngle, R) : '';
 
-  // Create closed arc path for fill (pie slice)
-  const s = polarToXY(MIN_DEG, R);
-  const e = polarToXY(currentAngle, R);
-  const diff = MIN_DEG - currentAngle;
-  const largeArc = diff > 180 ? 1 : 0;
-  const coloredArcFillPath = speed > 0.3
-    ? `M ${CX} ${CY} L ${s.x} ${s.y} A ${R} ${R} 0 ${largeArc} 1 ${e.x} ${e.y} Z`
-    : '';
-
   const needleRotation = needleAnim.interpolate({
     inputRange: [MIN_DEG - SWEEP, MIN_DEG],
     outputRange: ['135deg', '-135deg'],
@@ -233,8 +224,7 @@ const Speedometer = ({
               {/* Active colored arc with glow */}
               {speed > 0.3 && (
                 <>
-                  <Path d={coloredArcFillPath} fill={t.accent || '#FACC15'} fillOpacity="1" stroke="none" />
-                  <Path d={coloredArcPath} fill="none" stroke={t.accentGlow || t.accent || '#FACC15'} strokeWidth="14" strokeLinecap="round" />
+                  <Path d={coloredArcPath} fill={t.accent || '#FACC15'} fillOpacity="1" stroke={t.accentGlow || t.accent || '#FACC15'} strokeWidth="14" strokeLinecap="round" />
                   <Path d={coloredArcPath} fill="none" stroke="url(#arcGlow)" strokeWidth="6" strokeLinecap="round" />
                 </>
               )}
