@@ -169,8 +169,8 @@ const Speedometer = ({
   const bezelShine = t.glassHighlight;
   const dialInnerRing = t.glassStrong;
   const dialRim = t.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.78)';
-  const dialFaceCenter = t.surfaceElevated || (t.mode === 'dark' ? '#1a1f2e' : '#f8fafc');
-  const dialFaceEdge = t.glass || (t.mode === 'dark' ? '#0f1419' : '#e2e8f0');
+  const dialFaceCenter = t.surfaceElevated || (t.mode === 'dark' ? '#1e293b' : '#f1f5f9');
+  const dialFaceEdge = t.glass || (t.mode === 'dark' ? '#0f172a' : '#cbd5e1');
   const trackArc = t.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(113,135,162,0.18)';
   const hubInner = t.mode === 'dark' ? '#04111C' : '#FFFFFF';
   const unitLabel = t.textMuted;

@@ -658,6 +658,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingHorizontal: 20,
     paddingVertical: 8,
+    alignSelf: 'center',
   },
   stopButtonText: {
     fontSize: 16,
