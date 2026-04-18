@@ -2,7 +2,7 @@ import React, { useEffect, useRef, ReactNode } from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions, Platform, ViewStyle } from 'react-native';
 import Svg, { Path, Circle as SvgCircle } from 'react-native-svg';
 import { COLORS, RADIUS, SHADOWS, useTheme } from '../utils/theme';
-import GlassSurface from './GlassSurface';
+import LiquidGlass from './LiquidGlass';
 
 // ── Type Definitions ─────────────────────────────────────────────────────────
 interface ClaymorphismViewProps {
@@ -196,14 +196,14 @@ export const StatCard = ({ label, value, unit = 'Mbps', activePhase, footerText 
 
   const getIcon = () => {
     switch (label) {
-      case 'Download': return <DownloadIcon color={COLORS.accent} />;
+      case 'Download': return <DownloadIcon color={t.accent} />;
       case 'Upload':   return <UploadIcon color={t.uploadLine} />;
-      case 'Ping':     return <PingIcon />;
+      case 'Ping':     return <PingIcon color={t.success} />;
       default:         return null;
     }
   };
 
-  const accentColor = label === 'Ping' ? COLORS.success : (label === 'Upload' ? t.uploadLine : COLORS.accent);
+  const accentColor = label === 'Ping' ? t.success : (label === 'Upload' ? t.uploadLine : t.accent);
   const uniformTint = t.accentTintCard;
 
   // Animated shadow for the pulsing glow
@@ -236,7 +236,7 @@ export const StatCard = ({ label, value, unit = 'Mbps', activePhase, footerText 
           },
         ]}
       >
-        <GlassSurface variant={isActive ? 'strong' : 'panel'} radius={24} tintColor={accentColor} style={styles.cardGlass}>
+        <LiquidGlass borderRadius={24} style={styles.cardGlass} contentStyle={styles.cardGlassContent}>
           {/* Speed lines — only when actively being tested */}
           {isActive && (
             <View style={styles.speedLinesClip}>
@@ -264,7 +264,7 @@ export const StatCard = ({ label, value, unit = 'Mbps', activePhase, footerText 
               {footerText || (label === 'Ping' ? 'Best' : 'Peak')}
             </Text>
           </View>
-        </GlassSurface>
+        </LiquidGlass>
       </Animated.View>
     </Animated.View>
   );
@@ -287,6 +287,10 @@ const styles = StyleSheet.create({
   cardGlass: {
     flex: 1,
     borderRadius: 24,
+  },
+  cardGlassContent: {
+    flex: 1,
+    padding: 0,
   },
   cardInner: {
     flex: 1,

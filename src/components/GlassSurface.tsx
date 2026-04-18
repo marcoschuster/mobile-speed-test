@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import { RADIUS, useTheme, withAlpha } from '../utils/theme';
 
 type GlassVariant = 'panel' | 'strong' | 'button' | 'chrome';
@@ -72,7 +72,11 @@ const GlassSurface = ({
   const { t } = useTheme();
   const flattened = StyleSheet.flatten(style) || {};
   const borderRadius = radius ?? flattened.borderRadius ?? RADIUS.lg;
-  const tintStrength = variant === 'button' ? 0.16 : 0.1;
+  const primaryTone = withAlpha(tintColor || t.accentLight || t.accent, t.mode === 'dark' ? 0.22 : 0.14);
+  const secondaryTone = withAlpha(t.uploadLine || t.accent, t.mode === 'dark' ? 0.16 : 0.1);
+  const washTone = withAlpha('#FFFFFF', t.mode === 'dark' ? 0.04 : 0.08);
+  const primaryId = `glass-surface-primary-${borderRadius}-${tintColor || t.accent}`;
+  const secondaryId = `glass-surface-secondary-${borderRadius}-${t.uploadLine}`;
 
   return (
     <View
@@ -89,78 +93,31 @@ const GlassSurface = ({
         },
       ]}
     >
-      <LinearGradient
-        pointerEvents="none"
-        colors={[t.glassHighlight, 'transparent', t.glassGlow]}
-        start={{ x: 0.05, y: 0 }}
-        end={{ x: 0.95, y: 1 }}
-        style={StyleSheet.absoluteFillObject}
-      />
-      <LinearGradient
-        pointerEvents="none"
-        colors={[t.glassSoft, 'transparent']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFillObject}
-      />
-      {tintColor ? (
-        <LinearGradient
-          pointerEvents="none"
-          colors={[withAlpha(tintColor, tintStrength), 'transparent']}
-          start={{ x: 0.1, y: 0 }}
-          end={{ x: 0.9, y: 1 }}
-          style={StyleSheet.absoluteFillObject}
-        />
-      ) : null}
-      <View
-        pointerEvents="none"
-        style={[
-          styles.topRim,
-          {
-            borderTopLeftRadius: borderRadius,
-            borderTopRightRadius: borderRadius,
-            backgroundColor: t.glassBorderTop,
-          },
-        ]}
-      />
-      {(edgeFade === 'top' || edgeFade === 'both') ? (
-        <LinearGradient
-          pointerEvents="none"
-          colors={[t.chromeFadeEdge, 'transparent']}
-          style={[styles.edgeFade, styles.edgeFadeTop]}
-        />
-      ) : null}
-      {(edgeFade === 'bottom' || edgeFade === 'both') ? (
-        <LinearGradient
-          pointerEvents="none"
-          colors={['transparent', t.chromeFadeEdge]}
-          style={[styles.edgeFade, styles.edgeFadeBottom]}
-        />
-      ) : null}
+      <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
+        <Svg width="100%" height="100%" style={StyleSheet.absoluteFillObject}>
+          <Defs>
+            <RadialGradient id={primaryId} cx="50%" cy="50%" r="50%">
+              <Stop offset="0%" stopColor={primaryTone} stopOpacity="1" />
+              <Stop offset="100%" stopColor={primaryTone} stopOpacity="0" />
+            </RadialGradient>
+            <RadialGradient id={secondaryId} cx="50%" cy="50%" r="50%">
+              <Stop offset="0%" stopColor={secondaryTone} stopOpacity="1" />
+              <Stop offset="100%" stopColor={secondaryTone} stopOpacity="0" />
+            </RadialGradient>
+          </Defs>
+          <Circle cx="28%" cy="30%" r="44%" fill={`url(#${primaryId})`} />
+          <Circle cx="78%" cy="70%" r="34%" fill={`url(#${secondaryId})`} />
+        </Svg>
+        <View style={[styles.surfaceWash, { backgroundColor: washTone }]} />
+      </View>
       {children}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  topRim: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-  },
-  edgeFade: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 16,
-  },
-  edgeFadeTop: {
-    top: 0,
-  },
-  edgeFadeBottom: {
-    bottom: 0,
+  surfaceWash: {
+    ...StyleSheet.absoluteFillObject,
   },
 });
 

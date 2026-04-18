@@ -18,7 +18,7 @@ import SpeedTestService from '../services/SpeedTestService';
 import SoundEngine from '../services/SoundEngine';
 import FlashTitle from '../components/FlashTitle';
 import ColorPickerWheel from '../components/ColorPickerWheel';
-import GlassSurface from '../components/GlassSurface';
+import LiquidGlass from '../components/LiquidGlass';
 import { COLORS, RADIUS, useTheme, COLOR_THEMES } from '../utils/theme';
 
 // LayoutAnimation is now enabled by default on Android
@@ -190,7 +190,9 @@ const dropS = StyleSheet.create({
 const SettingsRow = ({ label, children, isLast }: SettingsRowProps) => {
   const { t } = useTheme();
   return (
-    <View style={[rowS.container, !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.separator }]}>
+    <View style={[rowS.container, !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.separator }, { position: 'relative', overflow: 'hidden' }]}>
+      <View style={[{ position: 'absolute', top: -10, right: -10, width: 80, height: 80, borderRadius: 999, opacity: 0.1, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 40, elevation: 0 }, { backgroundColor: t.accent }]} />
+      <View style={[{ position: 'absolute', bottom: -8, left: -8, width: 64, height: 64, borderRadius: 999, opacity: 0.08, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 35, elevation: 0 }, { backgroundColor: t.uploadLine || t.accent }]} />
       <Text style={[rowS.label, { color: t.textPrimary, fontFamily: FONT_FAMILY }]}>{label}</Text>
       <View style={rowS.right}>{children}</View>
     </View>
@@ -206,8 +208,6 @@ const rowS = StyleSheet.create({
 // ── Main Settings Screen ────────────────────────────────────────────────────
 const SettingsScreen = () => {
   const { t, themeChoice, setThemeChoice, colorThemeId, setColorThemeId } = useTheme();
-  const isDark = t.mode === 'dark';
-  const cardTint = isDark ? 'rgba(245, 196, 0, 0.03)' : 'rgba(245, 196, 0, 0.015)';
 
   const [autoBackground, setAutoBackground] = useState(false);
   const [testInterval, setTestInterval] = useState('1h');
@@ -264,8 +264,7 @@ const SettingsScreen = () => {
     >
       {/* APPEARANCE */}
       <FlashTitle text="APPEARANCE" size="small" interval={5000} center style={styles.sectionHeader} />
-      <GlassSurface style={styles.sectionCard} radius={RADIUS.lg} tintColor={t.accent}>
-        <View style={[styles.gradientTint, { backgroundColor: cardTint }]} />
+      <LiquidGlass style={styles.sectionCard} borderRadius={RADIUS.lg} contentStyle={styles.sectionCardContent}>
         <SettingsRow label="Theme">
           <View style={{ width: 200 }}>
             <SegmentedControl
@@ -280,23 +279,24 @@ const SettingsScreen = () => {
           </View>
         </SettingsRow>
         <SettingsRow label="Accent Color" isLast>
-          <TouchableOpacity
+          <LiquidGlass
             style={styles.accentSwatch}
             onPress={() => setColorPickerVisible(true)}
-            activeOpacity={0.8}
+            borderRadius={999}
+            blurIntensity={24}
+            contentStyle={styles.accentSwatchContent}
           >
             <View style={[styles.accentDot, { backgroundColor: t.accent, borderColor: t.accentDark }]} />
             <Text style={[styles.accentLabel, { color: t.textSecondary, fontFamily: FONT_FAMILY, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>
               {COLOR_THEMES.find(ct => ct.id === colorThemeId)?.name || 'Gold'}
             </Text>
-          </TouchableOpacity>
+          </LiquidGlass>
         </SettingsRow>
-      </GlassSurface>
+      </LiquidGlass>
 
       {/* TESTING */}
       <FlashTitle text="TESTING" size="small" interval={5500} center style={styles.sectionHeader} />
-      <GlassSurface style={styles.sectionCard} radius={RADIUS.lg} tintColor={t.accent}>
-        <View style={[styles.gradientTint, { backgroundColor: cardTint }]} />
+      <LiquidGlass style={styles.sectionCard} borderRadius={RADIUS.lg} contentStyle={styles.sectionCardContent}>
         <SettingsRow label="Auto Background Test">
           <Switch
             value={autoBackground} onValueChange={() => handleToggle(autoBackground, setAutoBackground)}
@@ -327,12 +327,11 @@ const SettingsScreen = () => {
             </TouchableOpacity>
           </View>
         </SettingsRow>
-      </GlassSurface>
+      </LiquidGlass>
 
       {/* UNITS & DISPLAY */}
       <FlashTitle text="UNITS & DISPLAY" size="small" interval={6000} center style={styles.sectionHeader} />
-      <GlassSurface style={styles.sectionCard} radius={RADIUS.lg} tintColor={t.accent}>
-        <View style={[styles.gradientTint, { backgroundColor: cardTint }]} />
+      <LiquidGlass style={styles.sectionCard} borderRadius={RADIUS.lg} contentStyle={styles.sectionCardContent}>
         <SettingsRow label="Speed Unit">
           <View style={{ width: 200 }}>
             <SegmentedControl
@@ -353,12 +352,11 @@ const SettingsScreen = () => {
             ios_backgroundColor={t.switchTrackOff}
           />
         </SettingsRow>
-      </GlassSurface>
+      </LiquidGlass>
 
       {/* NOTIFICATIONS */}
       <FlashTitle text="NOTIFICATIONS" size="small" interval={6500} center style={styles.sectionHeader} />
-      <GlassSurface style={styles.sectionCard} radius={RADIUS.lg} tintColor={t.accent}>
-        <View style={[styles.gradientTint, { backgroundColor: cardTint }]} />
+      <LiquidGlass style={styles.sectionCard} borderRadius={RADIUS.lg} contentStyle={styles.sectionCardContent}>
         <SettingsRow label="Notify on test complete">
           <Switch
             value={notifyComplete} onValueChange={() => handleToggle(notifyComplete, setNotifyComplete)}
@@ -378,12 +376,11 @@ const SettingsScreen = () => {
             <Text style={[styles.thresholdUnit, { color: t.textSecondary, fontFamily: FONT_FAMILY, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Mbps</Text>
           </View>
         </SettingsRow>
-      </GlassSurface>
+      </LiquidGlass>
 
       {/* SOUND & HAPTICS */}
       <FlashTitle text="SOUND & HAPTICS" size="small" interval={6800} center style={styles.sectionHeader} />
-      <GlassSurface style={styles.sectionCard} radius={RADIUS.lg} tintColor={t.accent}>
-        <View style={[styles.gradientTint, { backgroundColor: cardTint }]} />
+      <LiquidGlass style={styles.sectionCard} borderRadius={RADIUS.lg} contentStyle={styles.sectionCardContent}>
         <SettingsRow label="Sound Effects">
           <Switch
             value={!sfxMuted} onValueChange={() => {
@@ -424,21 +421,32 @@ const SettingsScreen = () => {
             ios_backgroundColor={t.switchTrackOff}
           />
         </SettingsRow>
-      </GlassSurface>
+      </LiquidGlass>
 
       {/* DATA */}
       <FlashTitle text="DATA" size="small" interval={7000} center style={styles.sectionHeader} />
-      <GlassSurface style={styles.sectionCard} radius={RADIUS.lg} tintColor={t.accent}>
-        <View style={[styles.gradientTint, { backgroundColor: cardTint }]} />
+      <LiquidGlass style={styles.sectionCard} borderRadius={RADIUS.lg} contentStyle={styles.sectionCardContent}>
         <View style={styles.dataButtons}>
-          <TouchableOpacity style={[styles.destructiveButton, { backgroundColor: t.glass }]} onPress={handleClearHistory} activeOpacity={0.7}>
+          <LiquidGlass
+            style={[styles.destructiveButton, { backgroundColor: t.glass }]}
+            onPress={handleClearHistory}
+            borderRadius={RADIUS.pill}
+            blurIntensity={24}
+            contentStyle={styles.dataButtonContent}
+          >
             <Text style={[styles.destructiveButtonText, { fontFamily: FONT_FAMILY }]}>Clear Test History</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.exportButton, { borderColor: t.glassBorderAccent, backgroundColor: t.glass }]} onPress={handleExport} activeOpacity={0.7}>
+          </LiquidGlass>
+          <LiquidGlass
+            style={[styles.exportButton, { borderColor: t.glassBorderAccent, backgroundColor: t.glass }]}
+            onPress={handleExport}
+            borderRadius={RADIUS.pill}
+            blurIntensity={24}
+            contentStyle={styles.dataButtonContent}
+          >
             <Text style={[styles.exportButtonText, { fontFamily: FONT_FAMILY, color: t.accent }]}>Export History as CSV</Text>
-          </TouchableOpacity>
+          </LiquidGlass>
         </View>
-      </GlassSurface>
+      </LiquidGlass>
 
       <Text style={[styles.versionText, { color: t.textMuted, fontFamily: FONT_FAMILY, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Flash v1.1.0</Text>
 
@@ -458,9 +466,10 @@ const styles = StyleSheet.create({
 
   sectionHeader: { marginTop: 28, marginBottom: 10 },
   sectionCard: { borderRadius: RADIUS.lg, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.14, shadowRadius: 10, elevation: 5 },
-  gradientTint: { ...StyleSheet.absoluteFillObject, borderRadius: RADIUS.lg },
+  sectionCardContent: { padding: 0 },
 
-  accentSwatch: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  accentSwatch: { minWidth: 144 },
+  accentSwatchContent: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: 12 },
   accentDot: { width: 20, height: 20, borderRadius: 10, borderWidth: 2 },
   accentLabel: { fontSize: 13, fontWeight: '600' },
 
@@ -479,9 +488,10 @@ const styles = StyleSheet.create({
   thresholdUnit: { fontSize: 13, fontWeight: '600' },
 
   dataButtons: { padding: 16, gap: 12 },
-  destructiveButton: { paddingVertical: 13, borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.danger, backgroundColor: 'transparent', alignItems: 'center' },
+  dataButtonContent: { paddingVertical: 13, alignItems: 'center', justifyContent: 'center' },
+  destructiveButton: { borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.danger, backgroundColor: 'transparent', alignItems: 'center' },
   destructiveButtonText: { color: COLORS.danger, fontSize: 14, fontWeight: '700' },
-  exportButton: { paddingVertical: 13, borderRadius: RADIUS.pill, borderWidth: 1.5, backgroundColor: 'transparent', alignItems: 'center' },
+  exportButton: { borderRadius: RADIUS.pill, borderWidth: 1.5, backgroundColor: 'transparent', alignItems: 'center' },
   exportButtonText: {
     fontSize: 14,
     fontWeight: '700',

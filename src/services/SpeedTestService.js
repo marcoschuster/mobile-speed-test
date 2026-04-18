@@ -55,6 +55,15 @@ class SpeedTestService {
     }
   }
 
+  async clearPeaks() {
+    this.peaks = { download: 0, upload: 0, ping: 0 };
+    try {
+      await AsyncStorage.removeItem('speedTestPeaks');
+    } catch (e) {
+      console.error('Error clearing peaks:', e);
+    }
+  }
+
   // ── History (AsyncStorage) ────────────────────────────────────────────────
 
   async saveTestResult(testResult) {

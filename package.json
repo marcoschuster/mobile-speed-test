@@ -17,6 +17,7 @@
     "@react-navigation/native": "^6.1.7",
     "expo": "~55.0.15",
     "expo-av": "^16.0.8",
+    "expo-blur": "~55.0.14",
     "expo-haptics": "~55.0.14",
     "expo-linear-gradient": "~55.0.13",
     "expo-status-bar": "~55.0.5",

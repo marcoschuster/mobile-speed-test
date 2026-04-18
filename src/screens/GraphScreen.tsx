@@ -26,11 +26,11 @@ import Svg, {
 import SpeedTestService from '../services/SpeedTestService';
 import SoundEngine from '../services/SoundEngine';
 import FlashTitle from '../components/FlashTitle';
-import GlassSurface from '../components/GlassSurface';
+import LiquidGlass from '../components/LiquidGlass';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { summarizeHistory, type HistoryItem } from '../utils/history';
 import { convertSpeedFromMbps, formatBytes, formatSpeedValue, getSpeedUnitLabel } from '../utils/measurements';
-import { COLORS, RADIUS, useTheme } from '../utils/theme';
+import { RADIUS, useTheme, withAlpha } from '../utils/theme';
 
 // ── Type Definitions ─────────────────────────────────────────────────────────
 interface Point {
@@ -225,7 +225,7 @@ const InteractiveChart = ({
   const HIT_SIZE = 36;
 
   return (
-    <GlassSurface style={cStyles.chartCard} radius={RADIUS.lg} tintColor={t.accent}>
+    <LiquidGlass style={cStyles.chartCard} borderRadius={RADIUS.lg} contentStyle={cStyles.chartCardContent}>
       <View style={[cStyles.gradientTint, { backgroundColor: chartTintBg }]} />
       <View style={cStyles.chartTitleWrap}>
         <FlashTitle text={title.toUpperCase()} size="small" interval={5000} center disableFlash />
@@ -456,14 +456,17 @@ const InteractiveChart = ({
           )}
         </View>
       </ScrollView>
-    </GlassSurface>
+    </LiquidGlass>
   );
 };
 
 const cStyles = StyleSheet.create({
   chartCard: {
-    borderRadius: RADIUS.lg, padding: 16, marginBottom: 20, overflow: 'hidden',
+    borderRadius: RADIUS.lg, marginBottom: 20, overflow: 'hidden',
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.14, shadowRadius: 10, elevation: 5,
+  },
+  chartCardContent: {
+    padding: 16,
   },
   gradientTint: { ...StyleSheet.absoluteFillObject, borderRadius: RADIUS.lg },
   chartTitleWrap: { alignItems: 'center', marginBottom: 10 },
@@ -509,10 +512,10 @@ const TrendSummary = ({ history, speedUnit, speedUnitLabel }: TrendSummaryProps)
   return (
     <View style={[styles.summaryGrid, { overflow: 'visible' }]}>
       {cards.map((card) => (
-        <GlassSurface key={card.label} style={styles.summaryCard} radius={RADIUS.lg} tintColor={t.accent}>
+        <LiquidGlass key={card.label} style={styles.summaryCard} borderRadius={RADIUS.lg} contentStyle={styles.summaryCardContent}>
           <Text style={[styles.summaryLabel, { color: t.textMuted }]}>{card.label}</Text>
           <Text style={[styles.summaryValue, { color: t.textPrimary }]}>{card.value}</Text>
-        </GlassSurface>
+        </LiquidGlass>
       ))}
     </View>
   );
@@ -606,7 +609,7 @@ const GraphScreen = () => {
           datasets={[
             {
               values: data.map((d) => convertSpeedFromMbps(d.download || 0, settings.speedUnit as any)),
-              color: COLORS.accent,
+              color: t.accent,
               label: 'Download',
             },
             {
@@ -618,11 +621,11 @@ const GraphScreen = () => {
           yAxisSuffix=""
           title={`Download & Upload Speed (${speedUnitLabel})`}
           legends={[
-            { color: COLORS.accent, label: 'Download' },
+            { color: t.accent, label: 'Download' },
             { color: t.uploadLine, label: 'Upload' },
           ]}
           areaGradients={[
-            { color: COLORS.accent },
+            { color: t.accent },
             { color: t.uploadLine },
           ]}
           formatXLabel={formatXLabel}
@@ -633,11 +636,11 @@ const GraphScreen = () => {
           <InteractiveChart
             chartId="ping"
             dataPoints={data}
-            datasets={[{ values: data.map((d) => d.ping || 0), color: COLORS.success, label: 'Ping' }]}
+            datasets={[{ values: data.map((d) => d.ping || 0), color: t.success, label: 'Ping' }]}
             yAxisSuffix=""
             title="Ping / Latency (ms)"
-            legends={[{ color: COLORS.success, label: 'Ping' }]}
-            areaGradients={[{ color: COLORS.success }]}
+            legends={[{ color: t.success, label: 'Ping' }]}
+            areaGradients={[{ color: t.success }]}
             formatXLabel={formatXLabel}
             isDark={isDark}
             t={t}
@@ -649,28 +652,34 @@ const GraphScreen = () => {
 
   return (
     <Animated.View style={[styles.container, { opacity: contentFade }]}>
-      <View style={[styles.filterRow, { borderBottomColor: t.separator }]}>
+      <View style={styles.filterRow}>
         {TIME_FILTERS.map((f) => (
-          <TouchableOpacity
+          <LiquidGlass
             key={f.key}
             style={[
               styles.filterButton,
-              { borderColor: t.glassBorderAccent, backgroundColor: t.glass },
-              timeFilter === f.key && [styles.filterButtonActive, { backgroundColor: t.accent, borderColor: t.accent }],
+              {
+                borderColor: timeFilter === f.key ? withAlpha(t.accentLight, 0.46) : t.glassBorderAccent,
+                backgroundColor: timeFilter === f.key ? withAlpha(t.accent, 0.2) : t.glass,
+                shadowColor: timeFilter === f.key ? t.accent : t.accentDark,
+              },
+              timeFilter === f.key && styles.filterButtonActive,
             ]}
             onPress={() => setTimeFilter(f.key)}
-            activeOpacity={0.7}
+            borderRadius={999}
+            blurIntensity={28}
+            contentStyle={styles.filterButtonContent}
           >
             <Text
               style={[
                 styles.filterButtonText,
-                { fontFamily: FONT_FAMILY, color: t.accent },
+                { fontFamily: FONT_FAMILY, color: timeFilter === f.key ? t.textPrimary : t.accentLight },
                 timeFilter === f.key && styles.filterButtonTextActive,
               ]}
             >
               {f.label}
             </Text>
-          </TouchableOpacity>
+          </LiquidGlass>
         ))}
       </View>
 
@@ -690,13 +699,22 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
   filterRow: {
     flexDirection: 'row', justifyContent: 'center',
-    paddingVertical: 14, paddingHorizontal: 16, gap: 10, borderBottomWidth: 1,
+    paddingVertical: 14, paddingHorizontal: 16, gap: 10,
   },
   filterButton: {
-    paddingHorizontal: 22, paddingVertical: 8, borderRadius: RADIUS.pill,
-    borderWidth: 1.5, backgroundColor: 'transparent',
+    minWidth: 92,
+    borderRadius: RADIUS.pill,
   },
-  filterButtonActive: {},
+  filterButtonActive: {
+    shadowOpacity: 0.3,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  filterButtonContent: {
+    paddingHorizontal: 22,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
   filterButtonText: { 
     fontSize: 13, 
     fontWeight: '700', 
@@ -705,7 +723,7 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 1.5,
   },
-  filterButtonTextActive: { color: COLORS.black },
+  filterButtonTextActive: {},
 
   content: { flex: 1 },
   contentContainer: { padding: 16, paddingBottom: 30 },
@@ -718,12 +736,14 @@ const styles = StyleSheet.create({
   summaryCard: {
     width: '48.5%',
     borderRadius: RADIUS.lg,
-    padding: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 4,
+  },
+  summaryCardContent: {
+    padding: 14,
   },
   summaryLabel: {
     fontSize: 10,

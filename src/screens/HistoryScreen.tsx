@@ -16,7 +16,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Polygon, Path } from 'react-native-svg';
 import SpeedTestService from '../services/SpeedTestService';
 import FlashTitle from '../components/FlashTitle';
-import GlassSurface from '../components/GlassSurface';
+import LiquidGlass from '../components/LiquidGlass';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { buildHistoryCsv, summarizeHistory } from '../utils/history';
 import { formatBytes, formatSpeedValue, getSpeedUnitLabel } from '../utils/measurements';
@@ -180,7 +180,7 @@ const Calendar = ({ history, selectedDate, onSelectDate, onClearSelection }: Cal
   const cardTint = t.accentTintCard;
 
   return (
-    <GlassSurface style={calStyles.container} radius={RADIUS.lg} tintColor={t.accent}>
+    <LiquidGlass style={calStyles.container} borderRadius={RADIUS.lg} contentStyle={calStyles.containerContent}>
       <View style={[calStyles.gradientTint, { backgroundColor: cardTint }]} />
 
       {/* Month navigation */}
@@ -262,7 +262,7 @@ const Calendar = ({ history, selectedDate, onSelectDate, onClearSelection }: Cal
           <Text style={[calStyles.clearAction, { color: t.accent }]}>Show All</Text>
         </TouchableOpacity>
       )}
-    </GlassSurface>
+    </LiquidGlass>
   );
 };
 
@@ -277,6 +277,9 @@ const calStyles = StyleSheet.create({
     marginHorizontal: 16, marginTop: 12, borderRadius: RADIUS.lg, overflow: 'hidden',
     shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 8, elevation: 4,
     paddingBottom: 4,
+  },
+  containerContent: {
+    padding: 0,
   },
   gradientTint: { ...StyleSheet.absoluteFillObject, borderRadius: RADIUS.lg },
   navRow: {
@@ -381,7 +384,7 @@ const HistoryCard = ({ item, index, formatDate, speedUnit, speedUnitLabel }: His
         },
       ]}
     >
-      <GlassSurface style={styles.historyItemInner} radius={20} tintColor={t.accent}>
+      <LiquidGlass style={styles.historyItemInner} borderRadius={20} contentStyle={styles.historyItemInnerContent}>
         <View style={styles.historyContent}>
           <PulsingDate text={formatDate(item.date)} baseColor={t.textSecondary} accentColor={t.accent} />
           <View style={styles.historyStats}>
@@ -427,7 +430,7 @@ const HistoryCard = ({ item, index, formatDate, speedUnit, speedUnitLabel }: His
             <Text style={[styles.metaText, { color: t.textMuted }]}>{(item.serverName || 'Automatic')}{item.serverLocation ? ` • ${item.serverLocation}` : ''}</Text>
           </View>
         </View>
-      </GlassSurface>
+      </LiquidGlass>
     </Animated.View>
   );
 };
@@ -464,11 +467,11 @@ const SummaryStrip = ({ history, speedUnit, speedUnitLabel }: SummaryStripProps)
   return (
     <View style={styles.summaryRow}>
       {cards.map((card) => (
-        <GlassSurface key={card.label} style={styles.summaryCard} radius={20} tintColor={t.accent}>
+        <LiquidGlass key={card.label} style={styles.summaryCard} borderRadius={20} contentStyle={styles.summaryCardContent}>
           <Text style={[styles.summaryLabel, { color: t.textMuted }]}>{card.label}</Text>
           <Text style={[styles.summaryValue, { color: t.textPrimary }]}>{card.value}</Text>
           <Text style={[styles.summarySubtitle, { color: t.textSecondary }]}>{card.subtitle}</Text>
-        </GlassSurface>
+        </LiquidGlass>
       ))}
     </View>
   );
@@ -602,34 +605,48 @@ const HistoryScreen = () => {
       {/* Action buttons moved under title */}
       <View style={styles.actionButtons}>
         {history.length > 0 && (
-          <TouchableOpacity style={[styles.exportHeaderButton, { borderColor: t.glassBorderAccent, backgroundColor: t.glass }]} onPress={exportHistory} activeOpacity={0.7}>
+          <LiquidGlass
+            style={[styles.exportHeaderButton, { borderColor: t.glassBorderAccent, backgroundColor: t.glass }]}
+            onPress={exportHistory}
+            borderRadius={RADIUS.pill}
+            blurIntensity={24}
+            contentStyle={styles.headerActionContent}
+          >
             <Text style={[styles.exportHeaderButtonText, { color: t.accent }]}>Export CSV</Text>
-          </TouchableOpacity>
+          </LiquidGlass>
         )}
-        <TouchableOpacity
+        <LiquidGlass
           style={[
             styles.calendarButton,
             { borderColor: t.glassBorderAccent, backgroundColor: t.glass },
-            calendarOpen && [styles.calendarButtonActive, { backgroundColor: t.accent, borderColor: t.accent }],
+            calendarOpen && [styles.calendarButtonActive, { backgroundColor: t.accentTintStrong, borderColor: t.accent }],
           ]}
           onPress={toggleCalendar}
-          activeOpacity={0.7}
+          borderRadius={RADIUS.pill}
+          blurIntensity={24}
+          contentStyle={styles.calendarButtonContent}
         >
-          <CalendarIcon size={14} color={calendarOpen ? COLORS.black : t.accent} />
+          <CalendarIcon size={14} color={calendarOpen ? t.textPrimary : t.accent} />
           <Text
             style={[
               styles.calendarButtonText,
-              { color: t.accent },
+              { color: calendarOpen ? t.textPrimary : t.accent },
               calendarOpen && styles.calendarButtonTextActive,
             ]}
           >
             Calendar
           </Text>
-        </TouchableOpacity>
+        </LiquidGlass>
         {history.length > 0 && (
-          <TouchableOpacity style={[styles.clearButton, { backgroundColor: t.glass }]} onPress={clearHistory} activeOpacity={0.7}>
+          <LiquidGlass
+            style={[styles.clearButton, { backgroundColor: t.glass }]}
+            onPress={clearHistory}
+            borderRadius={RADIUS.pill}
+            blurIntensity={24}
+            contentStyle={styles.headerActionContent}
+          >
             <Text style={styles.clearButtonText}>Clear All</Text>
-          </TouchableOpacity>
+          </LiquidGlass>
         )}
       </View>
 
@@ -701,11 +718,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   exportHeaderButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
     borderRadius: RADIUS.pill,
     borderWidth: 1,
     backgroundColor: 'transparent',
+  },
+  headerActionContent: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   exportHeaderButtonText: {
     fontSize: 12,
@@ -713,15 +734,22 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   calendarButton: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: RADIUS.pill,
+    borderRadius: RADIUS.pill,
     borderWidth: 1, backgroundColor: 'transparent',
+  },
+  calendarButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
   },
   calendarButtonActive: {},
   calendarButtonText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
-  calendarButtonTextActive: { color: COLORS.black },
+  calendarButtonTextActive: {},
   clearButton: {
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: RADIUS.pill,
+    borderRadius: RADIUS.pill,
     borderWidth: 1, borderColor: COLORS.danger, backgroundColor: 'transparent',
   },
   clearButtonText: { color: COLORS.danger, fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
@@ -732,6 +760,9 @@ const styles = StyleSheet.create({
   },
   historyItemInner: {
     borderRadius: 20,
+  },
+  historyItemInnerContent: {
+    padding: 0,
   },
 
   gradientTint: { ...StyleSheet.absoluteFillObject, borderRadius: 20 },
@@ -763,6 +794,9 @@ const styles = StyleSheet.create({
   summaryCard: {
     width: '48.5%',
     borderRadius: 20,
+    padding: 16,
+  },
+  summaryCardContent: {
     padding: 16,
   },
   summaryLabel: {

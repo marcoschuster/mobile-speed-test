@@ -2,21 +2,41 @@ import React, { useRef, useEffect } from 'react';
 import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, Animated, StyleSheet, Platform, Easing, TouchableOpacity } from 'react-native';
+import { View, Animated, StyleSheet, Platform, Easing } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Polygon } from 'react-native-svg';
-import SpeedTestScreen from './src/screens/SpeedTestScreen';
+import SpeedHomeScreen from './src/screens/SpeedHomeScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import GraphScreen from './src/screens/GraphScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import FlashTitle from './src/components/FlashTitle';
-import GlassSurface from './src/components/GlassSurface';
 import LiquidBackdrop from './src/components/LiquidBackdrop';
-import { COLORS, ThemeProvider, useTheme } from './src/utils/theme';
+import LiquidGlass, { GLASS } from './src/components/LiquidGlass';
+import { ThemeProvider, useTheme, withAlpha } from './src/utils/theme';
 import { AppSettingsProvider } from './src/context/AppSettingsContext';
 import { TestProvider, useTestContext } from './src/context/TestContext';
 import SoundEngine from './src/services/SoundEngine';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const Tab = createBottomTabNavigator();
+
+const getTabIconType = (routeName) => {
+  switch (routeName) {
+    case 'Speed Test':
+      return 'speed';
+    case 'History':
+      return 'history';
+    case 'Graphs':
+      return 'graph';
+    case 'Settings':
+      return 'settings';
+    default:
+      return 'speed';
+  }
+};
+
+const getLiquidGradient = (t) => ['#070b16', '#10192b', withAlpha(t.accentDark, 0.34)];
 
 // ── Lightning Bolt SVG Logo ─────────────────────────────────────────────────
 const LightningLogo = ({ size = 22, isTestRunning = false }) => {
@@ -91,13 +111,13 @@ const TabIcon = ({ focused, iconType, color }) => {
           toValue: 1.15,
           tension: 300,
           friction: 10,
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
         Animated.spring(scale, {
           toValue: 1.0,
           tension: 200,
           friction: 12,
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
       ]).start();
     } else {
@@ -155,32 +175,67 @@ const TabIcon = ({ focused, iconType, color }) => {
 };
 
 // ── Custom Header ───────────────────────────────────────────────────────────
-const CustomHeader = ({ title }) => {
+const HeaderAction = ({ iconType, onPress }) => {
+  return (
+    <LiquidGlass
+      onPress={onPress}
+      borderRadius={22}
+      blurIntensity={28}
+      glow={false}
+      style={tabStyles.headerActionShell}
+      contentStyle={tabStyles.headerActionContent}
+    >
+      <TabIcon focused={false} iconType={iconType} color="#FFFFFF" />
+    </LiquidGlass>
+  );
+};
+
+const CustomHeader = ({ title, navigation, routeName }) => {
   const { t } = useTheme();
   const { isTestRunning } = useTestContext();
 
   return (
-    <GlassSurface style={tabStyles.headerShell} radius={28} variant="chrome" edgeFade="bottom" tintColor={t.accent}>
+    <View style={tabStyles.headerShell}>
+      <LinearGradient colors={['#0a0e27', '#1a1f3a', '#2d1b69']} style={StyleSheet.absoluteFill} />
+      <BlurView intensity={GLASS.blur} tint="dark" style={StyleSheet.absoluteFill}>
+        <View style={tabStyles.headerBlurFallback} />
+      </BlurView>
+      <View style={tabStyles.headerBorder} />
       <View style={tabStyles.header}>
         <View style={tabStyles.headerLeft}>
-          <LightningLogo size={18} isTestRunning={isTestRunning} />
+          <View style={tabStyles.avatarOuter}>
+            <View style={tabStyles.avatarInner}>
+              <LightningLogo size={18} isTestRunning={isTestRunning} />
+            </View>
+          </View>
         </View>
         <View style={tabStyles.headerCenter}>
           <FlashTitle text={title.toUpperCase()} size="large" interval={5000} center glow />
         </View>
-        <View style={tabStyles.headerRight} />
+        <View style={tabStyles.headerRight}>
+          <HeaderAction
+            iconType={routeName === 'Settings' ? 'speed' : 'settings'}
+            onPress={() => navigation.navigate(routeName === 'Settings' ? 'Speed Test' : 'Settings')}
+          />
+        </View>
       </View>
-    </GlassSurface>
+    </View>
   );
 };
 
 // ── Custom Tab Bar with gradient fade ──────────────────────────────────────
 const CustomTabBar = ({ state, descriptors, navigation }) => {
   const { t } = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
-    <GlassSurface style={tabStyles.tabBarShell} radius={28} variant="chrome" edgeFade="top" tintColor={t.accent}>
-      <View style={{ flexDirection: 'row', height: 50 }}>
+    <View style={[tabStyles.tabBarShell, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+      <LinearGradient colors={['#0a0e27', '#1a1f3a', '#2d1b69']} style={StyleSheet.absoluteFill} />
+      <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill}>
+        <View style={tabStyles.tabBarBlurFallback} />
+      </BlurView>
+      <View style={tabStyles.tabBarBorder} />
+      <View style={tabStyles.tabRow}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;
@@ -198,59 +253,43 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
             }
           };
 
-          const getIcon = () => {
-            switch (route.name) {
-              case 'Speed Test':
-                return (
-                  <Svg width={28} height={28} viewBox="0 0 24 24">
-                    <Polygon points="13,2 5,14 11,14 9,22 17,10 11,10" fill={isFocused ? t.navActive : t.navInactive} />
-                  </Svg>
-                );
-              case 'History':
-                return (
-                  <Svg width={28} height={28} viewBox="0 0 24 24">
-                    <Path
-                      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"
-                      fill={isFocused ? t.navActive : t.navInactive}
-                    />
-                  </Svg>
-                );
-              case 'Graphs':
-                return (
-                  <Svg width={28} height={28} viewBox="0 0 24 24">
-                    <Path
-                      d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"
-                      fill={isFocused ? t.navActive : t.navInactive}
-                    />
-                  </Svg>
-                );
-              case 'Settings':
-                return (
-                  <Svg width={28} height={28} viewBox="0 0 24 24">
-                    <Path
-                      d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
-                      fill={isFocused ? t.navActive : t.navInactive}
-                    />
-                  </Svg>
-                );
-              default:
-                return null;
-            }
-          };
-
           return (
-            <TouchableOpacity
+            <LiquidGlass
               key={index}
               onPress={onPress}
-              style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-start', paddingTop: 4 }}
-              activeOpacity={0.7}
+              borderRadius={22}
+              blurIntensity={28}
+              glow={false}
+              style={[
+                tabStyles.tabButtonShell,
+                { opacity: isFocused ? 1 : 0.6 },
+              ]}
+              contentStyle={tabStyles.tabButtonContent}
             >
-              {getIcon()}
-            </TouchableOpacity>
+              <Animated.View
+                style={[
+                  tabStyles.tabInner,
+                  isFocused && {
+                    shadowColor: '#8B5CF6',
+                    shadowOffset: { width: 0, height: 0 },
+                    shadowOpacity: 0.35,
+                    shadowRadius: 18,
+                    elevation: 10,
+                    transform: [{ scale: 1.05 }],
+                  },
+                ]}
+              >
+                <TabIcon
+                  focused={isFocused}
+                  iconType={getTabIconType(route.name)}
+                  color={isFocused ? '#FFFFFF' : t.navInactive}
+                />
+              </Animated.View>
+            </LiquidGlass>
           );
         })}
       </View>
-    </GlassSurface>
+    </View>
   );
 };
 
@@ -273,9 +312,10 @@ function AppInner() {
 
   return (
     <View style={[appStyles.root, { backgroundColor: t.bg }]}>
+      <LinearGradient colors={getLiquidGradient(t)} style={StyleSheet.absoluteFill} />
       <LiquidBackdrop />
       <NavigationContainer theme={navTheme}>
-        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <StatusBar style="light" />
         <Tab.Navigator
           tabBar={(props) => <CustomTabBar {...props} />}
           screenOptions={{
@@ -285,9 +325,9 @@ function AppInner() {
             tabBarStyle: {
               backgroundColor: 'transparent',
               borderTopWidth: 0,
-              height: 50,
-              paddingBottom: 2,
-              paddingTop: 2,
+              height: 96,
+              paddingBottom: 0,
+              paddingTop: 0,
               elevation: 0,
               shadowOpacity: 0,
             },
@@ -314,11 +354,11 @@ function AppInner() {
         >
           <Tab.Screen
             name="Speed Test"
-            component={SpeedTestScreen}
+            component={SpeedHomeScreen}
             listeners={{ tabPress: () => SoundEngine.playNavTick() }}
             options={{
               tabBarLabel: 'Speed',
-              header: () => <CustomHeader title="Speed Test" />,
+              header: ({ navigation, route }) => <CustomHeader title="Speed Test" navigation={navigation} routeName={route.name} />,
               tabBarIcon: ({ color, focused }) => (
                 <TabIcon focused={focused} iconType="speed" color={color} />
               ),
@@ -330,7 +370,7 @@ function AppInner() {
             listeners={{ tabPress: () => SoundEngine.playNavTick() }}
             options={{
               tabBarLabel: 'History',
-              header: () => <CustomHeader title="History" />,
+              header: ({ navigation, route }) => <CustomHeader title="History" navigation={navigation} routeName={route.name} />,
               tabBarIcon: ({ color, focused }) => (
                 <TabIcon focused={focused} iconType="history" color={color} />
               ),
@@ -342,7 +382,7 @@ function AppInner() {
             listeners={{ tabPress: () => SoundEngine.playNavTick() }}
             options={{
               tabBarLabel: 'Graphs',
-              header: () => <CustomHeader title="Graphs" />,
+              header: ({ navigation, route }) => <CustomHeader title="Graphs" navigation={navigation} routeName={route.name} />,
               tabBarIcon: ({ color, focused }) => (
                 <TabIcon focused={focused} iconType="graph" color={color} />
               ),
@@ -354,7 +394,7 @@ function AppInner() {
             listeners={{ tabPress: () => SoundEngine.playNavTick() }}
             options={{
               tabBarLabel: 'Settings',
-              header: () => <CustomHeader title="Settings" />,
+              header: ({ navigation, route }) => <CustomHeader title="Settings" navigation={navigation} routeName={route.name} />,
               tabBarIcon: ({ color, focused }) => (
                 <TabIcon focused={focused} iconType="settings" color={color} />
               ),
@@ -386,39 +426,112 @@ const appStyles = StyleSheet.create({
 
 const tabStyles = StyleSheet.create({
   headerShell: {
-    marginHorizontal: 12,
-    marginTop: 8,
+    overflow: 'hidden',
+    borderBottomWidth: 1,
+    borderBottomColor: GLASS.border,
+  },
+  headerBlurFallback: {
+    flex: 1,
+    backgroundColor: 'rgba(12, 16, 34, 0.68)',
+  },
+  headerBorder: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 1,
+    backgroundColor: GLASS.border,
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 10,
-    paddingTop: 42,
-    height: 88,
+    paddingHorizontal: 18,
+    paddingBottom: 12,
+    paddingTop: 48,
+    minHeight: 104,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    minWidth: 80,
+    minWidth: 58,
   },
   headerCenter: {
     flex: 1,
     alignItems: 'center',
   },
   headerRight: {
-    minWidth: 80,
+    minWidth: 58,
+    alignItems: 'flex-end',
+  },
+  avatarOuter: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    padding: 2,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+  },
+  avatarInner: {
+    flex: 1,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  headerActionShell: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  headerActionContent: {
+    flex: 1,
+    padding: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tabBarShell: {
     marginHorizontal: 12,
     marginBottom: 10,
+    borderTopWidth: 1,
+    borderTopColor: GLASS.border,
+    borderRadius: 30,
+    overflow: 'hidden',
+    minHeight: 80,
   },
-  activeIndicator: {
+  tabBarBlurFallback: {
+    flex: 1,
+    backgroundColor: 'rgba(11, 15, 32, 0.8)',
+  },
+  tabBarBorder: {
     position: 'absolute',
-    top: -8,
-    width: 24,
-    height: 2,
-    borderRadius: 1,
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 1,
+    backgroundColor: GLASS.border,
+  },
+  tabRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 80,
+    paddingHorizontal: 12,
+    gap: 10,
+  },
+  tabButtonShell: {
+    flex: 1,
+    minHeight: 56,
+  },
+  tabButtonContent: {
+    flex: 1,
+    padding: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabInner: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

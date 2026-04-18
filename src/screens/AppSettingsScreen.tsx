@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState, LayoutChangeEvent } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
+  LayoutChangeEvent,
   ScrollView,
   Share,
   StyleSheet,
@@ -383,12 +384,12 @@ const AppSettingsScreen = () => {
           <View style={{ width: 220 }}>
             <SegmentedControl
               options={[
-                { label: 'Mbps', value: 'mbps' },
-                { label: 'Kbps', value: 'kbps' },
-                { label: 'MB/s', value: 'mbs' },
+                { label: 'Mbps', value: 'Mbps' },
+                { label: 'Kbps', value: 'kB/s' },
+                { label: 'MB/s', value: 'MB/s' },
               ]}
               selected={settings.speedUnit}
-              onSelect={(value) => updateSettings({ speedUnit: value })}
+              onSelect={(value) => updateSettings({ speedUnit: value as 'Mbps' | 'MB/s' | 'kB/s' })}
             />
           </View>
         </SettingsRow>

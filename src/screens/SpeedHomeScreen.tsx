@@ -1,3 +1,5 @@
+export { default } from './SpeedHomeLiquidScreen';
+/*
 import React, { useCallback, useEffect, useMemo, useRef, useState, ReactNode, ViewStyle } from 'react';
 import {
   Alert,
@@ -158,13 +160,9 @@ const InsightCard = ({ title, value, subtitle }: InsightCardProps) => {
   const { t } = useTheme();
 
   return (
-    <View style={[styles.insightCard, { backgroundColor: t.surface }]}>
-      <View
-        style={[
-          styles.insightTint,
-          { backgroundColor: t.accentTintSoft },
-        ]}
-      />
+    <View style={[styles.insightCard, { backgroundColor: t.surface, position: 'relative', overflow: 'hidden' }]}>
+      <View style={[{ position: 'absolute', top: -15, right: -15, width: 100, height: 100, borderRadius: 999, opacity: 0.15, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 50, elevation: 0 }, { backgroundColor: t.accent }]} />
+      <View style={[{ position: 'absolute', bottom: -12, left: -12, width: 80, height: 80, borderRadius: 999, opacity: 0.12, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 45, elevation: 0 }, { backgroundColor: t.uploadLine || t.accent }]} />
       <Text style={[styles.insightTitle, { color: t.textMuted }]}>{title}</Text>
       <Text style={[styles.insightValue, { color: t.textPrimary }]}>{value}</Text>
       <Text style={[styles.insightSubtitle, { color: t.textSecondary }]}>{subtitle}</Text>
@@ -886,11 +884,8 @@ const styles = StyleSheet.create({
   insightCard: {
     borderRadius: RADIUS.lg,
     padding: 16,
-    overflow: 'visible',
+    overflow: 'hidden',
     ...SHADOWS.clayCard,
-  },
-  insightTint: {
-    ...StyleSheet.absoluteFillObject,
   },
   insightTitle: {
     fontSize: 11,
@@ -984,3 +979,4 @@ const styles = StyleSheet.create({
 });
 
 export default SpeedHomeScreen;
+*/
