@@ -513,38 +513,22 @@ const SpeedHomeScreen = () => {
         )}
 
         <View style={styles.speedoWrap}>
-          <Speedometer
-            speed={gaugeValue}
-            maxValue={gaugeMax}
-            label={gaugeLabel}
-            unit={currentType === 'Ping' ? 'ms' : speedUnitLabel}
-            needleColor={gaugeNeedleColor}
-            isRunning={isTestRunning}
-          />
-        </View>
-
-        <View style={styles.disclosureActions}>
-          <View style={styles.primaryControlsRow}>
-            {!isTestRunning ? (
-              <AnimatedButton
-                onPress={startTest}
-                style={[styles.startButton, { backgroundColor: t.accent, shadowColor: SHADOWS.clayButton.shadowColor, shadowOffset: SHADOWS.clayButton.shadowOffset, shadowOpacity: SHADOWS.clayButton.shadowOpacity, shadowRadius: SHADOWS.clayButton.shadowRadius, elevation: SHADOWS.clayButton.elevation }]}
-                textStyle={[styles.startButtonText, { color: t.buttonText }]}
-                disabled={!settings.dataDisclosureAccepted}
-              >
-                Start Test
-              </AnimatedButton>
-            ) : (
-              <AnimatedButton
-                onPress={stopTest}
-                style={[styles.runningButton, { backgroundColor: t.accent, shadowColor: SHADOWS.clayButton.shadowColor, shadowOffset: SHADOWS.clayButton.shadowOffset, shadowOpacity: SHADOWS.clayButton.shadowOpacity, shadowRadius: SHADOWS.clayButton.shadowRadius, elevation: SHADOWS.clayButton.elevation }]}
-                textStyle={[styles.runningButtonText, { color: t.buttonText }]}
-                glowing
-              >
-                Stop Test
-              </AnimatedButton>
-            )}
-          </View>
+          <TouchableOpacity onPress={startTest} activeOpacity={0.9} disabled={isTestRunning || !settings.dataDisclosureAccepted}>
+            <Speedometer
+              speed={gaugeValue}
+              maxValue={gaugeMax}
+              label={gaugeLabel}
+              unit={currentType === 'Ping' ? 'ms' : speedUnitLabel}
+              needleColor={gaugeNeedleColor}
+              isRunning={isTestRunning}
+              onStart={startTest}
+            />
+          </TouchableOpacity>
+          {isTestRunning && (
+            <TouchableOpacity onPress={stopTest} style={styles.stopButtonFloating} activeOpacity={0.7}>
+              <Text style={[styles.stopButtonText, { color: t.accent }]}>Stop</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {progressText && (
@@ -670,6 +654,17 @@ const styles = StyleSheet.create({
     marginTop: 0,
     marginBottom: 4,
     alignItems: 'center',
+    position: 'relative',
+  },
+  stopButtonFloating: {
+    marginTop: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+  },
+  stopButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 1,
   },
   progressText: {
     fontSize: 12,

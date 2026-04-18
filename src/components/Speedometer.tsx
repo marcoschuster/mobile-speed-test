@@ -197,19 +197,9 @@ const Speedometer = ({
                 <Stop offset="0%" stopColor={dialFaceCenter} />
                 <Stop offset="100%" stopColor={dialFaceEdge} />
               </RadialGradient>
-              <LinearGradient id="bezelGrad" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0%" stopColor={bezelTop} />
-                <Stop offset="50%" stopColor={bezelMid} />
-                <Stop offset="100%" stopColor={bezelBottom} />
-              </LinearGradient>
             </Defs>
 
-            {/* Outer bezel */}
-            <Circle cx={CX} cy={CY} r={R + 12} fill={dialOuter} />
-            <Circle cx={CX} cy={CY} r={R + 10} fill="url(#bezelGrad)" />
-            <Circle cx={CX} cy={CY} r={R + 6} fill={dialInnerRing} />
-
-            {/* Inner circle background */}
+            {/* Inner circle background - no bezel */}
             <Circle cx={CX} cy={CY} r={R} fill="url(#startBg)" />
           </Svg>
 
@@ -230,31 +220,13 @@ const Speedometer = ({
               <Stop offset="0%" stopColor={dialFaceCenter} />
               <Stop offset="100%" stopColor={dialFaceEdge} />
             </RadialGradient>
-            <LinearGradient id="bezelGrad" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor={bezelTop} />
-              <Stop offset="50%" stopColor={bezelMid} />
-              <Stop offset="100%" stopColor={bezelBottom} />
-            </LinearGradient>
             <LinearGradient id="arcGlow" x1="0" y1="0" x2="1" y2="1">
               <Stop offset="0%" stopColor={t.accent} stopOpacity={0.9} />
               <Stop offset="100%" stopColor={t.accentDark} stopOpacity={0.6} />
             </LinearGradient>
           </Defs>
 
-          {/* Outer bezel — 3D bevel with shine */}
-          <Circle cx={CX} cy={CY} r={R + 12} fill={dialOuter} />
-          <Circle cx={CX} cy={CY} r={R + 10} fill="url(#bezelGrad)" />
-          <Path
-            d={describeArc(200, 340, R + 10)}
-            fill="none"
-            stroke={bezelShine}
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-          <Circle cx={CX} cy={CY} r={R + 6} fill={dialInnerRing} />
-
-          {/* Dial face */}
-          <Circle cx={CX} cy={CY} r={R + 3} fill={dialRim} />
+          {/* Dial face - no bezel */}
           <Circle cx={CX} cy={CY} r={R} fill="url(#dialBg)" />
 
           {/* Track arc (inactive) */}

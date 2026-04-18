@@ -36,7 +36,7 @@ const getTabIconType = (routeName) => {
   }
 };
 
-const getLiquidGradient = (t) => ['#070b16', '#10192b', withAlpha(t.accentDark, 0.34)];
+const getLiquidGradient = (t) => ['#070b16', '#10192b', withAlpha(t.accentDark || '#4c1d95', 0.34)];
 
 // ── Lightning Bolt SVG Logo ─────────────────────────────────────────────────
 const LightningLogo = ({ size = 22, isTestRunning = false }) => {
@@ -203,11 +203,7 @@ const CustomHeader = ({ title, navigation, routeName }) => {
       <View style={tabStyles.headerBorder} />
       <View style={tabStyles.header}>
         <View style={tabStyles.headerLeft}>
-          <View style={tabStyles.avatarOuter}>
-            <View style={tabStyles.avatarInner}>
-              <LightningLogo size={18} isTestRunning={isTestRunning} />
-            </View>
-          </View>
+          <LightningLogo size={28} isTestRunning={isTestRunning} />
         </View>
         <View style={tabStyles.headerCenter}>
           <FlashTitle text={title.toUpperCase()} size="large" interval={5000} center glow />
