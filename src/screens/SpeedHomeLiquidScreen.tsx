@@ -476,8 +476,8 @@ const SpeedHomeLiquidScreen = () => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={palette.bgGradient} style={StyleSheet.absoluteFill} />
-      <ParticleField color={palette.particle} />
+      <LinearGradient colors={palette.bgGradient || ['#0a0e27', '#1a1f3a', '#2d1b69']} style={StyleSheet.absoluteFill} />
+      <ParticleField color={palette.particle || '#8B5CF6'} />
       <Animated.ScrollView
         style={{ opacity: contentFade }}
         contentContainerStyle={styles.content}
@@ -507,7 +507,7 @@ const SpeedHomeLiquidScreen = () => {
                 contentStyle={styles.actionContent}
               >
                 <LinearGradient
-                  colors={[palette.accent, palette.accent2]}
+                  colors={[palette.accent || '#8B5CF6', palette.accent2 || '#6366f1']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={StyleSheet.absoluteFill}
@@ -548,7 +548,7 @@ const SpeedHomeLiquidScreen = () => {
           disabled={!settings.dataDisclosureAccepted && !isTestRunning}
         >
           <LinearGradient
-            colors={isTestRunning ? [palette.danger, palette.accent] : [palette.accent, palette.accent2]}
+            colors={isTestRunning ? [palette.danger || '#ef4444', palette.accent || '#8B5CF6'] : [palette.accent || '#8B5CF6', palette.accent2 || '#6366f1']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={StyleSheet.absoluteFill}
@@ -643,7 +643,7 @@ const SpeedHomeLiquidScreen = () => {
                   >
                     {active ? (
                       <LinearGradient
-                        colors={[palette.accent, palette.accent2]}
+                        colors={[palette.accent || '#8B5CF6', palette.accent2 || '#6366f1']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={StyleSheet.absoluteFill}

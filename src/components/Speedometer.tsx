@@ -70,21 +70,6 @@ const Speedometer = ({
   const { t } = useTheme();
   const needleAnim = useRef(new Animated.Value(MIN_DEG)).current;
   const glowAnim = useRef(new Animated.Value(0.3)).current;
-  const startPulseAnim = useRef(new Animated.Value(0)).current;
-
-  // Pulse animation for start button
-  useEffect(() => {
-    if (!isRunning) {
-      const pulse = Animated.loop(
-        Animated.sequence([
-          Animated.timing(startPulseAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
-          Animated.timing(startPulseAnim, { toValue: 0, duration: 1500, useNativeDriver: true }),
-        ])
-      );
-      pulse.start();
-      return () => pulse.stop();
-    }
-  }, [isRunning]);
 
   const speedToAngle = (val: number): number => {
     const clamped = Math.max(0, Math.min(val, maxValue));
@@ -188,52 +173,38 @@ const Speedometer = ({
         <Animated.View style={[styles.outerGlow, { opacity: glowAnim, borderColor: t.accent, shadowColor: t.accent }]} />
       )}
 
-      {!isRunning ? (
-        // Start button mode
-        <TouchableOpacity onPress={onStart} style={styles.startButtonContainer} activeOpacity={0.9}>
-          <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-            <Defs>
-              <RadialGradient id="startBg" cx="50%" cy="50%" r="50%">
-                <Stop offset="0%" stopColor={dialFaceCenter} />
-                <Stop offset="100%" stopColor={dialFaceEdge} />
-              </RadialGradient>
-            </Defs>
-
-            {/* Inner circle background - no bezel */}
-            <Circle cx={CX} cy={CY} r={R} fill="url(#startBg)" />
-          </Svg>
-
-          {/* Start text */}
-          <Animated.View style={[
-            styles.startTextContainer,
-            { opacity: startPulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) }
-          ]}>
-            <Text style={[styles.startText, { color: t.accent, textShadowColor: t.accent }]}>START</Text>
-          </Animated.View>
-        </TouchableOpacity>
-      ) : (
-        // Full speedometer mode
-        <View style={styles.startButtonContainer}>
-          <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
+      <View style={styles.startButtonContainer}>
+        <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
           <Defs>
             <RadialGradient id="dialBg" cx="50%" cy="40%" r="55%">
               <Stop offset="0%" stopColor={dialFaceCenter} />
               <Stop offset="100%" stopColor={dialFaceEdge} />
             </RadialGradient>
+            <LinearGradient id="bezelGrad" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%" stopColor={bezelTop || 'rgba(255,255,255,0.3)'} />
+              <Stop offset="50%" stopColor={bezelMid || 'rgba(255,255,255,0.1)'} />
+              <Stop offset="100%" stopColor={bezelBottom || 'rgba(0,0,0,0.2)'} />
+            </LinearGradient>
             <LinearGradient id="arcGlow" x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0%" stopColor={t.accent} stopOpacity={0.9} />
-              <Stop offset="100%" stopColor={t.accentDark} stopOpacity={0.6} />
+              <Stop offset="0%" stopColor={t.accent || '#8B5CF6'} stopOpacity={0.9} />
+              <Stop offset="100%" stopColor={t.accentDark || '#4c1d95'} stopOpacity={0.6} />
             </LinearGradient>
           </Defs>
 
-          {/* Dial face - no bezel */}
+          {/* Outer bezel */}
+          <Circle cx={CX} cy={CY} r={R + 12} fill={dialOuter || 'rgba(5, 12, 20, 0.82)'} />
+          <Circle cx={CX} cy={CY} r={R + 10} fill="url(#bezelGrad)" />
+          <Circle cx={CX} cy={CY} r={R + 6} fill={dialInnerRing || 'rgba(255,255,255,0.05)'} />
+
+          {/* Dial face */}
+          <Circle cx={CX} cy={CY} r={R + 3} fill={dialRim || 'rgba(255,255,255,0.08)'} />
           <Circle cx={CX} cy={CY} r={R} fill="url(#dialBg)" />
 
           {/* Track arc (inactive) */}
           <Path
             d={describeArc(MIN_DEG, MIN_DEG - SWEEP, R)}
             fill="none"
-            stroke={trackArc}
+            stroke={trackArc || 'rgba(255,255,255,0.18)'}
             strokeWidth="6"
             strokeLinecap="round"
           />
@@ -275,7 +246,7 @@ const Speedometer = ({
             </SvgText>
           ) : null}
         </Svg>
-        
+
         {/* Animated needle overlay */}
         {isRunning && (
           <Animated.View style={[styles.needleWrap, { transform: [{ rotate: needleRotation }] }]}>
@@ -287,7 +258,6 @@ const Speedometer = ({
           </Animated.View>
         )}
       </View>
-      )}
     </View>
   );
 };

@@ -176,8 +176,8 @@ const InteractiveChart = ({
 
   const gradientDefs = (areaGradients || []).map((ag, i) => (
     <LinearGradient key={`areaGrad-${chartId}-${i}`} id={`areaGrad${chartId}${i}`} x1="0" y1="0" x2="0" y2="1">
-      <Stop offset="0%" stopColor={ag.color} stopOpacity={isDark ? '0.30' : '0.20'} />
-      <Stop offset="100%" stopColor={ag.color} stopOpacity="0" />
+      <Stop offset="0%" stopColor={ag.color || '#8B5CF6'} stopOpacity={isDark ? '0.30' : '0.20'} />
+      <Stop offset="100%" stopColor={ag.color || '#8B5CF6'} stopOpacity="0" />
     </LinearGradient>
   ));
 
