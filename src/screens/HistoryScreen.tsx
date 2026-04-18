@@ -3,6 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
+  ScrollView,
   FlatList,
   TouchableOpacity,
   Pressable,
@@ -597,112 +598,114 @@ const HistoryScreen = () => {
 
   return (
     <Animated.View style={[styles.container, { opacity: contentFade }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <FlashTitle text="TEST HISTORY" size="small" interval={5000} />
-      </View>
-      
-      {/* Action buttons moved under title */}
-      <View style={styles.actionButtons}>
-        {history.length > 0 && (
+      <ScrollView
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContentContainer}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.accent} colors={[t.accent]} />}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <FlashTitle text="TEST HISTORY" size="small" interval={5000} />
+        </View>
+
+        {/* Action buttons moved under title */}
+        <View style={styles.actionButtons}>
+          {history.length > 0 && (
+            <LiquidGlass
+              style={[styles.exportHeaderButton, { borderColor: t.glassBorderAccent, backgroundColor: t.glass }]}
+              onPress={exportHistory}
+              borderRadius={RADIUS.pill}
+              blurIntensity={24}
+              contentStyle={styles.headerActionContent}
+            >
+              <Text style={[styles.exportHeaderButtonText, { color: t.accent }]}>Export CSV</Text>
+            </LiquidGlass>
+          )}
           <LiquidGlass
-            style={[styles.exportHeaderButton, { borderColor: t.glassBorderAccent, backgroundColor: t.glass }]}
-            onPress={exportHistory}
-            borderRadius={RADIUS.pill}
-            blurIntensity={24}
-            contentStyle={styles.headerActionContent}
-          >
-            <Text style={[styles.exportHeaderButtonText, { color: t.accent }]}>Export CSV</Text>
-          </LiquidGlass>
-        )}
-        <LiquidGlass
-          style={[
-            styles.calendarButton,
-            { borderColor: t.glassBorderAccent, backgroundColor: t.glass },
-            calendarOpen && [styles.calendarButtonActive, { backgroundColor: t.accentTintStrong, borderColor: t.accent }],
-          ]}
-          onPress={toggleCalendar}
-          borderRadius={RADIUS.pill}
-          blurIntensity={24}
-          contentStyle={styles.calendarButtonContent}
-        >
-          <CalendarIcon size={14} color={calendarOpen ? t.textPrimary : t.accent} />
-          <Text
             style={[
-              styles.calendarButtonText,
-              { color: calendarOpen ? t.textPrimary : t.accent },
-              calendarOpen && styles.calendarButtonTextActive,
+              styles.calendarButton,
+              { borderColor: t.glassBorderAccent, backgroundColor: t.glass },
+              calendarOpen && [styles.calendarButtonActive, { backgroundColor: t.accentTintStrong, borderColor: t.accent }],
             ]}
-          >
-            Calendar
-          </Text>
-        </LiquidGlass>
-        {history.length > 0 && (
-          <LiquidGlass
-            style={[styles.clearButton, { backgroundColor: t.glass }]}
-            onPress={clearHistory}
+            onPress={toggleCalendar}
             borderRadius={RADIUS.pill}
             blurIntensity={24}
-            contentStyle={styles.headerActionContent}
+            contentStyle={styles.calendarButtonContent}
           >
-            <Text style={styles.clearButtonText}>Clear All</Text>
+            <CalendarIcon size={14} color={calendarOpen ? t.textPrimary : t.accent} />
+            <Text
+              style={[
+                styles.calendarButtonText,
+                { color: calendarOpen ? t.textPrimary : t.accent },
+                calendarOpen && styles.calendarButtonTextActive,
+              ]}
+            >
+              Calendar
+            </Text>
           </LiquidGlass>
-        )}
-      </View>
-
-      {/* Calendar panel */}
-      <Animated.View style={{ maxHeight: calendarMaxHeight, opacity: calendarOpacity, overflow: 'hidden' }}>
-        {calendarOpen && (
-          <Calendar
-            history={history}
-            selectedDate={selectedDate}
-            onSelectDate={handleSelectDate}
-            onClearSelection={handleClearSelection}
-          />
-        )}
-      </Animated.View>
-
-      {/* Content */}
-      {history.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Svg width={80} height={112} viewBox="0 0 24 34">
-            <Polygon points="14,0 4,18 12,18 10,34 20,14 12,14" fill={t.emptyBolt} />
-          </Svg>
-          <Text style={[styles.emptyTitle, { color: t.textSecondary }]}>No tests yet</Text>
-          <Text style={[styles.emptySubtitle, { color: t.textMuted }]}>
-            Run a speed test to start tracking your results
-          </Text>
+          {history.length > 0 && (
+            <LiquidGlass
+              style={[styles.clearButton, { backgroundColor: t.glass }]}
+              onPress={clearHistory}
+              borderRadius={RADIUS.pill}
+              blurIntensity={24}
+              contentStyle={styles.headerActionContent}
+            >
+              <Text style={styles.clearButtonText}>Clear All</Text>
+            </LiquidGlass>
+          )}
         </View>
-      ) : filteredHistory.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={[styles.emptyTitle, { color: t.textSecondary }]}>No tests on this day</Text>
-          <Text style={[styles.emptySubtitle, { color: t.textMuted }]}>
-            Select another date or tap "Show All"
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredHistory}
-          renderItem={renderHistoryItem}
-          keyExtractor={(item, index) => `${item.date}-${index}`}
-          contentContainerStyle={styles.listContainer}
-          ListHeaderComponent={(
+
+        {/* Calendar panel */}
+        <Animated.View style={{ maxHeight: calendarMaxHeight, opacity: calendarOpacity, overflow: 'hidden' }}>
+          {calendarOpen && (
+            <Calendar
+              history={history}
+              selectedDate={selectedDate}
+              onSelectDate={handleSelectDate}
+              onClearSelection={handleClearSelection}
+            />
+          )}
+        </Animated.View>
+
+        {/* Content */}
+        {history.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Svg width={80} height={112} viewBox="0 0 24 34">
+              <Polygon points="14,0 4,18 12,18 10,34 20,14 12,14" fill={t.emptyBolt} />
+            </Svg>
+            <Text style={[styles.emptyTitle, { color: t.textSecondary }]}>No tests yet</Text>
+            <Text style={[styles.emptySubtitle, { color: t.textMuted }]}>
+              Run a speed test to start tracking your results
+            </Text>
+          </View>
+        ) : filteredHistory.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={[styles.emptyTitle, { color: t.textSecondary }]}>No tests on this day</Text>
+            <Text style={[styles.emptySubtitle, { color: t.textMuted }]}>
+              Select another date or tap "Show All"
+            </Text>
+          </View>
+        ) : (
+          <>
             <SummaryStrip
               history={filteredHistory}
               speedUnit={settings.speedUnit}
               speedUnitLabel={speedUnitLabel}
             />
-          )}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.accent} colors={[t.accent]} />}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+            {filteredHistory.map((item, index) => renderHistoryItem({ item, index }))}
+          </>
+        )}
+      </ScrollView>
     </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
+  scrollContainer: { flex: 1 },
+  scrollContentContainer: { padding: 16, paddingBottom: 32 },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20, paddingVertical: 14,

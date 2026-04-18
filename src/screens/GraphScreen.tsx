@@ -652,43 +652,46 @@ const GraphScreen = () => {
 
   return (
     <Animated.View style={[styles.container, { opacity: contentFade }]}>
-      <View style={styles.filterRow}>
-        {TIME_FILTERS.map((f) => (
-          <LiquidGlass
-            key={f.key}
-            style={[
-              styles.filterButton,
-              {
-                borderColor: timeFilter === f.key ? withAlpha(t.accentLight, 0.46) : t.glassBorderAccent,
-                backgroundColor: timeFilter === f.key ? withAlpha(t.accent, 0.2) : t.glass,
-                shadowColor: timeFilter === f.key ? t.accent : t.accentDark,
-              },
-              timeFilter === f.key && styles.filterButtonActive,
-            ]}
-            onPress={() => setTimeFilter(f.key)}
-            borderRadius={999}
-            blurIntensity={28}
-            contentStyle={styles.filterButtonContent}
-          >
-            <Text
-              style={[
-                styles.filterButtonText,
-                { fontFamily: FONT_FAMILY, color: timeFilter === f.key ? t.textPrimary : t.accentLight },
-                timeFilter === f.key && styles.filterButtonTextActive,
-              ]}
-            >
-              {f.label}
-            </Text>
-          </LiquidGlass>
-        ))}
-      </View>
-
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.accent} colors={[t.accent]} />}
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.filterRow}>
+          {TIME_FILTERS.map((f) => (
+            <LiquidGlass
+              key={f.key}
+              style={[
+                styles.filterButton,
+                {
+                  borderColor: timeFilter === f.key ? withAlpha(t.accentLight, 0.46) : t.glassBorderAccent,
+                  backgroundColor: timeFilter === f.key ? withAlpha(t.accent, 0.2) : t.glass,
+                  shadowColor: timeFilter === f.key ? t.accent : t.accentDark,
+                },
+                timeFilter === f.key && styles.filterButtonActive,
+              ]}
+              onPress={() => setTimeFilter(f.key)}
+              borderRadius={999}
+              blurIntensity={28}
+              contentStyle={styles.filterButtonContent}
+            >
+              <Text
+                style={[
+                  styles.filterButtonText,
+                  {
+                    color: timeFilter === f.key ? t.textPrimary : t.textSecondary,
+                    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+                    textShadowOffset: { width: 0, height: 1 },
+                    textShadowRadius: 1.5,
+                  },
+                ]}
+              >
+                {f.label}
+              </Text>
+            </LiquidGlass>
+          ))}
+        </View>
         {renderCharts()}
       </ScrollView>
     </Animated.View>
