@@ -151,7 +151,7 @@ const FlashTitle = ({
             color: 'transparent',
             textShadowColor: isDark ? `${t.accent}80` : `${t.accent}b3`,
             textShadowOffset: { width: 0, height: 0 },
-            textShadowRadius: 14,
+            textShadowRadius: 6,
             left: 0,
             top: 0,
           }]}
