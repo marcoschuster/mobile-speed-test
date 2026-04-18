@@ -186,7 +186,10 @@ const Speedometer = ({
             </LinearGradient>
           </Defs>
 
-          {/* Dial face - no bezel */}
+          {/* Clean white rim/line around dial */}
+          <Circle cx={CX} cy={CY} r={R + 3} fill="none" stroke={dialRim || 'rgba(255,255,255,0.15)'} strokeWidth="2" />
+
+          {/* Dial face */}
           <Circle cx={CX} cy={CY} r={R} fill="url(#dialBg)" />
 
           {/* Track arc (inactive) */}
@@ -257,6 +260,7 @@ const styles = StyleSheet.create({
     height: SIZE + 24,
     alignItems: 'center',
     justifyContent: 'center',
+    alignSelf: 'center',
   },
   needleWrap: {
     position: 'absolute',
