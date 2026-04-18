@@ -169,8 +169,8 @@ const Speedometer = ({
   const bezelShine = t.glassHighlight;
   const dialInnerRing = t.glassStrong;
   const dialRim = t.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.78)';
-  const dialFaceCenter = t.surfaceElevated;
-  const dialFaceEdge = t.glass;
+  const dialFaceCenter = t.surfaceElevated || (t.mode === 'dark' ? '#1a1f2e' : '#f8fafc');
+  const dialFaceEdge = t.glass || (t.mode === 'dark' ? '#0f1419' : '#e2e8f0');
   const trackArc = t.mode === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(113,135,162,0.18)';
   const hubInner = t.mode === 'dark' ? '#04111C' : '#FFFFFF';
   const unitLabel = t.textMuted;
@@ -198,7 +198,7 @@ const Speedometer = ({
           {/* Clean white rim/line around dial - always visible */}
           <Circle cx={CX} cy={CY} r={R + 3} fill="none" stroke={dialRim || 'rgba(255,255,255,0.3)'} strokeWidth="2" />
 
-          {/* Dial face */}
+          {/* Dial face - always visible with gradient */}
           <Circle cx={CX} cy={CY} r={R} fill="url(#dialBg)" />
 
           {/* Gauge content - fades in when running */}
