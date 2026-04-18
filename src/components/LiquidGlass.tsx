@@ -1,6 +1,7 @@
 import React, { ReactNode, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  GestureResponderEvent,
   LayoutChangeEvent,
   Pressable,
   PressableProps,
@@ -62,6 +63,7 @@ const LiquidGlass = ({
   const [ripples, setRipples] = useState<Ripple[]>([]);
   const [layout, setLayout] = useState({ width: 0, height: 0 });
   const rippleId = useRef(0);
+  const pressableRef = useRef<View>(null);
   const gradientId = useMemo(() => `liquid-ripple-${Math.random().toString(36).slice(2, 10)}`, []);
   const hazeIdPrimary = useMemo(() => `liquid-haze-primary-${Math.random().toString(36).slice(2, 10)}`, []);
   const hazeIdSecondary = useMemo(() => `liquid-haze-secondary-${Math.random().toString(36).slice(2, 10)}`, []);
@@ -77,10 +79,11 @@ const LiquidGlass = ({
     setLayout({ width, height });
   };
 
-  const handlePressIn: NonNullable<PressableProps['onPressIn']> = (event) => {
-    if (!disabled && layout.width && layout.height) {
-      const { locationX, locationY } = event.nativeEvent;
-      const size = Math.max(layout.width, layout.height) * 0.8;
+  const handlePressIn = (event: GestureResponderEvent) => {
+    const { locationX, locationY } = event.nativeEvent;
+
+    if (layout.width > 0 && layout.height > 0) {
+      const size = Math.max(layout.width, layout.height) * 2;
       const scale = new Animated.Value(0);
       const opacity = new Animated.Value(0.6);
       const id = rippleId.current += 1;
@@ -110,9 +113,9 @@ const LiquidGlass = ({
     <Pressable
       {...rest}
       disabled={disabled}
-      onLayout={handleLayout}
       onPress={onPress}
       onPressIn={handlePressIn}
+      onLayout={handleLayout}
       style={({ pressed }) => [
         styles.container,
         {
@@ -125,6 +128,7 @@ const LiquidGlass = ({
         },
         style,
       ]}
+      ref={pressableRef as any}
     >
       <BlurView
         intensity={blurIntensity}
