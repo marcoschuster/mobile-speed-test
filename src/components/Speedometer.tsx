@@ -70,6 +70,15 @@ const Speedometer = ({
   const { t } = useTheme();
   const needleAnim = useRef(new Animated.Value(MIN_DEG)).current;
   const glowAnim = useRef(new Animated.Value(0.3)).current;
+  const contentFade = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (isRunning) {
+      Animated.timing(contentFade, { toValue: 1, duration: 600, useNativeDriver: true }).start();
+    } else {
+      contentFade.setValue(0);
+    }
+  }, [isRunning]);
 
   const speedToAngle = (val: number): number => {
     const clamped = Math.max(0, Math.min(val, maxValue));
@@ -173,7 +182,7 @@ const Speedometer = ({
         <Animated.View style={[styles.outerGlow, { opacity: glowAnim, borderColor: t.accent, shadowColor: t.accent }]} />
       )}
 
-      <View style={styles.startButtonContainer}>
+      <TouchableOpacity onPress={onStart} activeOpacity={0.9} disabled={isRunning} style={styles.startButtonContainer}>
         <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
           <Defs>
             <RadialGradient id="dialBg" cx="50%" cy="40%" r="55%">
@@ -186,58 +195,70 @@ const Speedometer = ({
             </LinearGradient>
           </Defs>
 
-          {/* Clean white rim/line around dial */}
-          <Circle cx={CX} cy={CY} r={R + 3} fill="none" stroke={dialRim || 'rgba(255,255,255,0.15)'} strokeWidth="2" />
+          {/* Clean white rim/line around dial - always visible */}
+          <Circle cx={CX} cy={CY} r={R + 3} fill="none" stroke={dialRim || 'rgba(255,255,255,0.3)'} strokeWidth="2" />
 
           {/* Dial face */}
           <Circle cx={CX} cy={CY} r={R} fill="url(#dialBg)" />
 
-          {/* Track arc (inactive) */}
-          <Path
-            d={describeArc(MIN_DEG, MIN_DEG - SWEEP, R)}
-            fill="none"
-            stroke={trackArc || 'rgba(255,255,255,0.18)'}
-            strokeWidth="6"
-            strokeLinecap="round"
-          />
+          {/* Gauge content - fades in when running */}
+          <Animated.View style={{ opacity: contentFade, position: 'absolute', top: 0, left: 0 }}>
+            <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
+              {/* Track arc (inactive) */}
+              <Path
+                d={describeArc(MIN_DEG, MIN_DEG - SWEEP, R)}
+                fill="none"
+                stroke={trackArc || 'rgba(255,255,255,0.18)'}
+                strokeWidth="6"
+                strokeLinecap="round"
+              />
 
-          {/* Active colored arc with glow */}
-          {speed > 0.3 && (
-            <>
-              <Path d={coloredArcPath} fill="none" stroke={t.accentGlow} strokeWidth="14" strokeLinecap="round" />
-              <Path d={coloredArcPath} fill="none" stroke="url(#arcGlow)" strokeWidth="6" strokeLinecap="round" />
-            </>
-          )}
+              {/* Active colored arc with glow */}
+              {speed > 0.3 && (
+                <>
+                  <Path d={coloredArcPath} fill="none" stroke={t.accentGlow} strokeWidth="14" strokeLinecap="round" />
+                  <Path d={coloredArcPath} fill="none" stroke="url(#arcGlow)" strokeWidth="6" strokeLinecap="round" />
+                </>
+              )}
 
-          {ticks}
+              {ticks}
 
-          {/* Speed readout */}
-          <SvgText
-            x={CX} y={CY - 20}
-            fontSize="36" fontWeight="900"
-            fill={t.textPrimary}
-            textAnchor="middle"
-            letterSpacing="-1"
-          >
-            {displayValue}
-          </SvgText>
+              {/* Speed readout */}
+              <SvgText
+                x={CX} y={CY - 20}
+                fontSize="36" fontWeight="900"
+                fill={t.textPrimary}
+                textAnchor="middle"
+                letterSpacing="-1"
+              >
+                {displayValue}
+              </SvgText>
 
-          {/* Needle hub */}
-          <Circle cx={CX} cy={CY} r={14} fill={t.accentTintSelected} />
-          <Circle cx={CX} cy={CY} r={9} fill={resolvedNeedleColor} />
-          <Circle cx={CX} cy={CY} r={4.5} fill={hubInner} />
-          <Circle cx={CX - 2} cy={CY - 2} r={2.5} fill="rgba(255,255,255,0.3)" />
+              {/* Needle hub */}
+              <Circle cx={CX} cy={CY} r={14} fill={t.accentTintSelected} />
+              <Circle cx={CX} cy={CY} r={9} fill={resolvedNeedleColor} />
+              <Circle cx={CX} cy={CY} r={4.5} fill={hubInner} />
+              <Circle cx={CX - 2} cy={CY - 2} r={2.5} fill="rgba(255,255,255,0.3)" />
 
-          {/* Unit + label */}
-          <SvgText x={CX} y={CY + 28} fontSize="12" fontWeight="700" fill={unitLabel} textAnchor="middle" letterSpacing="1">
-            {unit}
-          </SvgText>
-          {label ? (
-            <SvgText x={CX} y={CY + 44} fontSize="10" fontWeight="800" fill={t.accent} textAnchor="middle" letterSpacing="2" opacity={0.9}>
-              {label}
-            </SvgText>
-          ) : null}
+              {/* Unit + label */}
+              <SvgText x={CX} y={CY + 28} fontSize="12" fontWeight="700" fill={unitLabel} textAnchor="middle" letterSpacing="1">
+                {unit}
+              </SvgText>
+              {label ? (
+                <SvgText x={CX} y={CY + 44} fontSize="10" fontWeight="800" fill={t.accent} textAnchor="middle" letterSpacing="2" opacity={0.9}>
+                  {label}
+                </SvgText>
+              ) : null}
+            </Svg>
+          </Animated.View>
         </Svg>
+
+        {/* START text - only visible when not running */}
+        {!isRunning && (
+          <View style={styles.startTextContainer}>
+            <Text style={[styles.startText, { color: t.accent }]}>START</Text>
+          </View>
+        )}
 
         {/* Animated needle overlay */}
         {isRunning && (
@@ -249,7 +270,7 @@ const Speedometer = ({
             </Svg>
           </Animated.View>
         )}
-      </View>
+      </TouchableOpacity>
     </View>
   );
 };

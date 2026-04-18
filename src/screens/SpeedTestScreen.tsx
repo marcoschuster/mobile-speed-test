@@ -264,9 +264,7 @@ const SpeedTestScreen = () => {
     <View style={[styles.container, { backgroundColor: t.bg }]}>
       <Animated.ScrollView style={{ opacity: contentFade }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.speedoWrap}>
-          <TouchableOpacity onPress={startTest} activeOpacity={0.9} disabled={isTestRunning}>
-            <Speedometer speed={getSpeedValue()} maxValue={getMaxValue()} label={getSpeedLabel()} unit={getSpeedUnit()} needleColor={getNeedleColor()} isRunning={isTestRunning} />
-          </TouchableOpacity>
+          <Speedometer speed={getSpeedValue()} maxValue={getMaxValue()} label={getSpeedLabel()} unit={getSpeedUnit()} needleColor={getNeedleColor()} isRunning={isTestRunning} onStart={startTest} />
         </View>
         <View style={styles.controls}>
           <View style={styles.primaryControlsRow}>
