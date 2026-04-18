@@ -176,14 +176,6 @@ const Speedometer = ({
   const unitLabel = t.textMuted;
   const resolvedNeedleColor = needleColor || t.accent;
 
-  // Determine arc color based on label
-  const getArcColor = () => {
-    if (label === 'Upload') return t.uploadLine || '#10B981';
-    if (label === 'Ping') return t.success || '#22C55E';
-    return t.accent || '#FACC15'; // Download is always yellow
-  };
-  const arcColor = getArcColor();
-
   return (
     <View style={styles.container}>
       {isRunning && (
@@ -203,8 +195,8 @@ const Speedometer = ({
               <Stop offset="100%" stopColor={bezelBottom || 'rgba(0,0,0,0.3)'} />
             </LinearGradient>
             <LinearGradient id="arcGlow" x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0%" stopColor={arcColor} stopOpacity={1} />
-              <Stop offset="100%" stopColor={arcColor} stopOpacity={0.8} />
+              <Stop offset="0%" stopColor={t.accent || '#8B5CF6'} stopOpacity={0.9} />
+              <Stop offset="100%" stopColor={t.accentDark || '#4c1d95'} stopOpacity={0.6} />
             </LinearGradient>
           </Defs>
 
@@ -232,7 +224,7 @@ const Speedometer = ({
               {/* Active colored arc with glow */}
               {speed > 0.3 && (
                 <>
-                  <Path d={coloredArcPath} fill={arcColor} fillOpacity="1" stroke={arcColor} strokeWidth="14" strokeLinecap="round" />
+                  <Path d={coloredArcPath} fill="none" stroke={t.accentGlow} strokeWidth="14" strokeLinecap="round" />
                   <Path d={coloredArcPath} fill="none" stroke="url(#arcGlow)" strokeWidth="6" strokeLinecap="round" />
                 </>
               )}
@@ -280,7 +272,7 @@ const Speedometer = ({
         {isRunning && (
           <Animated.View style={[styles.needleWrap, { transform: [{ rotate: needleRotation }] }]}>
             <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-              <Path d={`M ${CX - 5} ${CY} L ${CX} ${CY - INNER_R + 2} L ${CX + 5} ${CY} Z`} fill={arcColor} />
+              <Path d={`M ${CX - 5} ${CY} L ${CX} ${CY - INNER_R + 2} L ${CX + 5} ${CY} Z`} fill={t.accentGlow} />
               <Path d={`M ${CX - 3} ${CY} L ${CX} ${CY - INNER_R + 5} L ${CX + 3} ${CY} Z`} fill={resolvedNeedleColor} />
               <Path d={`M ${CX - 0.8} ${CY - 10} L ${CX} ${CY - INNER_R + 10} L ${CX + 0.8} ${CY - 10} Z`} fill="rgba(255,255,255,0.25)" />
             </Svg>
