@@ -6,6 +6,7 @@ import {
   Share,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -529,32 +530,23 @@ const SpeedHomeLiquidScreen = () => {
           ]}
           contentStyle={styles.gaugeCardContent}
         >
-          <Speedometer
-            speed={gaugeValue}
-            maxValue={gaugeMax}
-            label={gaugeLabel}
-            unit={currentType === 'Ping' ? 'ms' : speedUnitLabel}
-            needleColor={gaugeNeedleColor}
-            isRunning={isTestRunning}
-          />
+          <TouchableOpacity onPress={startTest} activeOpacity={0.9} disabled={isTestRunning || !settings.dataDisclosureAccepted}>
+            <Speedometer
+              speed={gaugeValue}
+              maxValue={gaugeMax}
+              label={gaugeLabel}
+              unit={currentType === 'Ping' ? 'ms' : speedUnitLabel}
+              needleColor={gaugeNeedleColor}
+              isRunning={isTestRunning}
+            />
+          </TouchableOpacity>
         </LiquidGlass>
 
-        <LiquidGlass
-          onPress={isTestRunning ? stopTest : startTest}
-          borderRadius={999}
-          blurIntensity={32}
-          style={styles.startButtonShell}
-          contentStyle={styles.startButtonContent}
-          disabled={!settings.dataDisclosureAccepted && !isTestRunning}
-        >
-          <LinearGradient
-            colors={isTestRunning ? [palette.danger || '#ef4444', palette.accent || '#8B5CF6'] : [palette.accent || '#8B5CF6', palette.accent2 || '#6366f1']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-          <Text style={[styles.startButtonText, { color: t.textPrimary }]}>{isTestRunning ? 'Stop Test' : 'Start Test'}</Text>
-        </LiquidGlass>
+        {isTestRunning && (
+          <TouchableOpacity onPress={stopTest} style={styles.stopButtonFloating} activeOpacity={0.7}>
+            <Text style={[styles.stopButtonText, { color: t.accent }]}>Stop</Text>
+          </TouchableOpacity>
+        )}
 
         {progressText ? <Text style={[styles.progressText, { color: t.textSecondary }]}>{progressText}</Text> : null}
 
@@ -724,6 +716,17 @@ const styles = StyleSheet.create({
     paddingVertical: 22,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  stopButtonFloating: {
+    marginTop: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    alignSelf: 'center',
+  },
+  stopButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 1,
   },
   startButtonShell: {
     minHeight: 60,
