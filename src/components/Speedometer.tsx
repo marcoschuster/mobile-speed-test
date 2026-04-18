@@ -233,7 +233,7 @@ const Speedometer = ({
               {/* Active colored arc with glow */}
               {speed > 0.3 && (
                 <>
-                  <Path d={coloredArcFillPath} fill={t.accent || '#FACC15'} fillOpacity="0.8" stroke="none" />
+                  <Path d={coloredArcFillPath} fill={t.accent || '#FACC15'} fillOpacity="1" stroke="none" />
                   <Path d={coloredArcPath} fill="none" stroke={t.accentGlow || t.accent || '#FACC15'} strokeWidth="14" strokeLinecap="round" />
                   <Path d={coloredArcPath} fill="none" stroke="url(#arcGlow)" strokeWidth="6" strokeLinecap="round" />
                 </>
