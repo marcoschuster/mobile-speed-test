@@ -88,7 +88,11 @@ const LiquidGlass = ({
       const opacity = new Animated.Value(0.6);
       const id = rippleId.current += 1;
 
-      setRipples((prev) => [...prev, { id, x: locationX, y: locationY, size, scale, opacity }]);
+      // Adjust coordinates to account for content padding
+      const paddingX = contentStyle?.padding || contentStyle?.paddingHorizontal || 0;
+      const paddingY = contentStyle?.padding || contentStyle?.paddingVertical || 0;
+
+      setRipples((prev) => [...prev, { id, x: locationX + paddingX, y: locationY + paddingY, size, scale, opacity }]);
 
       Animated.parallel([
         Animated.timing(scale, {
