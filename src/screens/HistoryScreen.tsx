@@ -694,7 +694,11 @@ const HistoryScreen = () => {
               speedUnit={settings.speedUnit}
               speedUnitLabel={speedUnitLabel}
             />
-            {filteredHistory.map((item, index) => renderHistoryItem({ item, index }))}
+            {filteredHistory.map((item, index) => (
+              <React.Fragment key={`${item.date}-${index}`}>
+                {renderHistoryItem({ item, index })}
+              </React.Fragment>
+            ))}
           </>
         )}
       </ScrollView>

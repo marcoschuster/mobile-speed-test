@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
@@ -293,6 +293,8 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 function AppInner() {
   const { t } = useTheme();
   const isDark = t.mode === 'dark';
+  const navigationRef = useRef(null);
+  const [showBackdrop, setShowBackdrop] = useState(true);
   const navTheme = {
     ...DefaultTheme,
     colors: {
@@ -309,8 +311,15 @@ function AppInner() {
   return (
     <View style={[appStyles.root, { backgroundColor: t.bg }]}>
       <LinearGradient colors={getLiquidGradient(t)} style={StyleSheet.absoluteFill} />
-      <LiquidBackdrop />
-      <NavigationContainer theme={navTheme}>
+      {showBackdrop && <LiquidBackdrop />}
+      <NavigationContainer
+        theme={navTheme}
+        ref={navigationRef}
+        onStateChange={(state) => {
+          const currentRoute = state?.routes[state.index];
+          setShowBackdrop(currentRoute?.name === 'Speed Test');
+        }}
+      >
         <StatusBar style="light" />
         <Tab.Navigator
           tabBar={(props) => <CustomTabBar {...props} />}
