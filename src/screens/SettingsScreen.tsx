@@ -190,9 +190,7 @@ const dropS = StyleSheet.create({
 const SettingsRow = ({ label, children, isLast }: SettingsRowProps) => {
   const { t } = useTheme();
   return (
-    <View style={[rowS.container, !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.separator }, { position: 'relative', overflow: 'hidden' }]}>
-      <View style={[{ position: 'absolute', top: -10, right: -10, width: 80, height: 80, borderRadius: 999, opacity: 0.1, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 40, elevation: 0 }, { backgroundColor: t.accent }]} />
-      <View style={[{ position: 'absolute', bottom: -8, left: -8, width: 64, height: 64, borderRadius: 999, opacity: 0.08, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 35, elevation: 0 }, { backgroundColor: t.uploadLine || t.accent }]} />
+    <View style={[rowS.container, !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.separator }]}>
       <Text style={[rowS.label, { color: t.textPrimary, fontFamily: FONT_FAMILY }]}>{label}</Text>
       <View style={rowS.right}>{children}</View>
     </View>
@@ -370,8 +368,7 @@ const SettingsScreen = () => {
             <TextInput
               style={[styles.thresholdInput, { backgroundColor: t.controlBg, borderColor: t.controlBorder, color: t.textPrimary, fontFamily: FONT_FAMILY }]}
               value={alertThreshold} onChangeText={setAlertThreshold}
-              keyboardType="numeric" placeholder="—"
-              placeholderTextColor={t.placeholderText} maxLength={5}
+              keyboardType="numeric" placeholder="—" maxLength={5}
             />
             <Text style={[styles.thresholdUnit, { color: t.textSecondary, fontFamily: FONT_FAMILY, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Mbps</Text>
           </View>

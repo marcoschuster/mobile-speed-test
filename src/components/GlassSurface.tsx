@@ -72,11 +72,7 @@ const GlassSurface = ({
   const { t } = useTheme();
   const flattened = StyleSheet.flatten(style) || {};
   const borderRadius = radius ?? flattened.borderRadius ?? RADIUS.lg;
-  const primaryTone = withAlpha(tintColor || t.accentLight || t.accent, t.mode === 'dark' ? 0.22 : 0.14);
-  const secondaryTone = withAlpha(t.uploadLine || t.accent, t.mode === 'dark' ? 0.16 : 0.1);
   const washTone = withAlpha('#FFFFFF', t.mode === 'dark' ? 0.04 : 0.08);
-  const primaryId = `glass-surface-primary-${borderRadius}-${tintColor || t.accent}`;
-  const secondaryId = `glass-surface-secondary-${borderRadius}-${t.uploadLine}`;
 
   return (
     <View
@@ -94,20 +90,6 @@ const GlassSurface = ({
       ]}
     >
       <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
-        <Svg width="100%" height="100%" style={StyleSheet.absoluteFillObject}>
-          <Defs>
-            <RadialGradient id={primaryId} cx="50%" cy="50%" r="50%">
-              <Stop offset="0%" stopColor={primaryTone} stopOpacity="1" />
-              <Stop offset="100%" stopColor={primaryTone} stopOpacity="0" />
-            </RadialGradient>
-            <RadialGradient id={secondaryId} cx="50%" cy="50%" r="50%">
-              <Stop offset="0%" stopColor={secondaryTone} stopOpacity="1" />
-              <Stop offset="100%" stopColor={secondaryTone} stopOpacity="0" />
-            </RadialGradient>
-          </Defs>
-          <Circle cx="28%" cy="30%" r="44%" fill={`url(#${primaryId})`} />
-          <Circle cx="78%" cy="70%" r="34%" fill={`url(#${secondaryId})`} />
-        </Svg>
         <View style={[styles.surfaceWash, { backgroundColor: washTone }]} />
       </View>
       {children}

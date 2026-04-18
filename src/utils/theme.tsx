@@ -74,9 +74,9 @@ const DARK = {
   separator: 'rgba(255, 255, 255, 0.10)',
 
   // Header & Nav
-  headerBg: 'rgba(9, 18, 29, 0.84)',
+  headerBg: 'rgba(3, 8, 15, 0.92)',
   headerText: '#FFFFFF',
-  navBar: 'rgba(9, 18, 29, 0.84)',
+  navBar: 'rgba(3, 8, 15, 0.92)',
   navActive: '#F5C400',
   navInactive: '#75839A',
 
@@ -138,9 +138,9 @@ const LIGHT = {
   separator: 'rgba(113, 135, 162, 0.18)',
 
   // Header & Nav
-  headerBg: 'rgba(255, 255, 255, 0.84)',
+  headerBg: 'rgba(245, 245, 250, 0.92)',
   headerText: '#111111',
-  navBar: 'rgba(255, 255, 255, 0.86)',
+  navBar: 'rgba(245, 245, 250, 0.92)',
   navActive: '#F5C400',
   navInactive: '#8A98AA',
 
