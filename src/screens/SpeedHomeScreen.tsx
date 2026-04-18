@@ -193,6 +193,7 @@ const SpeedHomeScreen = () => {
   const gaugeWhirRef = useRef<NodeJS.Timeout | null>(null);
   const liveSpeedRef = useRef(0);
   const contentFade = useRef(new Animated.Value(1)).current;
+  const stopFloatAnim = useRef(new Animated.Value(0)).current;
 
   const startBackgroundTest = async (intervalMinutes: number) => {
     if (!settings.dataDisclosureAccepted) return;
@@ -254,9 +255,17 @@ const SpeedHomeScreen = () => {
     Animated.timing(contentFade, { toValue: 1, duration: 400, useNativeDriver: false }).start();
     loadPersistedData();
 
+    // Floating animation for stop button
+    const stopFloat = Animated.loop(Animated.sequence([
+      Animated.timing(stopFloatAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
+      Animated.timing(stopFloatAnim, { toValue: 0, duration: 2000, useNativeDriver: true }),
+    ]));
+    stopFloat.start();
+
     return () => {
       if (gaugeWhirRef.current) clearInterval(gaugeWhirRef.current);
       if (backgroundTestRef) clearInterval(backgroundTestRef);
+      stopFloat.stop();
     };
   }, [contentFade, loadPersistedData, backgroundTestRef]);
 
@@ -523,9 +532,11 @@ const SpeedHomeScreen = () => {
             onStart={startTest}
           />
           {isTestRunning && (
-            <TouchableOpacity onPress={stopTest} style={styles.stopButtonFloating} activeOpacity={0.7}>
-              <Text style={[styles.stopButtonText, { color: t.accent }]}>Stop</Text>
-            </TouchableOpacity>
+            <Animated.View style={{ transform: [{ translateY: stopFloatAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -5] }) }] }}>
+              <TouchableOpacity onPress={stopTest} style={styles.stopButtonFloating} activeOpacity={0.7}>
+                <Text style={[styles.stopButtonText, { color: t.accent }]}>Stop</Text>
+              </TouchableOpacity>
+            </Animated.View>
           )}
         </View>
 

@@ -209,6 +209,7 @@ const SpeedHomeLiquidScreen = () => {
   const gaugeWhirRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const liveSpeedRef = useRef(0);
   const contentFade = useRef(new Animated.Value(0)).current;
+  const stopFloatAnim = useRef(new Animated.Value(0)).current;
   const speedUnitKey = resolveSpeedUnitKey(settings.speedUnit);
   const speedUnitLabel = getSpeedUnitLabel(speedUnitKey);
   const palette = useMemo(() => ({
@@ -237,9 +238,17 @@ const SpeedHomeLiquidScreen = () => {
 
     loadPersistedData();
 
+    // Floating animation for stop button
+    const stopFloat = Animated.loop(Animated.sequence([
+      Animated.timing(stopFloatAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
+      Animated.timing(stopFloatAnim, { toValue: 0, duration: 2000, useNativeDriver: true }),
+    ]));
+    stopFloat.start();
+
     return () => {
       if (gaugeWhirRef.current) clearInterval(gaugeWhirRef.current);
       if (backgroundTimer) clearInterval(backgroundTimer);
+      stopFloat.stop();
     };
   }, [backgroundTimer, contentFade, loadPersistedData]);
 
@@ -530,9 +539,11 @@ const SpeedHomeLiquidScreen = () => {
         />
 
         {isTestRunning && (
-          <TouchableOpacity onPress={stopTest} style={styles.stopButtonFloating} activeOpacity={0.7}>
-            <Text style={[styles.stopButtonText, { color: t.accent }]}>Stop</Text>
-          </TouchableOpacity>
+          <Animated.View style={{ transform: [{ translateY: stopFloatAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -5] }) }] }}>
+            <TouchableOpacity onPress={stopTest} style={styles.stopButtonFloating} activeOpacity={0.7}>
+              <Text style={[styles.stopButtonText, { color: t.accent }]}>Stop</Text>
+            </TouchableOpacity>
+          </Animated.View>
         )}
 
         {progressText ? <Text style={[styles.progressText, { color: t.textSecondary }]}>{progressText}</Text> : null}
