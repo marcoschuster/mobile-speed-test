@@ -80,7 +80,7 @@ const LiquidGlass = ({
   const handlePressIn: NonNullable<PressableProps['onPressIn']> = (event) => {
     if (!disabled && layout.width && layout.height) {
       const { locationX, locationY } = event.nativeEvent;
-      const size = Math.max(layout.width, layout.height) * 1.15;
+      const size = Math.max(layout.width, layout.height) * 0.8;
       const scale = new Animated.Value(0);
       const opacity = new Animated.Value(0.6);
       const id = rippleId.current += 1;
@@ -89,7 +89,7 @@ const LiquidGlass = ({
 
       Animated.parallel([
         Animated.timing(scale, {
-          toValue: 4,
+          toValue: 3,
           duration: 600,
           useNativeDriver: true,
         }),
