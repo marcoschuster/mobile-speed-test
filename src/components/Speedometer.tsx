@@ -195,8 +195,8 @@ const Speedometer = ({
               <Stop offset="100%" stopColor={bezelBottom || 'rgba(0,0,0,0.3)'} />
             </LinearGradient>
             <LinearGradient id="arcGlow" x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0%" stopColor={t.accent || '#8B5CF6'} stopOpacity={0.9} />
-              <Stop offset="100%" stopColor={t.accentDark || '#4c1d95'} stopOpacity={0.6} />
+              <Stop offset="0%" stopColor={t.accent || '#FACC15'} stopOpacity={1} />
+              <Stop offset="100%" stopColor={t.accentDark || t.accent || '#EAB308'} stopOpacity={0.8} />
             </LinearGradient>
           </Defs>
 
