@@ -519,28 +519,16 @@ const SpeedHomeLiquidScreen = () => {
           </LiquidGlass>
         ) : null}
 
-        <LiquidGlass
-          style={[
-            styles.gaugeCard,
-            {
-              borderColor: withAlpha(t.accentLight, 0.34),
-              backgroundColor: withAlpha(t.accent, t.mode === 'dark' ? 0.16 : 0.08),
-              shadowColor: t.accentDark,
-            },
-          ]}
-          contentStyle={styles.gaugeCardContent}
-        >
-          <TouchableOpacity onPress={startTest} activeOpacity={0.9} disabled={isTestRunning || !settings.dataDisclosureAccepted}>
-            <Speedometer
-              speed={gaugeValue}
-              maxValue={gaugeMax}
-              label={gaugeLabel}
-              unit={currentType === 'Ping' ? 'ms' : speedUnitLabel}
-              needleColor={gaugeNeedleColor}
-              isRunning={isTestRunning}
-            />
-          </TouchableOpacity>
-        </LiquidGlass>
+        <TouchableOpacity onPress={startTest} activeOpacity={0.9} disabled={isTestRunning || !settings.dataDisclosureAccepted}>
+          <Speedometer
+            speed={gaugeValue}
+            maxValue={gaugeMax}
+            label={gaugeLabel}
+            unit={currentType === 'Ping' ? 'ms' : speedUnitLabel}
+            needleColor={gaugeNeedleColor}
+            isRunning={isTestRunning}
+          />
+        </TouchableOpacity>
 
         {isTestRunning && (
           <TouchableOpacity onPress={stopTest} style={styles.stopButtonFloating} activeOpacity={0.7}>
