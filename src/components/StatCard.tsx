@@ -307,15 +307,15 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   cardContent: {
-    padding: 16,
+    padding: 12,
     alignItems: 'center',
   },
-  labelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 6 },
-  label: { fontSize: 11, textTransform: 'uppercase', fontWeight: '700', letterSpacing: 1.2 },
-  value: { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
-  valueUnit: { fontSize: 12, fontWeight: '600' },
-  loaderWrap: { height: 32, justifyContent: 'center', alignItems: 'center' },
-  peak: { fontSize: 11, fontWeight: '600', marginTop: 8, textAlign: 'center' },
+  labelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 5 },
+  label: { fontSize: 10, textTransform: 'uppercase', fontWeight: '700', letterSpacing: 1 },
+  value: { fontSize: 18, fontWeight: '900', letterSpacing: -0.5 },
+  valueUnit: { fontSize: 11, fontWeight: '600' },
+  loaderWrap: { height: 28, justifyContent: 'center', alignItems: 'center' },
+  peak: { fontSize: 10, fontWeight: '600', marginTop: 4, textAlign: 'center' },
 });
 
 export default StatCard;
