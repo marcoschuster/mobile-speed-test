@@ -224,7 +224,7 @@ const Speedometer = ({
               {/* Active colored arc with glow */}
               {speed > 0.3 && (
                 <>
-                  <Path d={coloredArcPath} fill="none" stroke={t.accentGlow} strokeWidth="14" strokeLinecap="round" />
+                  <Path d={coloredArcPath} fill="none" stroke={t.accentGlow || t.accent || '#FACC15'} strokeWidth="14" strokeLinecap="round" />
                   <Path d={coloredArcPath} fill="none" stroke="url(#arcGlow)" strokeWidth="6" strokeLinecap="round" />
                 </>
               )}
@@ -272,7 +272,7 @@ const Speedometer = ({
         {isRunning && (
           <Animated.View style={[styles.needleWrap, { transform: [{ rotate: needleRotation }] }]}>
             <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-              <Path d={`M ${CX - 5} ${CY} L ${CX} ${CY - INNER_R + 2} L ${CX + 5} ${CY} Z`} fill={t.accentGlow} />
+              <Path d={`M ${CX - 5} ${CY} L ${CX} ${CY - INNER_R + 2} L ${CX + 5} ${CY} Z`} fill={t.accentGlow || t.accent || '#FACC15'} />
               <Path d={`M ${CX - 3} ${CY} L ${CX} ${CY - INNER_R + 5} L ${CX + 3} ${CY} Z`} fill={resolvedNeedleColor} />
               <Path d={`M ${CX - 0.8} ${CY - 10} L ${CX} ${CY - INNER_R + 10} L ${CX + 0.8} ${CY - 10} Z`} fill="rgba(255,255,255,0.25)" />
             </Svg>
