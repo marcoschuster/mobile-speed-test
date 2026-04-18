@@ -686,22 +686,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     width: '100%',
   },
-  startButton: {
-    height: 52,
-    paddingVertical: 14,
-    paddingHorizontal: 76,
-    borderRadius: RADIUS.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  startButtonText: {
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 1,
-    lineHeight: 20,
-    textAlign: 'center',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-  },
   runningButton: {
     height: 52,
     paddingVertical: 14,

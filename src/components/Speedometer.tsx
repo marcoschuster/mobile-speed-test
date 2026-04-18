@@ -180,24 +180,13 @@ const Speedometer = ({
               <Stop offset="0%" stopColor={dialFaceCenter} />
               <Stop offset="100%" stopColor={dialFaceEdge} />
             </RadialGradient>
-            <LinearGradient id="bezelGrad" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor={bezelTop || 'rgba(255,255,255,0.3)'} />
-              <Stop offset="50%" stopColor={bezelMid || 'rgba(255,255,255,0.1)'} />
-              <Stop offset="100%" stopColor={bezelBottom || 'rgba(0,0,0,0.2)'} />
-            </LinearGradient>
             <LinearGradient id="arcGlow" x1="0" y1="0" x2="1" y2="1">
               <Stop offset="0%" stopColor={t.accent || '#8B5CF6'} stopOpacity={0.9} />
               <Stop offset="100%" stopColor={t.accentDark || '#4c1d95'} stopOpacity={0.6} />
             </LinearGradient>
           </Defs>
 
-          {/* Outer bezel */}
-          <Circle cx={CX} cy={CY} r={R + 12} fill={dialOuter || 'rgba(5, 12, 20, 0.82)'} />
-          <Circle cx={CX} cy={CY} r={R + 10} fill="url(#bezelGrad)" />
-          <Circle cx={CX} cy={CY} r={R + 6} fill={dialInnerRing || 'rgba(255,255,255,0.05)'} />
-
-          {/* Dial face */}
-          <Circle cx={CX} cy={CY} r={R + 3} fill={dialRim || 'rgba(255,255,255,0.08)'} />
+          {/* Dial face - no bezel */}
           <Circle cx={CX} cy={CY} r={R} fill="url(#dialBg)" />
 
           {/* Track arc (inactive) */}
