@@ -36,7 +36,7 @@ const getTabIconType = (routeName) => {
   }
 };
 
-const getLiquidGradient = (t) => ['#070b16', '#10192b', withAlpha(t.accentDark || '#4c1d95', 0.34)];
+const getLiquidGradient = (t) => ['#070b16', '#10192b', withAlpha(t.accentDark || '#0f1428', 0.34)];
 
 // ── Lightning Bolt SVG Logo ─────────────────────────────────────────────────
 const LightningLogo = ({ size = 22, isTestRunning = false }) => {
@@ -196,7 +196,7 @@ const CustomHeader = ({ title, navigation, routeName }) => {
 
   return (
     <View style={tabStyles.headerShell}>
-      <LinearGradient colors={['#0a0e27', '#1a1f3a', '#2d1b69']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={['#0a0e27', '#1a1f3a', '#0f1428']} style={StyleSheet.absoluteFill} />
       <BlurView intensity={GLASS.blur} tint="dark" style={StyleSheet.absoluteFill}>
         <View style={tabStyles.headerBlurFallback} />
       </BlurView>
@@ -226,7 +226,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 
   return (
     <View style={[tabStyles.tabBarShell, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-      <LinearGradient colors={['#0a0e27', '#1a1f3a', '#2d1b69']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={['#0a0e27', '#1a1f3a', '#0f1428']} style={StyleSheet.absoluteFill} />
       <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill}>
         <View style={tabStyles.tabBarBlurFallback} />
       </BlurView>
@@ -266,7 +266,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                 style={[
                   tabStyles.tabInner,
                   isFocused && {
-                    shadowColor: '#8B5CF6',
+                    shadowColor: t.accent,
                     shadowOffset: { width: 0, height: 0 },
                     shadowOpacity: 0.35,
                     shadowRadius: 18,
