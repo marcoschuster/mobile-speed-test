@@ -390,7 +390,7 @@ const HistoryCard = ({ item, index, formatDate, speedUnit, speedUnitLabel }: His
           <View style={styles.historyStats}>
             <View style={styles.historyStat}>
               <View style={styles.statIconRow}>
-                <DownloadIcon />
+                <DownloadIcon color={t.accent} />
                 <Text style={[styles.historyStatLabel, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Download</Text>
               </View>
               <Text style={[styles.historyStatValue, { color: t.textPrimary }]}>
@@ -416,7 +416,7 @@ const HistoryCard = ({ item, index, formatDate, speedUnit, speedUnitLabel }: His
 
             <View style={styles.historyStat}>
               <View style={styles.statIconRow}>
-                <PingIcon />
+                <PingIcon color={t.success} />
                 <Text style={[styles.historyStatLabel, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Ping</Text>
               </View>
               <Text style={[styles.historyStatValue, { color: t.textPrimary }]}>

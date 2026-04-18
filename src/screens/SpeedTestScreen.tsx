@@ -235,7 +235,7 @@ const SpeedTestScreen = () => {
 
   const getNeedleColor = (): string => {
     switch (currentType) {
-      case 'Download': return COLORS.accent;
+      case 'Download': return '#FACC15';
       case 'Upload': return t.uploadLine;
       case 'Ping': return COLORS.success;
       case 'Complete': return t.accent;
@@ -310,7 +310,10 @@ const SpeedTestScreen = () => {
             onPress={toggleBackgroundMode}
             activeOpacity={0.7}
           >
-            <Text style={[styles.bottomButtonText, { color: t.accent }]}>Auto</Text>
+            <View style={styles.bottomButtonContent}>
+              <MaterialIcons name="autorenew" size={24} color={t.accent} />
+              <Text style={[styles.bottomButtonText, { color: t.accent }]}>Auto</Text>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.bottomButton, { borderColor: t.glassBorderAccent, backgroundColor: t.glass }]}
@@ -397,12 +400,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     width: '100%',
     gap: 12,
-    marginTop: 20,
-    marginBottom: 20,
+    marginTop: 12,
+    marginBottom: 12,
   },
   bottomButton: {
     flex: 1,
-    height: 56,
+    height: 44,
     borderRadius: RADIUS.pill,
     backgroundColor: 'transparent',
     borderWidth: 2,
