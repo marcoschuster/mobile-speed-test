@@ -819,7 +819,7 @@ const SpeedHomeLiquidScreen = () => {
             pointerEvents="none"
             style={{
               position: 'absolute',
-              top: 400,
+              bottom: 150,
               left: 0,
               right: 0,
               alignItems: 'center',
