@@ -19,6 +19,7 @@ import SpeedTestService from '../services/SpeedTestService';
 import FlashTitle from '../components/FlashTitle';
 import LiquidGlass from '../components/LiquidGlass';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { useTabBarMotion } from '../context/TabBarMotionContext';
 import { buildHistoryCsv, summarizeHistory } from '../utils/history';
 import { formatBytes, formatSpeedValue, getSpeedUnitLabel } from '../utils/measurements';
 import { COLORS, RADIUS, useTheme } from '../utils/theme';
@@ -482,12 +483,14 @@ const SummaryStrip = ({ history, speedUnit, speedUnitLabel }: SummaryStripProps)
 const HistoryScreen = () => {
   const { t } = useTheme();
   const { settings } = useAppSettings();
+  const { setTabBarMode } = useTabBarMotion();
   const [history, setHistory] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const contentFade = useRef(new Animated.Value(0)).current;
   const calHeight = useRef(new Animated.Value(0)).current;
+  const lastScrollY = useRef(0);
   const speedUnitLabel = getSpeedUnitLabel(settings.speedUnit as any);
 
   const loadHistory = useCallback(async () => {
@@ -501,8 +504,25 @@ const HistoryScreen = () => {
   }, [contentFade, loadHistory]);
 
   useFocusEffect(useCallback(() => {
+    setTabBarMode('expanded');
+    lastScrollY.current = 0;
     loadHistory();
-  }, [loadHistory]));
+  }, [loadHistory, setTabBarMode]));
+
+  const handleScroll = useCallback((event: any) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    const delta = offsetY - lastScrollY.current;
+
+    if (offsetY <= 12) {
+      setTabBarMode('expanded');
+    } else if (delta > 6) {
+      setTabBarMode('compact');
+    } else if (delta < -6) {
+      setTabBarMode('expanded');
+    }
+
+    lastScrollY.current = offsetY;
+  }, [setTabBarMode]);
 
   const clearHistory = () => {
     Alert.alert('Clear History', 'Are you sure you want to clear all test history?', [
@@ -601,7 +621,9 @@ const HistoryScreen = () => {
       <ScrollView
         style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContentContainer}
+        onScroll={handleScroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.accent} colors={[t.accent]} />}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}

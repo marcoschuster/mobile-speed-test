@@ -13,6 +13,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import FlashTitle from './src/components/FlashTitle';
 import LiquidBackdrop from './src/components/LiquidBackdrop';
 import LiquidGlass, { GLASS } from './src/components/LiquidGlass';
+import { TabBarMotionProvider, useTabBarMotion } from './src/context/TabBarMotionContext';
 import { ThemeProvider, useTheme, withAlpha } from './src/utils/theme';
 import { AppSettingsProvider } from './src/context/AppSettingsContext';
 import { TestProvider, useTestContext } from './src/context/TestContext';
@@ -223,15 +224,21 @@ const CustomHeader = ({ title, navigation, routeName }) => {
 const CustomTabBar = ({ state, descriptors, navigation }) => {
   const { t } = useTheme();
   const insets = useSafeAreaInsets();
+  const { tabBarTranslateY, tabBarScale } = useTabBarMotion();
 
   return (
-    <View style={[tabStyles.tabBarShell, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-      <LinearGradient colors={['#0a0e27', '#1a1f3a', '#0f1428']} style={StyleSheet.absoluteFill} />
-      <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill}>
-        <View style={tabStyles.tabBarBlurFallback} />
-      </BlurView>
-      <View style={tabStyles.tabBarBorder} />
-      <View style={tabStyles.tabRow}>
+    <View pointerEvents="box-none" style={[tabStyles.tabBarShell, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+      <Animated.View
+        style={[
+          tabStyles.tabRow,
+          {
+            transform: [
+              { translateY: tabBarTranslateY },
+              { scale: tabBarScale },
+            ],
+          },
+        ]}
+      >
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;
@@ -284,7 +291,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
             </LiquidGlass>
           );
         })}
-      </View>
+      </Animated.View>
     </View>
   );
 };
@@ -312,101 +319,103 @@ function AppInner() {
     <View style={[appStyles.root, { backgroundColor: t.bg }]}>
       <LinearGradient colors={getLiquidGradient(t)} style={StyleSheet.absoluteFill} />
       {showBackdrop && <LiquidBackdrop />}
-      <NavigationContainer
-        theme={navTheme}
-        ref={navigationRef}
-        onStateChange={(state) => {
-          const currentRoute = state?.routes[state.index];
-          setShowBackdrop(currentRoute?.name === 'Speed Test');
-        }}
-      >
-        <StatusBar style="light" />
-        <Tab.Navigator
-          tabBar={(props) => <CustomTabBar {...props} />}
-          screenOptions={{
-            sceneStyle: {
-              backgroundColor: 'transparent',
-            },
-            tabBarStyle: {
-              backgroundColor: 'transparent',
-              borderTopWidth: 0,
-              height: 96,
-              paddingBottom: 0,
-              paddingTop: 0,
-              elevation: 0,
-              shadowOpacity: 0,
-            },
-            tabBarActiveTintColor: t.navActive,
-            tabBarInactiveTintColor: t.navInactive,
-            tabBarLabelStyle: {
-              fontSize: 0,
-              display: 'none',
-            },
-            headerStyle: {
-              backgroundColor: 'transparent',
-              elevation: 0,
-              shadowOpacity: 0,
-              borderBottomWidth: 0,
-            },
-            headerTintColor: t.headerText,
-            headerTitleStyle: {
-              fontWeight: '700',
-              fontSize: 17,
-              letterSpacing: 0.5,
-              fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-            },
+      <TabBarMotionProvider>
+        <NavigationContainer
+          theme={navTheme}
+          ref={navigationRef}
+          onStateChange={(state) => {
+            const currentRoute = state?.routes[state.index];
+            setShowBackdrop(currentRoute?.name === 'Speed Test');
           }}
         >
-          <Tab.Screen
-            name="Speed Test"
-            component={SpeedHomeScreen}
-            listeners={{ tabPress: () => SoundEngine.playNavTick() }}
-            options={{
-              tabBarLabel: 'Speed',
-              header: ({ navigation, route }) => <CustomHeader title="Speed Test" navigation={navigation} routeName={route.name} />,
-              tabBarIcon: ({ color, focused }) => (
-                <TabIcon focused={focused} iconType="speed" color={color} />
-              ),
+          <StatusBar style="light" />
+          <Tab.Navigator
+            tabBar={(props) => <CustomTabBar {...props} />}
+            screenOptions={{
+              sceneStyle: {
+                backgroundColor: 'transparent',
+              },
+              tabBarStyle: {
+                backgroundColor: 'transparent',
+                borderTopWidth: 0,
+                height: 96,
+                paddingBottom: 0,
+                paddingTop: 0,
+                elevation: 0,
+                shadowOpacity: 0,
+              },
+              tabBarActiveTintColor: t.navActive,
+              tabBarInactiveTintColor: t.navInactive,
+              tabBarLabelStyle: {
+                fontSize: 0,
+                display: 'none',
+              },
+              headerStyle: {
+                backgroundColor: 'transparent',
+                elevation: 0,
+                shadowOpacity: 0,
+                borderBottomWidth: 0,
+              },
+              headerTintColor: t.headerText,
+              headerTitleStyle: {
+                fontWeight: '700',
+                fontSize: 17,
+                letterSpacing: 0.5,
+                fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+              },
             }}
-          />
-          <Tab.Screen
-            name="History"
-            component={HistoryScreen}
-            listeners={{ tabPress: () => SoundEngine.playNavTick() }}
-            options={{
-              tabBarLabel: 'History',
-              header: ({ navigation, route }) => <CustomHeader title="History" navigation={navigation} routeName={route.name} />,
-              tabBarIcon: ({ color, focused }) => (
-                <TabIcon focused={focused} iconType="history" color={color} />
-              ),
-            }}
-          />
-          <Tab.Screen
-            name="Graphs"
-            component={GraphScreen}
-            listeners={{ tabPress: () => SoundEngine.playNavTick() }}
-            options={{
-              tabBarLabel: 'Graphs',
-              header: ({ navigation, route }) => <CustomHeader title="Graphs" navigation={navigation} routeName={route.name} />,
-              tabBarIcon: ({ color, focused }) => (
-                <TabIcon focused={focused} iconType="graph" color={color} />
-              ),
-            }}
-          />
-          <Tab.Screen
-            name="Settings"
-            component={SettingsScreen}
-            listeners={{ tabPress: () => SoundEngine.playNavTick() }}
-            options={{
-              tabBarLabel: 'Settings',
-              header: ({ navigation, route }) => <CustomHeader title="Settings" navigation={navigation} routeName={route.name} />,
-              tabBarIcon: ({ color, focused }) => (
-                <TabIcon focused={focused} iconType="settings" color={color} />
-              ),
-            }}
-          />
-        </Tab.Navigator>
-      </NavigationContainer>
+          >
+            <Tab.Screen
+              name="Speed Test"
+              component={SpeedHomeScreen}
+              listeners={{ tabPress: () => SoundEngine.playNavTick() }}
+              options={{
+                tabBarLabel: 'Speed',
+                header: ({ navigation, route }) => <CustomHeader title="Speed Test" navigation={navigation} routeName={route.name} />,
+                tabBarIcon: ({ color, focused }) => (
+                  <TabIcon focused={focused} iconType="speed" color={color} />
+                ),
+              }}
+            />
+            <Tab.Screen
+              name="History"
+              component={HistoryScreen}
+              listeners={{ tabPress: () => SoundEngine.playNavTick() }}
+              options={{
+                tabBarLabel: 'History',
+                header: ({ navigation, route }) => <CustomHeader title="History" navigation={navigation} routeName={route.name} />,
+                tabBarIcon: ({ color, focused }) => (
+                  <TabIcon focused={focused} iconType="history" color={color} />
+                ),
+              }}
+            />
+            <Tab.Screen
+              name="Graphs"
+              component={GraphScreen}
+              listeners={{ tabPress: () => SoundEngine.playNavTick() }}
+              options={{
+                tabBarLabel: 'Graphs',
+                header: ({ navigation, route }) => <CustomHeader title="Graphs" navigation={navigation} routeName={route.name} />,
+                tabBarIcon: ({ color, focused }) => (
+                  <TabIcon focused={focused} iconType="graph" color={color} />
+                ),
+              }}
+            />
+            <Tab.Screen
+              name="Settings"
+              component={SettingsScreen}
+              listeners={{ tabPress: () => SoundEngine.playNavTick() }}
+              options={{
+                tabBarLabel: 'Settings',
+                header: ({ navigation, route }) => <CustomHeader title="Settings" navigation={navigation} routeName={route.name} />,
+                tabBarIcon: ({ color, focused }) => (
+                  <TabIcon focused={focused} iconType="settings" color={color} />
+                ),
+              }}
+            />
+          </Tab.Navigator>
+        </NavigationContainer>
+      </TabBarMotionProvider>
     </View>
   );
 }
@@ -495,31 +504,18 @@ const tabStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   tabBarShell: {
-    marginHorizontal: 12,
-    marginBottom: 10,
-    borderTopWidth: 1,
-    borderTopColor: GLASS.border,
-    borderRadius: 30,
-    overflow: 'hidden',
-    minHeight: 80,
-  },
-  tabBarBlurFallback: {
-    flex: 1,
-    backgroundColor: 'rgba(11, 15, 32, 0.8)',
-  },
-  tabBarBorder: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    height: 1,
-    backgroundColor: GLASS.border,
+    left: 12,
+    right: 12,
+    bottom: 0,
+    minHeight: 80,
   },
   tabRow: {
     flexDirection: 'row',
     alignItems: 'center',
     height: 80,
-    paddingHorizontal: 12,
+    justifyContent: 'center',
+    paddingHorizontal: 4,
     gap: 10,
   },
   tabButtonShell: {

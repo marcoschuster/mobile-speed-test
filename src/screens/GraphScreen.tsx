@@ -28,6 +28,7 @@ import SoundEngine from '../services/SoundEngine';
 import FlashTitle from '../components/FlashTitle';
 import LiquidGlass from '../components/LiquidGlass';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { useTabBarMotion } from '../context/TabBarMotionContext';
 import { summarizeHistory, type HistoryItem } from '../utils/history';
 import { convertSpeedFromMbps, formatBytes, formatSpeedValue, getSpeedUnitLabel } from '../utils/measurements';
 import { RADIUS, useTheme, withAlpha } from '../utils/theme';
@@ -525,11 +526,13 @@ const TrendSummary = ({ history, speedUnit, speedUnitLabel }: TrendSummaryProps)
 const GraphScreen = () => {
   const { t } = useTheme();
   const { settings } = useAppSettings();
+  const { setTabBarMode } = useTabBarMotion();
   const isDark = t.mode === 'dark';
   const [allHistory, setAllHistory] = useState<HistoryItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [timeFilter, setTimeFilter] = useState('month');
   const contentFade = useRef(new Animated.Value(0)).current;
+  const lastScrollY = useRef(0);
   const speedUnitLabel = getSpeedUnitLabel(settings.speedUnit as any);
 
   const loadSpeedHistory = useCallback(async () => {
@@ -543,8 +546,25 @@ const GraphScreen = () => {
   }, [contentFade, loadSpeedHistory]);
 
   useFocusEffect(useCallback(() => {
+    setTabBarMode('expanded');
+    lastScrollY.current = 0;
     loadSpeedHistory();
-  }, [loadSpeedHistory]));
+  }, [loadSpeedHistory, setTabBarMode]));
+
+  const handleScroll = useCallback((event: any) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    const delta = offsetY - lastScrollY.current;
+
+    if (offsetY <= 12) {
+      setTabBarMode('expanded');
+    } else if (delta > 6) {
+      setTabBarMode('compact');
+    } else if (delta < -6) {
+      setTabBarMode('expanded');
+    }
+
+    lastScrollY.current = offsetY;
+  }, [setTabBarMode]);
 
   const onRefresh = async () => { setRefreshing(true); await loadSpeedHistory(); setRefreshing(false); };
 
@@ -655,7 +675,9 @@ const GraphScreen = () => {
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
+        onScroll={handleScroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.accent} colors={[t.accent]} />}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.filterRow}>

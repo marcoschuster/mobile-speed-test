@@ -17,6 +17,7 @@ import LiquidGlass from '../components/LiquidGlass';
 import Speedometer from '../components/Speedometer';
 import StatCard from '../components/StatCard';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { useTabBarMotion } from '../context/TabBarMotionContext';
 import { useTestContext } from '../context/TestContext';
 import SoundEngine from '../services/SoundEngine';
 import SpeedTestService from '../services/SpeedTestService';
@@ -192,6 +193,7 @@ const SpeedHomeLiquidScreen = () => {
   const { t } = useTheme();
   const { settings, updateSettings } = useAppSettings();
   const { setIsTestRunning } = useTestContext();
+  const { setTabBarMode } = useTabBarMotion();
   const [isTestRunning, setIsTestRunningLocal] = useState(false);
   const [currentType, setCurrentType] = useState('Ready');
   const [downloadSpeed, setDownloadSpeed] = useState(0);
@@ -210,6 +212,7 @@ const SpeedHomeLiquidScreen = () => {
   const liveSpeedRef = useRef(0);
   const contentFade = useRef(new Animated.Value(0)).current;
   const stopFloatAnim = useRef(new Animated.Value(0)).current;
+  const lastScrollY = useRef(0);
   const speedUnitKey = resolveSpeedUnitKey(settings.speedUnit);
   const speedUnitLabel = getSpeedUnitLabel(speedUnitKey);
   const palette = useMemo(() => ({
@@ -253,8 +256,25 @@ const SpeedHomeLiquidScreen = () => {
   }, [backgroundTimer, contentFade, loadPersistedData]);
 
   useFocusEffect(useCallback(() => {
+    setTabBarMode('expanded');
+    lastScrollY.current = 0;
     loadPersistedData();
-  }, [loadPersistedData]));
+  }, [loadPersistedData, setTabBarMode]));
+
+  const handleScroll = useCallback((event: any) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    const delta = offsetY - lastScrollY.current;
+
+    if (offsetY <= 12) {
+      setTabBarMode('expanded');
+    } else if (delta > 6) {
+      setTabBarMode('compact');
+    } else if (delta < -6) {
+      setTabBarMode('expanded');
+    }
+
+    lastScrollY.current = offsetY;
+  }, [setTabBarMode]);
 
   const qualitySource = {
     download: downloadSpeed || lastTest?.download || 0,
@@ -491,6 +511,8 @@ const SpeedHomeLiquidScreen = () => {
       <Animated.ScrollView
         style={{ opacity: contentFade }}
         contentContainerStyle={styles.content}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
       >
         {!settings.dataDisclosureAccepted ? (

@@ -14,11 +14,13 @@ import {
   UIManager,
   LayoutChangeEvent,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import SpeedTestService from '../services/SpeedTestService';
 import SoundEngine from '../services/SoundEngine';
 import FlashTitle from '../components/FlashTitle';
 import ColorPickerWheel from '../components/ColorPickerWheel';
 import LiquidGlass from '../components/LiquidGlass';
+import { useTabBarMotion } from '../context/TabBarMotionContext';
 import { COLORS, RADIUS, useTheme, COLOR_THEMES } from '../utils/theme';
 
 // LayoutAnimation is now enabled by default on Android
@@ -206,6 +208,7 @@ const rowS = StyleSheet.create({
 // ── Main Settings Screen ────────────────────────────────────────────────────
 const SettingsScreen = () => {
   const { t, themeChoice, setThemeChoice, colorThemeId, setColorThemeId } = useTheme();
+  const { setTabBarMode } = useTabBarMotion();
 
   const [autoBackground, setAutoBackground] = useState(false);
   const [testInterval, setTestInterval] = useState('1h');
@@ -222,10 +225,36 @@ const SettingsScreen = () => {
   const [hapticsOn, setHapticsOn] = useState(SoundEngine.hapticsEnabled);
 
   const contentFade = useRef(new Animated.Value(0)).current;
+  const lastScrollY = useRef(0);
 
   useEffect(() => {
     Animated.timing(contentFade, { toValue: 1, duration: 300, useNativeDriver: false }).start();
   }, []);
+
+  useEffect(() => {
+    setTabBarMode('expanded');
+    lastScrollY.current = 0;
+  }, [setTabBarMode]);
+
+  useFocusEffect(React.useCallback(() => {
+    setTabBarMode('expanded');
+    lastScrollY.current = 0;
+  }, [setTabBarMode]));
+
+  const handleScroll = (event: any) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    const delta = offsetY - lastScrollY.current;
+
+    if (offsetY <= 12) {
+      setTabBarMode('expanded');
+    } else if (delta > 6) {
+      setTabBarMode('compact');
+    } else if (delta < -6) {
+      setTabBarMode('expanded');
+    }
+
+    lastScrollY.current = offsetY;
+  };
 
   // Toggle handler that plays the appropriate sound
   const handleToggle = (currentVal: boolean, setter: React.Dispatch<React.SetStateAction<boolean>>, engineProp?: 'muted' | 'hapticsEnabled') => {
@@ -258,6 +287,8 @@ const SettingsScreen = () => {
     <Animated.ScrollView
       style={[styles.container, { opacity: contentFade }]}
       contentContainerStyle={styles.contentContainer}
+      onScroll={handleScroll}
+      scrollEventThrottle={16}
       showsVerticalScrollIndicator={false}
     >
       {/* APPEARANCE */}
