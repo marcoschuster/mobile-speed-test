@@ -799,6 +799,30 @@ const SpeedHomeLiquidScreen = () => {
         )}
 
         <View style={styles.metricTrack} onLayout={handleMetricTrackLayout}>
+          {runnerVisible && (
+            <Animated.View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                top: 20,
+                left: 0,
+                right: 0,
+                alignItems: 'center',
+                opacity: runnerOpacity,
+              }}
+            >
+              <View style={{ width: 72, height: 68, alignItems: 'center', justifyContent: 'center' }}>
+                {isTestRunning && (
+                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: runnerColor + '33', alignItems: 'center', justifyContent: 'center' }}>
+                    <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: runnerColor, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ color: '#000', fontWeight: 'bold', fontSize: 12 }}>{runnerLabel.charAt(0)}</Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+            </Animated.View>
+          )}
+
           <View style={styles.metricRow}>
             {metricSlots.map((slot) => (
               <MetricSlot
@@ -813,30 +837,6 @@ const SpeedHomeLiquidScreen = () => {
             ))}
           </View>
         </View>
-
-        {runnerVisible && (
-          <Animated.View
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              top: 50,
-              left: 0,
-              right: 0,
-              alignItems: 'center',
-              opacity: runnerOpacity,
-            }}
-          >
-            <View style={{ width: 72, height: 68, alignItems: 'center', justifyContent: 'center' }}>
-              {isTestRunning && (
-                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: runnerColor + '33', alignItems: 'center', justifyContent: 'center' }}>
-                  <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: runnerColor, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ color: '#000', fontWeight: 'bold', fontSize: 12 }}>{runnerLabel.charAt(0)}</Text>
-                  </View>
-                </View>
-              )}
-            </View>
-          </Animated.View>
-        )}
 
         {!isTestRunning && progressText ? (
           <Text style={[styles.progressText, { color: t.textSecondary }]}>{progressText}</Text>
