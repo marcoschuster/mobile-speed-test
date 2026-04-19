@@ -282,7 +282,7 @@ const SpeedHomeLiquidScreen = () => {
   const contentFade = useRef(new Animated.Value(0)).current;
   const stopFloatAnim = useRef(new Animated.Value(0)).current;
   const runnerX = useRef(new Animated.Value(0)).current;
-  const runnerY = useRef(new Animated.Value(250)).current;
+  const runnerY = useRef(new Animated.Value(400)).current;
   const runnerOpacity = useRef(new Animated.Value(0)).current;
   const runnerScale = useRef(new Animated.Value(0.92)).current;
   const runnerMounted = useRef(false);
@@ -615,7 +615,7 @@ const SpeedHomeLiquidScreen = () => {
       runnerMounted.current = true;
       setRunnerVisible(true);
       runnerX.setValue(targetX);
-      runnerY.setValue(250);
+      runnerY.setValue(400);
       runnerOpacity.setValue(0);
       runnerScale.setValue(0.92);
 
@@ -632,7 +632,7 @@ const SpeedHomeLiquidScreen = () => {
           useNativeDriver: true,
         }),
         Animated.timing(runnerY, {
-          toValue: 250,
+          toValue: 400,
           duration: 200,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
@@ -671,7 +671,7 @@ const SpeedHomeLiquidScreen = () => {
     ]).start(() => {
       runnerMounted.current = false;
       setRunnerVisible(false);
-      runnerY.setValue(250);
+      runnerY.setValue(400);
       runnerScale.setValue(0.92);
     });
   }, [metricTrackWidth, runnerOpacity, runnerScale, runnerX, runnerY]);
@@ -691,7 +691,7 @@ const SpeedHomeLiquidScreen = () => {
       runnerMounted.current = false;
       setRunnerVisible(false);
       runnerOpacity.setValue(0);
-      runnerY.setValue(250);
+      runnerY.setValue(400);
       runnerScale.setValue(0.92);
     }
   }, [animateRunnerToPhase, currentType, exitRunner, isTestRunning, runnerOpacity, runnerScale, runnerY]);
@@ -808,7 +808,6 @@ const SpeedHomeLiquidScreen = () => {
                   opacity: runnerOpacity,
                   transform: [
                     { translateX: runnerX },
-                    { translateY: runnerY },
                     { scale: runnerScale },
                   ],
                 },
@@ -1068,7 +1067,7 @@ const styles = StyleSheet.create({
   },
   runnerOverlay: {
     position: 'absolute',
-    top: 0,
+    top: 200,
     left: 0,
     width: RUNNER_WIDTH,
     alignItems: 'center',
