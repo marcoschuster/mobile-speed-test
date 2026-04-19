@@ -72,9 +72,16 @@ const Speedometer = ({
   const glowAnim = useRef(new Animated.Value(0.3)).current;
   const contentFade = useRef(new Animated.Value(0)).current;
 
+  // Reset animation values to ensure clean state
+  useEffect(() => {
+    needleAnim.setValue(MIN_DEG);
+    glowAnim.setValue(0.3);
+    contentFade.setValue(0);
+  }, []);
+
   useEffect(() => {
     if (isRunning) {
-      Animated.timing(contentFade, { toValue: 1, duration: 600, useNativeDriver: true }).start();
+      Animated.timing(contentFade, { toValue: 1, duration: 600, useNativeDriver: false }).start();
     } else {
       contentFade.setValue(0);
     }
