@@ -615,7 +615,7 @@ const SpeedHomeLiquidScreen = () => {
       runnerMounted.current = true;
       setRunnerVisible(true);
       runnerX.setValue(targetX);
-      runnerY.setValue(18);
+      runnerY.setValue(200);
       runnerOpacity.setValue(0);
       runnerScale.setValue(0.92);
 
@@ -632,7 +632,7 @@ const SpeedHomeLiquidScreen = () => {
           useNativeDriver: true,
         }),
         Animated.timing(runnerY, {
-          toValue: 0,
+          toValue: 200,
           duration: 200,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
@@ -671,7 +671,7 @@ const SpeedHomeLiquidScreen = () => {
     ]).start(() => {
       runnerMounted.current = false;
       setRunnerVisible(false);
-      runnerY.setValue(12);
+      runnerY.setValue(200);
       runnerScale.setValue(0.92);
     });
   }, [metricTrackWidth, runnerOpacity, runnerScale, runnerX, runnerY]);
@@ -691,7 +691,7 @@ const SpeedHomeLiquidScreen = () => {
       runnerMounted.current = false;
       setRunnerVisible(false);
       runnerOpacity.setValue(0);
-      runnerY.setValue(12);
+      runnerY.setValue(200);
       runnerScale.setValue(0.92);
     }
   }, [animateRunnerToPhase, currentType, exitRunner, isTestRunning, runnerOpacity, runnerScale, runnerY]);
