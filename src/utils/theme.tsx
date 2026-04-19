@@ -351,6 +351,7 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
 
   // Apply color theme to base theme
   const t = {
+    ...COLORS,
     ...baseTheme,
     ...activeColorTheme,
     navActive: activeColorTheme.accent,

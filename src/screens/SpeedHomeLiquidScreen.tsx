@@ -14,6 +14,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Path } from 'react-native-svg';
 import FlashTitle from '../components/FlashTitle';
 import LiquidGlass from '../components/LiquidGlass';
+import RunningStickman from '../components/RunningStickman';
 import Speedometer from '../components/Speedometer';
 import StatCard from '../components/StatCard';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -500,6 +501,21 @@ const SpeedHomeLiquidScreen = () => {
     }
   })();
 
+  const runnerSpeed = useMemo(() => {
+    switch (currentType) {
+      case 'Download':
+        return liveDownload;
+      case 'Upload':
+        return liveUpload;
+      case 'Ping':
+        return Math.max(40, 220 - livePing * 7);
+      default:
+        return 72;
+    }
+  }, [currentType, liveDownload, livePing, liveUpload]);
+
+  const runnerLabel = currentType === 'Testing' ? 'Connecting' : currentType;
+
   const selectedBackgroundLabel = BACKGROUND_TEST_INTERVALS.find(
     (option) => option.minutes === settings.backgroundTestInterval,
   )?.label || 'Off';
@@ -568,7 +584,16 @@ const SpeedHomeLiquidScreen = () => {
           </Animated.View>
         )}
 
-        {progressText ? <Text style={[styles.progressText, { color: t.textSecondary }]}>{progressText}</Text> : null}
+        {isTestRunning ? (
+          <RunningStickman
+            active
+            color="#FACC15"
+            speed={runnerSpeed}
+            phaseLabel={runnerLabel}
+          />
+        ) : progressText ? (
+          <Text style={[styles.progressText, { color: t.textSecondary }]}>{progressText}</Text>
+        ) : null}
 
         <View style={styles.statsGrid}>
           <StatCard
