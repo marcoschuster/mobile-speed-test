@@ -607,7 +607,7 @@ class SpeedTestService {
   }
 
   // ── Main test runner ──────────────────────────────────────────────────────
-  // Sequence: server selection → ping → download → upload
+  // Sequence: server selection → download → upload → ping
   // Callbacks are unchanged from the original interface.
 
   async runSpeedTest(onProgress, onSpeedUpdate, onComplete, onError, onPingSample, onPhaseComplete) {
@@ -627,13 +627,7 @@ class SpeedTestService {
       onProgress('Selecting server...', 'server');
       await this.selectBestServer();
 
-      // Phase 2: Ping (WebSocket RTT, HTTP HEAD fallback)
-      onProgress('Testing ping...', 'ping');
-      const pingResult = await this.runPingTest(onPingSample);
-      this.currentTest.ping = pingResult;
-      if (onPhaseComplete) onPhaseComplete('ping', pingResult);
-
-      // Phase 3: Download (6 parallel XHR with onprogress, rolling window)
+      // Phase 2: Download (parallel XHR with onprogress, rolling window)
       onProgress('Testing download speed...', 'download');
       const downloadResult = await this.runDownloadTest(onSpeedUpdate);
       this.currentTest.download = downloadResult;
@@ -644,7 +638,7 @@ class SpeedTestService {
         await this.savePeaks();
       }
 
-      // Phase 4: Upload (6 parallel XHR with upload.onprogress, rolling window)
+      // Phase 3: Upload (parallel XHR with upload.onprogress, rolling window)
       onProgress('Testing upload speed...', 'upload');
       const uploadResult = await this.runUploadTest(onSpeedUpdate);
       this.currentTest.upload = uploadResult;
@@ -654,6 +648,12 @@ class SpeedTestService {
         this.peaks.upload = uploadResult;
         await this.savePeaks();
       }
+
+      // Phase 4: Ping (WebSocket RTT, HTTP HEAD fallback)
+      onProgress('Testing ping...', 'ping');
+      const pingResult = await this.runPingTest(onPingSample);
+      this.currentTest.ping = pingResult;
+      if (onPhaseComplete) onPhaseComplete('ping', pingResult);
 
       // Update ping peak (lower is better; 0 = no previous peak)
       if (this.peaks.ping === 0 || pingResult < this.peaks.ping) {

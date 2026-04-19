@@ -7,6 +7,7 @@ interface RunningStickmanProps {
   speed?: number;
   phaseLabel?: string;
   color?: string;
+  showLabel?: boolean;
 }
 
 interface Point {
@@ -16,8 +17,8 @@ interface Point {
 
 const STROKE = 3.25;
 
-const HEAD_CENTER = { x: 38, y: 12 };
-const SHOULDER = { x: 37, y: 24 };
+const HEAD_CENTER = { x: 42, y: 12 };
+const SHOULDER = { x: 40, y: 24 };
 const HIP = { x: 34, y: 40 };
 const GROUND_Y = 64;
 const THIGH_LENGTH = 16;
@@ -29,21 +30,25 @@ const toRadians = (turn: number) => turn * Math.PI * 2;
 
 const orbitingFoot = (phase: number): Point => {
   const angle = toRadians(phase) - Math.PI / 2;
-  const x = HIP.x + Math.sin(angle) * 14;
-  const lift = Math.max(0, Math.cos(angle)) * 12;
+  const swing = Math.sin(angle);
+  const x = HIP.x + swing * 18;
+  const lift = Math.max(0, Math.cos(angle)) * 10;
 
   return {
     x,
-    y: GROUND_Y - lift,
+    y: GROUND_Y - lift + Math.max(0, -swing) * 1.5,
   };
 };
 
 const orbitingHand = (phase: number): Point => {
   const angle = toRadians(phase) - Math.PI / 2;
+  const swing = Math.sin(angle);
+  const rise = Math.max(0, swing);
+  const drop = Math.max(0, -swing);
 
   return {
-    x: SHOULDER.x - Math.sin(angle) * 11,
-    y: SHOULDER.y + 14 - Math.cos(angle) * 4,
+    x: SHOULDER.x - 1 + swing * 12,
+    y: SHOULDER.y + 13 - rise * 6 + drop * 2,
   };
 };
 
@@ -72,11 +77,11 @@ const solveJoint = (
 
 const createLimb = (phase: number, isNearSide: boolean) => {
   const foot = orbitingFoot(phase);
-  const hand = orbitingHand(phase);
+  const hand = orbitingHand((phase + 0.5) % 1);
 
   return {
     hand,
-    elbow: solveJoint(SHOULDER, hand, UPPER_ARM_LENGTH, FOREARM_LENGTH, isNearSide ? 0.55 : 0.35),
+    elbow: solveJoint(SHOULDER, hand, UPPER_ARM_LENGTH, FOREARM_LENGTH, isNearSide ? 0.46 : 0.28),
     foot,
     knee: solveJoint(HIP, foot, THIGH_LENGTH, SHIN_LENGTH, -0.72),
   };
@@ -87,6 +92,7 @@ const RunningStickman = ({
   speed = 0,
   phaseLabel = 'TESTING',
   color = '#FACC15',
+  showLabel = true,
 }: RunningStickmanProps) => {
   const bob = useRef(new Animated.Value(0)).current;
   const frameRef = useRef<number | null>(null);
@@ -180,7 +186,7 @@ const RunningStickman = ({
         </Svg>
       </Animated.View>
 
-      <Text style={[styles.phaseText, { color }]}>{phaseLabel.toUpperCase()}</Text>
+      {showLabel ? <Text style={[styles.phaseText, { color }]}>{phaseLabel.toUpperCase()}</Text> : null}
     </View>
   );
 };

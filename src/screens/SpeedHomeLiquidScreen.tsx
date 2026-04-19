@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   Animated,
+  Easing,
+  LayoutChangeEvent,
   Platform,
   Share,
   StyleSheet,
@@ -16,7 +18,6 @@ import FlashTitle from '../components/FlashTitle';
 import LiquidGlass from '../components/LiquidGlass';
 import RunningStickman from '../components/RunningStickman';
 import Speedometer from '../components/Speedometer';
-import StatCard from '../components/StatCard';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useTabBarMotion } from '../context/TabBarMotionContext';
 import { useTestContext } from '../context/TestContext';
@@ -121,6 +122,72 @@ const CycleIcon = ({ size = 20, color = '#FFFFFF' }: { size?: number; color?: st
   </Svg>
 );
 
+const DownloadMetricIcon = ({ size = 18, color = '#FACC15' }: { size?: number; color?: string }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path
+      d="M12 4v12m0 0l-5-5m5 5l5-5M5 20h14"
+      stroke={color}
+      strokeWidth={2.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill="none"
+    />
+  </Svg>
+);
+
+const UploadMetricIcon = ({ size = 18, color = '#4FC3F7' }: { size?: number; color?: string }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path
+      d="M12 20V8m0 0l-5 5m5-5l5 5M5 4h14"
+      stroke={color}
+      strokeWidth={2.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill="none"
+    />
+  </Svg>
+);
+
+const PingMetricIcon = ({ size = 18, color = '#00C48C' }: { size?: number; color?: string }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path
+      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"
+      fill={color}
+    />
+  </Svg>
+);
+
+const TEST_PHASE_ORDER = ['Download', 'Upload', 'Ping'] as const;
+const RUNNER_WIDTH = 108;
+
+const MetricSlot = ({
+  icon,
+  color,
+  value,
+  unit,
+  active,
+  complete,
+}: {
+  icon: React.ReactNode;
+  color: string;
+  value: string;
+  unit: string;
+  active: boolean;
+  complete: boolean;
+}) => (
+  <View style={styles.metricSlot}>
+    <View style={[styles.metricIconWrap, active && styles.metricSlotHidden]}>
+      {icon}
+    </View>
+    <View style={[styles.metricValueWrap, active && styles.metricSlotHidden]}>
+      <Text style={[styles.metricValue, { color: complete ? color : 'rgba(255,255,255,0.92)' }]}>
+        {complete ? value : '--'}
+      </Text>
+      <Text style={styles.metricUnit}>{unit}</Text>
+    </View>
+  </View>
+);
+
 const ParticleField = ({ color }: { color: string }) => {
   const opacity = useRef(Array.from({ length: 8 }, () => new Animated.Value(0.25))).current;
 
@@ -209,10 +276,17 @@ const SpeedHomeLiquidScreen = () => {
   const [peaks, setPeaks] = useState({ download: 0, upload: 0, ping: 0 });
   const [backgroundIntervalOpen, setBackgroundIntervalOpen] = useState(false);
   const [backgroundTimer, setBackgroundTimer] = useState<ReturnType<typeof setInterval> | null>(null);
+  const [metricTrackWidth, setMetricTrackWidth] = useState(0);
+  const [runnerVisible, setRunnerVisible] = useState(false);
   const gaugeWhirRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const liveSpeedRef = useRef(0);
   const contentFade = useRef(new Animated.Value(0)).current;
   const stopFloatAnim = useRef(new Animated.Value(0)).current;
+  const runnerX = useRef(new Animated.Value(0)).current;
+  const runnerY = useRef(new Animated.Value(40)).current;
+  const runnerOpacity = useRef(new Animated.Value(0)).current;
+  const runnerScale = useRef(new Animated.Value(0.92)).current;
+  const runnerMounted = useRef(false);
   const lastScrollY = useRef(0);
   const speedUnitKey = resolveSpeedUnitKey(settings.speedUnit);
   const speedUnitLabel = getSpeedUnitLabel(speedUnitKey);
@@ -491,7 +565,7 @@ const SpeedHomeLiquidScreen = () => {
       case 'Download':
         return palette.accent;
       case 'Upload':
-        return palette.accent2;
+        return t.uploadLine;
       case 'Ping':
         return palette.success;
       case 'Complete':
@@ -515,10 +589,165 @@ const SpeedHomeLiquidScreen = () => {
   }, [currentType, liveDownload, livePing, liveUpload]);
 
   const runnerLabel = currentType === 'Testing' ? 'Connecting' : currentType;
+  const runnerColor = currentType === 'Upload'
+    ? t.uploadLine
+    : currentType === 'Ping'
+      ? t.success
+      : '#FACC15';
+
+  const getPhaseSlotCenter = useCallback((phase: typeof TEST_PHASE_ORDER[number]) => {
+    if (!metricTrackWidth) {
+      return 0;
+    }
+
+    const index = TEST_PHASE_ORDER.indexOf(phase);
+    const slotWidth = metricTrackWidth / TEST_PHASE_ORDER.length;
+    return slotWidth * index + slotWidth / 2;
+  }, [metricTrackWidth]);
+
+  const animateRunnerToPhase = useCallback((phase: typeof TEST_PHASE_ORDER[number]) => {
+    if (!metricTrackWidth) {
+      return;
+    }
+
+    const targetX = getPhaseSlotCenter(phase) - RUNNER_WIDTH / 2;
+
+    if (!runnerMounted.current) {
+      runnerMounted.current = true;
+      setRunnerVisible(true);
+      runnerX.setValue(targetX);
+      runnerY.setValue(18);
+      runnerOpacity.setValue(0);
+      runnerScale.setValue(0.92);
+
+      Animated.parallel([
+        Animated.timing(runnerOpacity, {
+          toValue: 1,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+        Animated.spring(runnerScale, {
+          toValue: 1,
+          tension: 180,
+          friction: 16,
+          useNativeDriver: true,
+        }),
+        Animated.spring(runnerY, {
+          toValue: 0,
+          tension: 180,
+          friction: 15,
+          useNativeDriver: true,
+        }),
+      ]).start();
+      return;
+    }
+
+    Animated.parallel([
+      Animated.timing(runnerX, {
+        toValue: targetX,
+        duration: 420,
+        easing: Easing.inOut(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.timing(runnerY, {
+          toValue: -10,
+          duration: 170,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(runnerY, {
+          toValue: 0,
+          duration: 250,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, [getPhaseSlotCenter, metricTrackWidth, runnerOpacity, runnerScale, runnerX, runnerY]);
+
+  const exitRunner = useCallback(() => {
+    if (!metricTrackWidth || !runnerMounted.current) {
+      return;
+    }
+
+    Animated.parallel([
+      Animated.timing(runnerX, {
+        toValue: metricTrackWidth + 28,
+        duration: 340,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(runnerOpacity, {
+        toValue: 0,
+        duration: 240,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      runnerMounted.current = false;
+      setRunnerVisible(false);
+      runnerY.setValue(12);
+      runnerScale.setValue(0.92);
+    });
+  }, [metricTrackWidth, runnerOpacity, runnerScale, runnerX, runnerY]);
+
+  useEffect(() => {
+    if (currentType === 'Download' || currentType === 'Upload' || currentType === 'Ping') {
+      animateRunnerToPhase(currentType);
+      return;
+    }
+
+    if (currentType === 'Complete') {
+      exitRunner();
+      return;
+    }
+
+    if (!isTestRunning) {
+      runnerMounted.current = false;
+      setRunnerVisible(false);
+      runnerOpacity.setValue(0);
+      runnerY.setValue(12);
+      runnerScale.setValue(0.92);
+    }
+  }, [animateRunnerToPhase, currentType, exitRunner, isTestRunning, runnerOpacity, runnerScale, runnerY]);
 
   const selectedBackgroundLabel = BACKGROUND_TEST_INTERVALS.find(
     (option) => option.minutes === settings.backgroundTestInterval,
   )?.label || 'Off';
+
+  const metricSlots = [
+    {
+      key: 'Download',
+      color: '#FACC15',
+      value: formatSpeedValue(downloadSpeed, speedUnitKey),
+      unit: speedUnitLabel,
+      complete: downloadSpeed > 0,
+      icon: <DownloadMetricIcon color="#FACC15" />,
+    },
+    {
+      key: 'Upload',
+      color: t.uploadLine,
+      value: formatSpeedValue(uploadSpeed, speedUnitKey),
+      unit: speedUnitLabel,
+      complete: uploadSpeed > 0,
+      icon: <UploadMetricIcon color={t.uploadLine} />,
+    },
+    {
+      key: 'Ping',
+      color: t.success,
+      value: String(Math.round(ping || 0)),
+      unit: 'ms',
+      complete: ping > 0,
+      icon: <PingMetricIcon color={t.success} />,
+    },
+  ] as const;
+
+  const handleMetricTrackLayout = (event: LayoutChangeEvent) => {
+    const { width } = event.nativeEvent.layout;
+    if (width !== metricTrackWidth) {
+      setMetricTrackWidth(width);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -584,42 +813,50 @@ const SpeedHomeLiquidScreen = () => {
           </Animated.View>
         )}
 
-        {isTestRunning ? (
-          <RunningStickman
-            active
-            color="#FACC15"
-            speed={runnerSpeed}
-            phaseLabel={runnerLabel}
-          />
-        ) : progressText ? (
+        <View style={styles.metricTrack} onLayout={handleMetricTrackLayout}>
+          {runnerVisible ? (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.runnerOverlay,
+                {
+                  opacity: runnerOpacity,
+                  transform: [
+                    { translateX: runnerX },
+                    { translateY: runnerY },
+                    { scale: runnerScale },
+                  ],
+                },
+              ]}
+            >
+              <RunningStickman
+                active={isTestRunning}
+                color={runnerColor}
+                speed={runnerSpeed}
+                phaseLabel={runnerLabel}
+                showLabel={false}
+              />
+            </Animated.View>
+          ) : null}
+
+          <View style={styles.metricRow}>
+            {metricSlots.map((slot) => (
+              <MetricSlot
+                key={slot.key}
+                icon={slot.icon}
+                color={slot.color}
+                value={slot.value}
+                unit={slot.unit}
+                active={currentType === slot.key && isTestRunning}
+                complete={slot.complete}
+              />
+            ))}
+          </View>
+        </View>
+
+        {!isTestRunning && progressText ? (
           <Text style={[styles.progressText, { color: t.textSecondary }]}>{progressText}</Text>
         ) : null}
-
-        <View style={styles.statsGrid}>
-          <StatCard
-            label="Download"
-            value={formatSpeedValue(downloadSpeed, speedUnitKey)}
-            unit={speedUnitLabel}
-            activePhase={currentType}
-            footerText={peaks.download ? `Best ${formatSpeedValue(peaks.download, speedUnitKey, 1)} ${speedUnitLabel}` : 'Best pending'}
-          />
-          <StatCard
-            label="Upload"
-            value={formatSpeedValue(uploadSpeed, speedUnitKey)}
-            unit={speedUnitLabel}
-            activePhase={currentType}
-            footerText={peaks.upload ? `Best ${formatSpeedValue(peaks.upload, speedUnitKey, 1)} ${speedUnitLabel}` : 'Best pending'}
-          />
-          {settings.showPing ? (
-            <StatCard
-              label="Ping"
-              value={ping}
-              unit="ms"
-              activePhase={currentType}
-              footerText={peaks.ping ? `Best ${formatPing(peaks.ping)}` : 'Best pending'}
-            />
-          ) : null}
-        </View>
 
         <View style={styles.insightsWrap}>
           <InsightCard
@@ -658,7 +895,7 @@ const SpeedHomeLiquidScreen = () => {
             blurIntensity={28}
           >
             <ShareIcon color={t.textPrimary} />
-            <Text style={[styles.iconButtonText, { color: t.textPrimary }]}>Share</Text>
+            <Text numberOfLines={1} ellipsizeMode="clip" style={[styles.iconButtonText, { color: t.textPrimary }]}>Share</Text>
           </LiquidGlass>
         </View>
 
@@ -792,16 +1029,63 @@ const styles = StyleSheet.create({
   progressText: {
     fontSize: 12,
     fontStyle: 'italic',
+    marginTop: 6,
     marginBottom: 10,
     textAlign: 'center',
     letterSpacing: 0.4,
   },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  metricTrack: {
     width: '100%',
-    marginTop: 8,
+    minHeight: 122,
+    marginTop: 10,
     marginBottom: 18,
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  metricRow: {
+    flexDirection: 'row',
+    width: '100%',
+    alignItems: 'flex-end',
+  },
+  metricSlot: {
+    flex: 1,
+    minHeight: 94,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  metricIconWrap: {
+    minHeight: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  metricValueWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  metricValue: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  metricUnit: {
+    marginTop: 2,
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.54)',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  metricSlotHidden: {
+    opacity: 0,
+  },
+  runnerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: RUNNER_WIDTH,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   insightsWrap: {
     gap: 12,
@@ -837,6 +1121,7 @@ const styles = StyleSheet.create({
   iconButton: {
     flex: 1,
     minHeight: 64,
+    minWidth: 88,
   },
   iconButtonContent: {
     flex: 1,

@@ -248,7 +248,11 @@ const ThemeActionButton = ({ text, onPress, danger = false }: ActionButtonProps)
       onPress={onPress}
       activeOpacity={0.7}
     >
-      <Text style={[styles.actionButtonText, danger ? styles.actionButtonDangerText : [styles.actionButtonDefaultText, { color: t.accent }]]}>
+      <Text
+        numberOfLines={1}
+        ellipsizeMode="tail"
+        style={[styles.actionButtonText, danger ? styles.actionButtonDangerText : [styles.actionButtonDefaultText, { color: t.accent }]]}
+      >
         {text}
       </Text>
     </TouchableOpacity>
@@ -591,6 +595,7 @@ const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: 14,
     fontWeight: '700',
+    flexShrink: 1,
   },
   actionButtonDefaultText: {},
   actionButtonDangerText: {

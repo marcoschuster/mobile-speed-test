@@ -88,22 +88,15 @@ const Speedometer = ({
   useEffect(() => {
     Animated.spring(needleAnim, {
       toValue: speedToAngle(speed),
-      tension: 30,
-      friction: 10,
-      useNativeDriver: false,
+      tension: 50,
+      friction: 12,
+      useNativeDriver: true,
     }).start();
   }, [speed]);
 
   useEffect(() => {
     if (isRunning) {
-      const pulse = Animated.loop(
-        Animated.sequence([
-          Animated.timing(glowAnim, { toValue: 0.6, duration: 1200, useNativeDriver: false }),
-          Animated.timing(glowAnim, { toValue: 0.2, duration: 1200, useNativeDriver: false }),
-        ])
-      );
-      pulse.start();
-      return () => pulse.stop();
+      glowAnim.setValue(0.4);
     } else {
       glowAnim.setValue(0);
     }
@@ -195,7 +188,7 @@ const Speedometer = ({
               <Stop offset="100%" stopColor={bezelBottom || 'rgba(0,0,0,0.3)'} />
             </LinearGradient>
             <LinearGradient id="arcGlow" x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0%" stopColor={t.accent || '#8B5CF6'} stopOpacity={0.9} />
+              <Stop offset="0%" stopColor={resolvedNeedleColor || t.accent || '#8B5CF6'} stopOpacity={0.9} />
               <Stop offset="100%" stopColor={t.accentDark || '#4c1d95'} stopOpacity={0.6} />
             </LinearGradient>
           </Defs>
@@ -224,7 +217,7 @@ const Speedometer = ({
               {/* Active colored arc with glow */}
               {speed > 0.3 && (
                 <>
-                  <Path d={coloredArcPath} fill="none" stroke={t.accentGlow} strokeWidth="14" strokeLinecap="round" />
+                  <Path d={coloredArcPath} fill="none" stroke={resolvedNeedleColor} strokeWidth="14" strokeLinecap="round" opacity={0.3} />
                   <Path d={coloredArcPath} fill="none" stroke="url(#arcGlow)" strokeWidth="6" strokeLinecap="round" />
                 </>
               )}
