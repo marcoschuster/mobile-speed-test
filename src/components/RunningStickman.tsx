@@ -94,11 +94,25 @@ const RunningStickman = ({
   color = '#FACC15',
   showLabel = true,
 }: RunningStickmanProps) => {
-  const bob = useRef(new Animated.Value(0)).current;
+  const [phase, setPhase] = useState(0);
   const frameRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number | null>(null);
   const phaseRef = useRef(0);
-  const [phase, setPhase] = useState(0);
+
+  // Create a darker shade of the color for far limbs
+  const darkColor = useMemo(() => {
+    // Simple darkening by reducing lightness
+    if (color.startsWith('#')) {
+      const r = parseInt(color.slice(1, 3), 16);
+      const g = parseInt(color.slice(3, 5), 16);
+      const b = parseInt(color.slice(5, 7), 16);
+      const darkerR = Math.floor(r * 0.6);
+      const darkerG = Math.floor(g * 0.6);
+      const darkerB = Math.floor(b * 0.6);
+      return `#${darkerR.toString(16).padStart(2, '0')}${darkerG.toString(16).padStart(2, '0')}${darkerB.toString(16).padStart(2, '0')}`;
+    }
+    return color;
+  }, [color]);
 
   const cadenceDuration = useMemo(() => {
     const clamped = Math.max(0, Math.min(speed, 320));
@@ -106,8 +120,6 @@ const RunningStickman = ({
   }, [speed]);
 
   useEffect(() => {
-    bob.stopAnimation();
-    bob.setValue(0);
     phaseRef.current = 0;
     lastTimeRef.current = null;
     setPhase(0);
@@ -116,29 +128,14 @@ const RunningStickman = ({
       return;
     }
 
-    const runLoop = Animated.loop(Animated.sequence([
-      Animated.timing(bob, {
-        toValue: 1,
-        duration: cadenceDuration / 2,
-        easing: Easing.inOut(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(bob, {
-        toValue: 0,
-        duration: cadenceDuration / 2,
-        easing: Easing.inOut(Easing.quad),
-        useNativeDriver: true,
-      }),
-    ]));
-
     const tick = (timestamp: number) => {
       if (lastTimeRef.current == null) {
         lastTimeRef.current = timestamp;
       }
 
       const delta = timestamp - lastTimeRef.current;
-      // Only update if enough time has passed to reduce tearing
-      if (delta >= 16) {
+      // Update at 16fps to reduce tearing
+      if (delta >= 62) {
         lastTimeRef.current = timestamp;
         phaseRef.current = (phaseRef.current + delta / cadenceDuration) % 1;
         setPhase(phaseRef.current);
@@ -146,7 +143,6 @@ const RunningStickman = ({
       frameRef.current = requestAnimationFrame(tick);
     };
 
-    runLoop.start();
     frameRef.current = requestAnimationFrame(tick);
 
     return () => {
@@ -154,29 +150,22 @@ const RunningStickman = ({
         cancelAnimationFrame(frameRef.current);
         frameRef.current = null;
       }
-      runLoop.stop();
-      bob.stopAnimation();
     };
-  }, [active, bob, cadenceDuration]);
+  }, [active, cadenceDuration]);
 
-  const bodyTranslateY = bob.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -4],
-  });
-
-  const nearSide = createLimb(phase, true);
-  const farSide = createLimb((phase + 0.5) % 1, false);
+  const nearSide = useMemo(() => createLimb(phase, true), [phase]);
+  const farSide = useMemo(() => createLimb((phase + 0.5) % 1, false), [phase]);
 
   return (
     <View style={styles.wrap}>
-      <Animated.View style={[styles.figureFrame, { transform: [{ translateY: bodyTranslateY }] }]}>
+      <Animated.View style={styles.figureFrame}>
         <Svg width={72} height={68} viewBox="0 0 72 68">
-          <Line x1={16} y1={64} x2={56} y2={64} stroke={color} strokeOpacity={0.4} strokeWidth={4} strokeLinecap="round" />
+          <Line x1={16} y1={64} x2={56} y2={64} stroke={color} strokeOpacity={0.5} strokeWidth={4} strokeLinecap="round" />
 
-          <Line x1={SHOULDER.x} y1={SHOULDER.y} x2={farSide.elbow.x} y2={farSide.elbow.y} stroke={color} strokeOpacity={0.6} strokeWidth={STROKE - 0.5} strokeLinecap="round" />
-          <Line x1={farSide.elbow.x} y1={farSide.elbow.y} x2={farSide.hand.x} y2={farSide.hand.y} stroke={color} strokeOpacity={0.6} strokeWidth={STROKE - 0.5} strokeLinecap="round" />
-          <Line x1={HIP.x} y1={HIP.y} x2={farSide.knee.x} y2={farSide.knee.y} stroke={color} strokeOpacity={0.6} strokeWidth={STROKE - 0.3} strokeLinecap="round" />
-          <Line x1={farSide.knee.x} y1={farSide.knee.y} x2={farSide.foot.x} y2={farSide.foot.y} stroke={color} strokeOpacity={0.6} strokeWidth={STROKE - 0.3} strokeLinecap="round" />
+          <Line x1={SHOULDER.x} y1={SHOULDER.y} x2={farSide.elbow.x} y2={farSide.elbow.y} stroke={darkColor} strokeWidth={STROKE - 0.5} strokeLinecap="round" />
+          <Line x1={farSide.elbow.x} y1={farSide.elbow.y} x2={farSide.hand.x} y2={farSide.hand.y} stroke={darkColor} strokeWidth={STROKE - 0.5} strokeLinecap="round" />
+          <Line x1={HIP.x} y1={HIP.y} x2={farSide.knee.x} y2={farSide.knee.y} stroke={darkColor} strokeWidth={STROKE - 0.3} strokeLinecap="round" />
+          <Line x1={farSide.knee.x} y1={farSide.knee.y} x2={farSide.foot.x} y2={farSide.foot.y} stroke={darkColor} strokeWidth={STROKE - 0.3} strokeLinecap="round" />
 
           <Circle cx={HEAD_CENTER.x} cy={HEAD_CENTER.y} r={6.5} stroke={color} strokeWidth={STROKE} fill="none" />
           <Line x1={HEAD_CENTER.x} y1={18.5} x2={SHOULDER.x} y2={SHOULDER.y} stroke={color} strokeWidth={STROKE} strokeLinecap="round" />

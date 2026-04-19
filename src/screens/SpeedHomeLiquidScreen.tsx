@@ -283,7 +283,7 @@ const SpeedHomeLiquidScreen = () => {
   const contentFade = useRef(new Animated.Value(0)).current;
   const stopFloatAnim = useRef(new Animated.Value(0)).current;
   const runnerX = useRef(new Animated.Value(0)).current;
-  const runnerY = useRef(new Animated.Value(60)).current;
+  const runnerY = useRef(new Animated.Value(120)).current;
   const runnerOpacity = useRef(new Animated.Value(0)).current;
   const runnerScale = useRef(new Animated.Value(0.92)).current;
   const runnerMounted = useRef(false);
@@ -626,16 +626,16 @@ const SpeedHomeLiquidScreen = () => {
           duration: 180,
           useNativeDriver: true,
         }),
-        Animated.spring(runnerScale, {
+        Animated.timing(runnerScale, {
           toValue: 1,
-          tension: 180,
-          friction: 16,
+          duration: 200,
+          easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
-        Animated.spring(runnerY, {
+        Animated.timing(runnerY, {
           toValue: 0,
-          tension: 180,
-          friction: 15,
+          duration: 200,
+          easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
       ]).start();
@@ -649,20 +649,6 @@ const SpeedHomeLiquidScreen = () => {
         easing: Easing.inOut(Easing.cubic),
         useNativeDriver: true,
       }),
-      Animated.sequence([
-        Animated.timing(runnerY, {
-          toValue: -10,
-          duration: 170,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(runnerY, {
-          toValue: 0,
-          duration: 250,
-          easing: Easing.in(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ]),
     ]).start();
   }, [getPhaseSlotCenter, metricTrackWidth, runnerOpacity, runnerScale, runnerX, runnerY]);
 
