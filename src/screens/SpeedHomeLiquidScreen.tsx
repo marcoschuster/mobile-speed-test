@@ -282,7 +282,7 @@ const SpeedHomeLiquidScreen = () => {
   const contentFade = useRef(new Animated.Value(0)).current;
   const stopFloatAnim = useRef(new Animated.Value(0)).current;
   const runnerX = useRef(new Animated.Value(0)).current;
-  const runnerY = useRef(new Animated.Value(160)).current;
+  const runnerY = useRef(new Animated.Value(180)).current;
   const runnerOpacity = useRef(new Animated.Value(0)).current;
   const runnerScale = useRef(new Animated.Value(0.92)).current;
   const runnerMounted = useRef(false);
