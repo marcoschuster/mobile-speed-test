@@ -90,7 +90,7 @@ const Speedometer = ({
       toValue: speedToAngle(speed),
       tension: 50,
       friction: 12,
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start();
   }, [speed]);
 

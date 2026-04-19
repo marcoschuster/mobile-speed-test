@@ -137,9 +137,12 @@ const RunningStickman = ({
       }
 
       const delta = timestamp - lastTimeRef.current;
-      lastTimeRef.current = timestamp;
-      phaseRef.current = (phaseRef.current + delta / cadenceDuration) % 1;
-      setPhase(phaseRef.current);
+      // Only update if enough time has passed to reduce tearing
+      if (delta >= 16) {
+        lastTimeRef.current = timestamp;
+        phaseRef.current = (phaseRef.current + delta / cadenceDuration) % 1;
+        setPhase(phaseRef.current);
+      }
       frameRef.current = requestAnimationFrame(tick);
     };
 
@@ -168,12 +171,12 @@ const RunningStickman = ({
     <View style={styles.wrap}>
       <Animated.View style={[styles.figureFrame, { transform: [{ translateY: bodyTranslateY }] }]}>
         <Svg width={72} height={68} viewBox="0 0 72 68">
-          <Line x1={16} y1={64} x2={56} y2={64} stroke={color} strokeOpacity={0.22} strokeWidth={4} strokeLinecap="round" />
+          <Line x1={16} y1={64} x2={56} y2={64} stroke={color} strokeOpacity={0.4} strokeWidth={4} strokeLinecap="round" />
 
-          <Line x1={SHOULDER.x} y1={SHOULDER.y} x2={farSide.elbow.x} y2={farSide.elbow.y} stroke={color} strokeOpacity={0.34} strokeWidth={STROKE - 0.5} strokeLinecap="round" />
-          <Line x1={farSide.elbow.x} y1={farSide.elbow.y} x2={farSide.hand.x} y2={farSide.hand.y} stroke={color} strokeOpacity={0.34} strokeWidth={STROKE - 0.5} strokeLinecap="round" />
-          <Line x1={HIP.x} y1={HIP.y} x2={farSide.knee.x} y2={farSide.knee.y} stroke={color} strokeOpacity={0.34} strokeWidth={STROKE - 0.3} strokeLinecap="round" />
-          <Line x1={farSide.knee.x} y1={farSide.knee.y} x2={farSide.foot.x} y2={farSide.foot.y} stroke={color} strokeOpacity={0.34} strokeWidth={STROKE - 0.3} strokeLinecap="round" />
+          <Line x1={SHOULDER.x} y1={SHOULDER.y} x2={farSide.elbow.x} y2={farSide.elbow.y} stroke={color} strokeOpacity={0.6} strokeWidth={STROKE - 0.5} strokeLinecap="round" />
+          <Line x1={farSide.elbow.x} y1={farSide.elbow.y} x2={farSide.hand.x} y2={farSide.hand.y} stroke={color} strokeOpacity={0.6} strokeWidth={STROKE - 0.5} strokeLinecap="round" />
+          <Line x1={HIP.x} y1={HIP.y} x2={farSide.knee.x} y2={farSide.knee.y} stroke={color} strokeOpacity={0.6} strokeWidth={STROKE - 0.3} strokeLinecap="round" />
+          <Line x1={farSide.knee.x} y1={farSide.knee.y} x2={farSide.foot.x} y2={farSide.foot.y} stroke={color} strokeOpacity={0.6} strokeWidth={STROKE - 0.3} strokeLinecap="round" />
 
           <Circle cx={HEAD_CENTER.x} cy={HEAD_CENTER.y} r={6.5} stroke={color} strokeWidth={STROKE} fill="none" />
           <Line x1={HEAD_CENTER.x} y1={18.5} x2={SHOULDER.x} y2={SHOULDER.y} stroke={color} strokeWidth={STROKE} strokeLinecap="round" />
