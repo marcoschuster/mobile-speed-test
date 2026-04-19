@@ -16,7 +16,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Path } from 'react-native-svg';
 import FlashTitle from '../components/FlashTitle';
 import LiquidGlass from '../components/LiquidGlass';
-import RunningStickman from '../components/RunningStickman';
 import Speedometer from '../components/Speedometer';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useTabBarMotion } from '../context/TabBarMotionContext';
@@ -815,13 +814,15 @@ const SpeedHomeLiquidScreen = () => {
                 },
               ]}
             >
-              <RunningStickman
-                active={isTestRunning}
-                color={runnerColor}
-                speed={runnerSpeed}
-                phaseLabel={runnerLabel}
-                showLabel={false}
-              />
+              <View style={{ width: 72, height: 68, alignItems: 'center', justifyContent: 'center' }}>
+                {isTestRunning && (
+                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: runnerColor + '33', alignItems: 'center', justifyContent: 'center' }}>
+                    <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: runnerColor, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ color: '#000', fontWeight: 'bold', fontSize: 12 }}>{runnerLabel.charAt(0)}</Text>
+                    </View>
+                  </View>
+                )}
+              </View>
             </Animated.View>
           ) : null}
 

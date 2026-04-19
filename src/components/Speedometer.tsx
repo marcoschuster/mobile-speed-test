@@ -95,8 +95,8 @@ const Speedometer = ({
   useEffect(() => {
     Animated.spring(needleAnim, {
       toValue: speedToAngle(speed),
-      tension: 50,
-      friction: 12,
+      tension: 40,
+      friction: 8,
       useNativeDriver: false,
     }).start();
   }, [speed]);
