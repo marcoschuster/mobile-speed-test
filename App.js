@@ -224,7 +224,8 @@ const CustomHeader = ({ title, navigation, routeName }) => {
 const CustomTabBar = ({ state, descriptors, navigation }) => {
   const { t } = useTheme();
   const insets = useSafeAreaInsets();
-  const { tabBarTranslateY, tabBarScale } = useTabBarMotion();
+  const { tabBarTranslateY, tabBarScale, tabBarMode } = useTabBarMotion();
+  const isCompact = tabBarMode === 'compact';
 
   return (
     <View pointerEvents="box-none" style={[tabStyles.tabBarShell, { paddingBottom: Math.max(insets.bottom, 10) }]}>
@@ -265,21 +266,33 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
               glow={false}
               style={[
                 tabStyles.tabButtonShell,
-                { opacity: isFocused ? 1 : 0.6 },
+                {
+                  opacity: isFocused ? 1 : 0.72,
+                  backgroundColor: isCompact ? 'transparent' : withAlpha(t.glassStrong || '#08111a', 0.94),
+                  borderColor: isCompact ? withAlpha('#FFFFFF', 0.08) : withAlpha('#FFFFFF', 0.18),
+                  shadowColor: isFocused ? t.accent : t.accentDark,
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: isFocused ? 0.42 : 0.14,
+                  shadowRadius: isFocused ? 26 : 16,
+                  elevation: isFocused ? 14 : 4,
+                },
+                isFocused && {
+                  borderColor: withAlpha(t.accentLight || t.accent, isCompact ? 0.26 : 0.42),
+                },
               ]}
               contentStyle={tabStyles.tabButtonContent}
             >
               <Animated.View
                 style={[
                   tabStyles.tabInner,
-                  isFocused && {
-                    shadowColor: t.accent,
-                    shadowOffset: { width: 0, height: 0 },
-                    shadowOpacity: 0.35,
-                    shadowRadius: 18,
-                    elevation: 10,
-                    transform: [{ scale: 1.05 }],
+                  {
+                    backgroundColor: isFocused
+                      ? withAlpha(t.accent, isCompact ? 0.08 : 0.16)
+                      : 'transparent',
                   },
+                  isFocused && {
+                    transform: [{ scale: 1.05 }],
+                  }
                 ]}
               >
                 <TabIcon

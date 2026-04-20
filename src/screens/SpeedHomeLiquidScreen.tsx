@@ -182,7 +182,7 @@ const MetricSlot = ({
     </View>
     <View style={styles.metricValueWrap}>
       {active && (
-        <View style={{ position: 'absolute', top: -8, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ position: 'absolute', top: -12, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
           <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: color + '33', alignItems: 'center', justifyContent: 'center' }}>
             <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ color: '#000', fontWeight: 'bold', fontSize: 12 }}>{slotKey.charAt(0)}</Text>

@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useMemo, useRef } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import { Animated } from 'react-native';
 
 const TabBarMotionContext = createContext(null);
@@ -7,6 +7,7 @@ export const TabBarMotionProvider = ({ children }) => {
   const translateY = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(1)).current;
   const modeRef = useRef('expanded');
+  const [mode, setMode] = useState('expanded');
 
   const setTabBarMode = useCallback((mode) => {
     if (modeRef.current === mode) {
@@ -14,6 +15,7 @@ export const TabBarMotionProvider = ({ children }) => {
     }
 
     modeRef.current = mode;
+    setMode(mode);
     const isCompact = mode === 'compact';
 
     Animated.parallel([
@@ -35,8 +37,9 @@ export const TabBarMotionProvider = ({ children }) => {
   const value = useMemo(() => ({
     tabBarTranslateY: translateY,
     tabBarScale: scale,
+    tabBarMode: mode,
     setTabBarMode,
-  }), [scale, setTabBarMode, translateY]);
+  }), [mode, scale, setTabBarMode, translateY]);
 
   return (
     <TabBarMotionContext.Provider value={value}>
