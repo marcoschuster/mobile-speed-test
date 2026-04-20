@@ -166,6 +166,7 @@ const MetricSlot = ({
   unit,
   active,
   complete,
+  slotKey,
 }: {
   icon: React.ReactNode;
   color: string;
@@ -173,16 +174,29 @@ const MetricSlot = ({
   unit: string;
   active: boolean;
   complete: boolean;
+  slotKey: string;
 }) => (
   <View style={styles.metricSlot}>
     <View style={[styles.metricIconWrap, active && styles.metricSlotHidden]}>
       {icon}
     </View>
-    <View style={[styles.metricValueWrap, active && styles.metricSlotHidden]}>
-      <Text style={[styles.metricValue, { color: complete ? color : 'rgba(255,255,255,0.92)' }]}>
-        {complete ? value : '--'}
-      </Text>
-      <Text style={styles.metricUnit}>{unit}</Text>
+    <View style={styles.metricValueWrap}>
+      {active ? (
+        <View style={{ alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: color + '33', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: '#000', fontWeight: 'bold', fontSize: 12 }}>{slotKey.charAt(0)}</Text>
+            </View>
+          </View>
+        </View>
+      ) : (
+        <>
+          <Text style={[styles.metricValue, { color: complete ? color : 'rgba(255,255,255,0.92)' }]}>
+            {complete ? value : '--'}
+          </Text>
+          <Text style={styles.metricUnit}>{unit}</Text>
+        </>
+      )}
     </View>
   </View>
 );
@@ -801,31 +815,16 @@ const SpeedHomeLiquidScreen = () => {
         <View style={styles.metricTrack} onLayout={handleMetricTrackLayout}>
           <View style={styles.metricRow}>
             {metricSlots.map((slot) => (
-              <View key={slot.key} style={{ flex: 1, alignItems: 'center' }}>
-                {isTestRunning && currentType === slot.key && (
-                  <Animated.View
-                    pointerEvents="none"
-                    style={{
-                      opacity: runnerOpacity,
-                      marginBottom: 10,
-                    }}
-                  >
-                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: slot.color + '33', alignItems: 'center', justifyContent: 'center' }}>
-                      <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: slot.color, alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={{ color: '#000', fontWeight: 'bold', fontSize: 12 }}>{slot.key.charAt(0)}</Text>
-                      </View>
-                    </View>
-                  </Animated.View>
-                )}
-                <MetricSlot
-                  icon={slot.icon}
-                  color={slot.color}
-                  value={slot.value}
-                  unit={slot.unit}
-                  active={currentType === slot.key && isTestRunning}
-                  complete={slot.complete}
-                />
-              </View>
+              <MetricSlot
+                key={slot.key}
+                icon={slot.icon}
+                color={slot.color}
+                value={slot.value}
+                unit={slot.unit}
+                active={currentType === slot.key && isTestRunning}
+                complete={slot.complete}
+                slotKey={slot.key}
+              />
             ))}
           </View>
         </View>
