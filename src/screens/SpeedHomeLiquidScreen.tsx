@@ -809,6 +809,9 @@ const SpeedHomeLiquidScreen = () => {
                 right: 0,
                 alignItems: 'center',
                 opacity: runnerOpacity,
+                transform: [
+                  { translateX: runnerX },
+                ],
               }}
             >
               <View style={{ width: 72, height: 68, alignItems: 'center', justifyContent: 'center' }}>
