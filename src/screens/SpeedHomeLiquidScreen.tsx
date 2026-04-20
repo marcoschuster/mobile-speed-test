@@ -609,7 +609,7 @@ const SpeedHomeLiquidScreen = () => {
       return;
     }
 
-    const targetX = getPhaseSlotCenter(phase) - RUNNER_WIDTH / 2;
+    const targetX = getPhaseSlotCenter(phase) - 36;
 
     if (!runnerMounted.current) {
       runnerMounted.current = true;
@@ -799,44 +799,33 @@ const SpeedHomeLiquidScreen = () => {
         )}
 
         <View style={styles.metricTrack} onLayout={handleMetricTrackLayout}>
-          {runnerVisible && (
-            <Animated.View
-              pointerEvents="none"
-              style={{
-                position: 'absolute',
-                top: 20,
-                left: 0,
-                right: 0,
-                alignItems: 'center',
-                opacity: runnerOpacity,
-                transform: [
-                  { translateX: runnerX },
-                ],
-              }}
-            >
-              <View style={{ width: 72, height: 68, alignItems: 'center', justifyContent: 'center' }}>
-                {isTestRunning && (
-                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: runnerColor + '33', alignItems: 'center', justifyContent: 'center' }}>
-                    <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: runnerColor, alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ color: '#000', fontWeight: 'bold', fontSize: 12 }}>{runnerLabel.charAt(0)}</Text>
-                    </View>
-                  </View>
-                )}
-              </View>
-            </Animated.View>
-          )}
-
           <View style={styles.metricRow}>
             {metricSlots.map((slot) => (
-              <MetricSlot
-                key={slot.key}
-                icon={slot.icon}
-                color={slot.color}
-                value={slot.value}
-                unit={slot.unit}
-                active={currentType === slot.key && isTestRunning}
-                complete={slot.complete}
-              />
+              <View key={slot.key} style={{ flex: 1, alignItems: 'center' }}>
+                {isTestRunning && currentType === slot.key && (
+                  <Animated.View
+                    pointerEvents="none"
+                    style={{
+                      opacity: runnerOpacity,
+                      marginBottom: 10,
+                    }}
+                  >
+                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: slot.color + '33', alignItems: 'center', justifyContent: 'center' }}>
+                      <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: slot.color, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ color: '#000', fontWeight: 'bold', fontSize: 12 }}>{slot.key.charAt(0)}</Text>
+                      </View>
+                    </View>
+                  </Animated.View>
+                )}
+                <MetricSlot
+                  icon={slot.icon}
+                  color={slot.color}
+                  value={slot.value}
+                  unit={slot.unit}
+                  active={currentType === slot.key && isTestRunning}
+                  complete={slot.complete}
+                />
+              </View>
             ))}
           </View>
         </View>
