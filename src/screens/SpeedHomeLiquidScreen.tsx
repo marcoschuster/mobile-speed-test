@@ -228,8 +228,6 @@ const PingMetricIcon = ({ size = 18, color = '#00C48C' }: { size?: number; color
 
 const TEST_PHASE_ORDER = ['Download', 'Upload', 'Ping'] as const;
 const PHASE_MARKER_SIZE = 46;
-const DISPLAY_TICK_MS = 50;
-const DISPLAY_PREDICTION_HORIZON_MS = 180;
 
 const MetricPhaseMarker = ({
   color,
@@ -591,7 +589,6 @@ const SpeedHomeLiquidScreen = () => {
   const [liveDownload, setLiveDownload] = useState(0);
   const [liveUpload, setLiveUpload] = useState(0);
   const [livePing, setLivePing] = useState(0);
-  const [displayLive, setDisplayLive] = useState({ download: 0, upload: 0, ping: 0 });
   const [progressText, setProgressText] = useState('');
   const [historySummary, setHistorySummary] = useState(summarizeHistory([]));
   const [lastTest, setLastTest] = useState<any | null>(null);
@@ -616,11 +613,6 @@ const SpeedHomeLiquidScreen = () => {
   const runnerScale = useRef(new Animated.Value(0.92)).current;
   const runnerMounted = useRef(false);
   const lastScrollY = useRef(0);
-  const liveMotionRef = useRef({
-    download: { raw: 0, prevRaw: 0, ts: Date.now(), prevTs: Date.now() },
-    upload: { raw: 0, prevRaw: 0, ts: Date.now(), prevTs: Date.now() },
-    ping: { raw: 0, prevRaw: 0, ts: Date.now(), prevTs: Date.now() },
-  });
   const speedUnitKey = resolveSpeedUnitKey(settings.speedUnit);
   const speedUnitLabel = getSpeedUnitLabel(speedUnitKey);
   const palette = useMemo(() => ({
@@ -641,13 +633,6 @@ const SpeedHomeLiquidScreen = () => {
   }, []);
 
   const pushLiveSample = useCallback((kind: 'download' | 'upload' | 'ping', value: number) => {
-    const now = Date.now();
-    const sample = liveMotionRef.current[kind];
-    sample.prevRaw = sample.raw;
-    sample.prevTs = sample.ts;
-    sample.raw = value;
-    sample.ts = now;
-
     if (kind === 'download') setLiveDownload(value);
     else if (kind === 'upload') setLiveUpload(value);
     else setLivePing(value);
@@ -667,38 +652,6 @@ const SpeedHomeLiquidScreen = () => {
       if (backgroundTimer) clearInterval(backgroundTimer);
     };
   }, [backgroundTimer, contentFade, loadPersistedData]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = Date.now();
-
-      setDisplayLive((previous) => {
-        const next = { ...previous };
-
-        (['download', 'upload', 'ping'] as const).forEach((kind) => {
-          const sample = liveMotionRef.current[kind];
-          const sampleDeltaMs = Math.max(sample.ts - sample.prevTs, 1);
-          const sampleVelocity = (sample.raw - sample.prevRaw) / sampleDeltaMs;
-          const predictiveElapsed = Math.min(
-            Math.max(now - sample.ts, 0),
-            DISPLAY_PREDICTION_HORIZON_MS,
-          );
-          const predictedTarget = Math.max(0, sample.raw + sampleVelocity * predictiveElapsed);
-          const catchup = kind === 'ping' ? 0.38 : 0.28;
-          const snapThreshold = kind === 'ping' ? 0.8 : 0.08;
-          const delta = predictedTarget - previous[kind];
-
-          next[kind] = Math.abs(delta) <= snapThreshold
-            ? predictedTarget
-            : previous[kind] + delta * catchup;
-        });
-
-        return next;
-      });
-    }, DISPLAY_TICK_MS);
-
-    return () => clearInterval(interval);
-  }, []);
 
   useFocusEffect(useCallback(() => {
     setTabBarMode('expanded');
@@ -741,11 +694,6 @@ const SpeedHomeLiquidScreen = () => {
     setLiveDownload(0);
     setLiveUpload(0);
     setLivePing(0);
-    setDisplayLive({ download: 0, upload: 0, ping: 0 });
-    const now = Date.now();
-    liveMotionRef.current.download = { raw: 0, prevRaw: 0, ts: now, prevTs: now };
-    liveMotionRef.current.upload = { raw: 0, prevRaw: 0, ts: now, prevTs: now };
-    liveMotionRef.current.ping = { raw: 0, prevRaw: 0, ts: now, prevTs: now };
   };
 
   const startBackgroundTests = async (minutes: number | null) => {
@@ -854,11 +802,6 @@ const SpeedHomeLiquidScreen = () => {
         setLiveDownload(result.download);
         setLiveUpload(result.upload);
         setLivePing(result.ping);
-        setDisplayLive({
-          download: result.download,
-          upload: result.upload,
-          ping: result.ping,
-        });
         setCurrentType('Complete');
         setProgressText(`Completed on ${result.serverName || 'Automatic server'}`);
         if (!backgroundOnly) SoundEngine.playTestComplete();
@@ -943,11 +886,11 @@ const SpeedHomeLiquidScreen = () => {
     const rawSpeed = (() => {
       switch (currentType) {
         case 'Download':
-          return displayLive.download;
+          return liveDownload;
         case 'Upload':
-          return displayLive.upload;
+          return liveUpload;
         case 'Ping':
-          return displayLive.ping;
+          return livePing;
         case 'Complete':
           return downloadSpeed;
         default:
@@ -956,7 +899,7 @@ const SpeedHomeLiquidScreen = () => {
     })();
 
     return currentType === 'Ping' ? rawSpeed : convertSpeedFromMbps(rawSpeed, speedUnitKey);
-  }, [currentType, displayLive.download, displayLive.ping, displayLive.upload, downloadSpeed, speedUnitKey]);
+  }, [currentType, downloadSpeed, liveDownload, livePing, liveUpload, speedUnitKey]);
 
   const gaugeMax = currentType === 'Ping' ? 1500 : convertSpeedFromMbps(200, speedUnitKey);
 
@@ -995,15 +938,15 @@ const SpeedHomeLiquidScreen = () => {
   const runnerSpeed = useMemo(() => {
     switch (currentType) {
       case 'Download':
-        return displayLive.download;
+        return liveDownload;
       case 'Upload':
-        return displayLive.upload;
+        return liveUpload;
       case 'Ping':
-        return Math.max(40, 220 - displayLive.ping * 7);
+        return Math.max(40, 220 - livePing * 7);
       default:
         return 72;
     }
-  }, [currentType, displayLive.download, displayLive.ping, displayLive.upload]);
+  }, [currentType, liveDownload, livePing, liveUpload]);
 
   const runnerLabel = currentType === 'Testing' ? 'Connecting' : currentType;
   const runnerColor = currentType === 'Upload'

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, Animated, TouchableOpacity, Text } from 'react-native';
 import Svg, {
   Circle,
@@ -11,7 +11,6 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 import { useTheme } from '../utils/theme';
-import { COLORS } from '../utils/theme';
 
 // ── Type Definitions ─────────────────────────────────────────────────────────
 interface SpeedometerProps {
@@ -26,6 +25,7 @@ interface SpeedometerProps {
 }
 
 const SIZE = 280;
+const WAVE_RING_SIZE = SIZE + 40;
 const CX = SIZE / 2;
 const CY = SIZE / 2;
 const R = 112;        // main radius
@@ -38,6 +38,13 @@ const LABEL_R = 72;
 const MIN_DEG = 225;
 const SWEEP = 270;
 
+type WaveDescriptor = {
+  amplitude: number;
+  waveCount: number;
+  phase: number;
+  rotation: number;
+};
+
 const polarToXY = (angleDeg: number, r: number): { x: number; y: number } => {
   const rad = (angleDeg * Math.PI) / 180;
   return { x: CX + r * Math.cos(rad), y: CY - r * Math.sin(rad) };
@@ -49,6 +56,44 @@ const describeArc = (startAngle: number, endAngle: number, r: number): string =>
   const diff = startAngle - endAngle;
   const largeArc = diff > 180 ? 1 : 0;
   return `M ${s.x} ${s.y} A ${r} ${r} 0 ${largeArc} 1 ${e.x} ${e.y}`;
+};
+
+const createWaveDescriptor = (): WaveDescriptor => ({
+  amplitude: 4 + Math.random() * 3.5,
+  waveCount: 12 + Math.floor(Math.random() * 4),
+  phase: Math.random() * Math.PI * 2,
+  rotation: -10 + Math.random() * 20,
+});
+
+const describeCurlyWave = ({
+  size,
+  radius,
+  amplitude,
+  waveCount,
+  phase,
+}: {
+  size: number;
+  radius: number;
+  amplitude: number;
+  waveCount: number;
+  phase: number;
+}) => {
+  const center = size / 2;
+  const segments = 96;
+  let path = '';
+
+  for (let index = 0; index <= segments; index += 1) {
+    const progress = index / segments;
+    const theta = progress * Math.PI * 2 + phase;
+    const ripple = Math.sin(theta * waveCount) * amplitude;
+    const secondary = Math.sin(theta * (waveCount / 2)) * amplitude * 0.22;
+    const distance = radius + ripple + secondary;
+    const x = center + Math.cos(theta) * distance;
+    const y = center + Math.sin(theta) * distance;
+    path += index === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`;
+  }
+
+  return `${path} Z`;
 };
 
 const getSteps = (maxVal: number): { major: number; minor: number } => {
@@ -70,20 +115,56 @@ const Speedometer = ({
   onStop,
 }: SpeedometerProps) => {
   const { t } = useTheme();
-  const needleAnim = useRef(new Animated.Value(MIN_DEG)).current;
-  const glowAnim = useRef(new Animated.Value(0.3)).current;
   const contentFade = useRef(new Animated.Value(0)).current;
+  const targetSpeedRef = useRef(speed);
+  const inputVelocityRef = useRef(0);
+  const lastInputAtRef = useRef(Date.now());
+  const lastInputSpeedRef = useRef(speed);
+  const displaySpeedRef = useRef(speed);
+  const frameRef = useRef<number | null>(null);
+  const [displaySpeed, setDisplaySpeed] = useState(speed);
+  const waveScales = useRef([
+    new Animated.Value(1),
+    new Animated.Value(1),
+    new Animated.Value(1),
+  ]).current;
+  const waveOpacities = useRef([
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+  ]).current;
+  const [waveDescriptors, setWaveDescriptors] = useState<WaveDescriptor[]>(() => ([
+    createWaveDescriptor(),
+    createWaveDescriptor(),
+    createWaveDescriptor(),
+  ]));
 
   // Reset animation values to ensure clean state
   useEffect(() => {
-    needleAnim.setValue(MIN_DEG);
-    glowAnim.setValue(0.3);
     contentFade.setValue(0);
+    waveScales.forEach((value) => value.setValue(1));
+    waveOpacities.forEach((value) => value.setValue(0));
   }, []);
 
   useEffect(() => {
+    targetSpeedRef.current = Math.max(0, Math.min(speed, maxValue));
+    const now = Date.now();
+    const elapsed = Math.max(now - lastInputAtRef.current, 1);
+    const nextVelocity = (targetSpeedRef.current - lastInputSpeedRef.current) / elapsed;
+
+    inputVelocityRef.current = inputVelocityRef.current * 0.35 + nextVelocity * 0.65;
+    lastInputSpeedRef.current = targetSpeedRef.current;
+    lastInputAtRef.current = now;
+
+    if (!isRunning) {
+      displaySpeedRef.current = targetSpeedRef.current;
+      setDisplaySpeed(targetSpeedRef.current);
+    }
+  }, [isRunning, maxValue, speed]);
+
+  useEffect(() => {
     if (isRunning) {
-      Animated.timing(contentFade, { toValue: 1, duration: 600, useNativeDriver: false }).start();
+      Animated.timing(contentFade, { toValue: 1, duration: 600, useNativeDriver: true }).start();
     } else {
       contentFade.setValue(0);
     }
@@ -95,73 +176,183 @@ const Speedometer = ({
   };
 
   useEffect(() => {
-    Animated.spring(needleAnim, {
-      toValue: speedToAngle(speed),
-      tension: 40,
-      friction: 8,
-      useNativeDriver: false,
-    }).start();
-  }, [speed]);
+    let active = true;
+
+    const animateFrame = () => {
+      if (!active) {
+        return;
+      }
+
+      const now = Date.now();
+      const elapsedSinceInput = Math.max(now - lastInputAtRef.current, 0);
+      const horizon = isRunning ? 520 : 180;
+      const inertia = Math.max(0, 1 - elapsedSinceInput / horizon);
+      const predictedTarget = Math.max(
+        0,
+        Math.min(
+          maxValue,
+          targetSpeedRef.current + inputVelocityRef.current * Math.min(elapsedSinceInput, horizon) * inertia,
+        ),
+      );
+      const current = displaySpeedRef.current;
+      const delta = predictedTarget - current;
+      const catchup = isRunning ? 0.22 : 0.34;
+      const minStep = Math.max(0.018, predictedTarget * 0.00085);
+
+      let nextValue = predictedTarget;
+      if (Math.abs(delta) > 0.01) {
+        let step = delta * catchup;
+        if (Math.abs(step) < minStep) {
+          step = Math.sign(delta) * minStep;
+        }
+        const candidate = current + step;
+        nextValue = delta > 0
+          ? Math.min(candidate, predictedTarget)
+          : Math.max(candidate, predictedTarget);
+      }
+
+      if (Math.abs(nextValue - displaySpeedRef.current) > 0.001) {
+        displaySpeedRef.current = nextValue;
+        setDisplaySpeed(nextValue);
+      }
+
+      frameRef.current = requestAnimationFrame(animateFrame);
+    };
+
+    frameRef.current = requestAnimationFrame(animateFrame);
+
+    return () => {
+      active = false;
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    };
+  }, [isRunning, maxValue]);
 
   useEffect(() => {
+    let active = true;
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
+
+    const animateWave = (index: number) => {
+      if (!active) {
+        return;
+      }
+
+      const startOpacity = 0.12 + Math.random() * 0.12;
+      const endScale = 1.1 + Math.random() * 0.22;
+      const duration = 1300 + Math.round(Math.random() * 950);
+      const pause = 180 + Math.round(Math.random() * 420);
+
+      setWaveDescriptors((previous) => previous.map((descriptor, waveIndex) => (
+        waveIndex === index ? createWaveDescriptor() : descriptor
+      )));
+      waveScales[index].setValue(1);
+      waveOpacities[index].setValue(startOpacity);
+
+      Animated.parallel([
+        Animated.timing(waveScales[index], {
+          toValue: endScale,
+          duration,
+          useNativeDriver: true,
+        }),
+        Animated.timing(waveOpacities[index], {
+          toValue: 0,
+          duration,
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (!finished || !active) {
+          return;
+        }
+
+        const timeout = setTimeout(() => animateWave(index), pause);
+        timeouts.push(timeout);
+      });
+    };
+
     if (isRunning) {
-      glowAnim.setValue(0.4);
+      waveScales.forEach((value) => value.setValue(1));
+      waveOpacities.forEach((value) => value.setValue(0));
+
+      waveScales.forEach((_value, index) => {
+        const timeout = setTimeout(() => animateWave(index), index * 280);
+        timeouts.push(timeout);
+      });
     } else {
-      glowAnim.setValue(0);
+      waveScales.forEach((value) => value.setValue(1));
+      waveOpacities.forEach((value) => value.setValue(0));
     }
-  }, [isRunning]);
 
-  const { major: MAJOR_STEP, minor: MINOR_STEP } = getSteps(maxValue);
+    return () => {
+      active = false;
+      timeouts.forEach((timeout) => clearTimeout(timeout));
+      waveScales.forEach((value) => value.stopAnimation());
+      waveOpacities.forEach((value) => value.stopAnimation());
+      waveScales.forEach((value) => value.setValue(1));
+      waveOpacities.forEach((value) => value.setValue(0));
+    };
+  }, [isRunning, waveOpacities, waveScales]);
 
-  const ticks: React.ReactNode[] = [];
-  for (let v = 0; v <= maxValue; v += MINOR_STEP) {
-    const angle = speedToAngle(v);
-    const isMajor = v % MAJOR_STEP === 0;
-    const outerP = polarToXY(angle, TICK_OUTER);
-    const innerP = polarToXY(angle, isMajor ? TICK_INNER_MAJOR : TICK_INNER_MINOR);
+  const ticks = useMemo(() => {
+    const { major: MAJOR_STEP, minor: MINOR_STEP } = getSteps(maxValue);
+    const nodes: React.ReactNode[] = [];
 
-    ticks.push(
-      <Line
-        key={`t${v}`}
-        x1={outerP.x} y1={outerP.y}
-        x2={innerP.x} y2={innerP.y}
-        stroke={isMajor ? t.gaugeLabelMajor : t.gaugeLabelMinor}
-        strokeWidth={isMajor ? 2 : 1}
-        strokeLinecap="round"
-      />
-    );
+    for (let v = 0; v <= maxValue; v += MINOR_STEP) {
+      const angle = speedToAngle(v);
+      const isMajor = v % MAJOR_STEP === 0;
+      const outerP = polarToXY(angle, TICK_OUTER);
+      const innerP = polarToXY(angle, isMajor ? TICK_INNER_MAJOR : TICK_INNER_MINOR);
 
-    if (isMajor) {
-      const lp = polarToXY(angle, LABEL_R);
-      ticks.push(
-        <SvgText
-          key={`l${v}`}
-          x={lp.x} y={lp.y + 4}
-          fontSize={maxValue > 500 ? '9' : '11'}
-          fontWeight="700"
-          fill={t.gaugeLabelMajor}
-          textAnchor="middle"
-        >
-          {v}
-        </SvgText>
+      nodes.push(
+        <Line
+          key={`t${v}`}
+          x1={outerP.x} y1={outerP.y}
+          x2={innerP.x} y2={innerP.y}
+          stroke={isMajor ? t.gaugeLabelMajor : t.gaugeLabelMinor}
+          strokeWidth={isMajor ? 2 : 1}
+          strokeLinecap="round"
+        />
       );
+
+      if (isMajor) {
+        const lp = polarToXY(angle, LABEL_R);
+        nodes.push(
+          <SvgText
+            key={`l${v}`}
+            x={lp.x} y={lp.y + 4}
+            fontSize={maxValue > 500 ? '9' : '11'}
+            fontWeight="700"
+            fill={t.gaugeLabelMajor}
+            textAnchor="middle"
+          >
+            {v}
+          </SvgText>
+        );
+      }
     }
-  }
 
-  const currentAngle = speedToAngle(Math.min(speed, maxValue));
-  const coloredArcPath = speed > 0.3 ? describeArc(MIN_DEG, currentAngle, R) : '';
+    return nodes;
+  }, [maxValue, t.gaugeLabelMajor, t.gaugeLabelMinor]);
 
-  const needleRotation = needleAnim.interpolate({
-    inputRange: [MIN_DEG - SWEEP, MIN_DEG],
-    outputRange: ['135deg', '-135deg'],
-  });
+  const currentAngle = speedToAngle(Math.min(displaySpeed, maxValue));
+  const coloredArcPath = displaySpeed > 0.3 ? describeArc(MIN_DEG, currentAngle, R) : '';
+  const needleRotation = `${90 - currentAngle}deg`;
+  const wavePaths = useMemo(
+    () => waveDescriptors.map((descriptor) => describeCurlyWave({
+      size: WAVE_RING_SIZE,
+      radius: WAVE_RING_SIZE / 2 - 18,
+      amplitude: descriptor.amplitude,
+      waveCount: descriptor.waveCount,
+      phase: descriptor.phase,
+    })),
+    [waveDescriptors],
+  );
 
   const displayValue =
-    typeof speed === 'number'
-      ? speed < 10
-        ? speed.toFixed(1)
-        : Math.round(speed).toString()
-      : speed;
+    displaySpeed < 10
+      ? displaySpeed.toFixed(1)
+      : Math.round(displaySpeed).toString();
 
   // Map old bezel tokens to new theme keys
   const dialOuter = t.mode === 'dark' ? 'rgba(5, 12, 20, 0.82)' : 'rgba(255, 255, 255, 0.82)';
@@ -180,9 +371,45 @@ const Speedometer = ({
 
   return (
     <View style={styles.container}>
-      {isRunning && (
-        <Animated.View style={[styles.outerGlow, { opacity: glowAnim, borderColor: t.accent, shadowColor: t.accent }]} />
-      )}
+      {isRunning ? (
+        <View pointerEvents="none" style={styles.waveLayer}>
+          {waveScales.map((scale, index) => (
+            <Animated.View
+              key={index}
+              style={[
+                styles.waveRing,
+                {
+                  shadowColor: t.accent,
+                  opacity: waveOpacities[index],
+                  transform: [
+                    { scale },
+                    { rotate: `${waveDescriptors[index].rotation}deg` },
+                  ],
+                },
+              ]}
+            >
+              <Svg width={WAVE_RING_SIZE} height={WAVE_RING_SIZE} viewBox={`0 0 ${WAVE_RING_SIZE} ${WAVE_RING_SIZE}`}>
+                <Path
+                  d={wavePaths[index]}
+                  fill="none"
+                  stroke={t.accent}
+                  strokeOpacity={0.34}
+                  strokeWidth={2.6}
+                  strokeLinejoin="round"
+                />
+                <Path
+                  d={wavePaths[index]}
+                  fill="none"
+                  stroke={t.accentLight || t.accent}
+                  strokeOpacity={0.16}
+                  strokeWidth={5.6}
+                  strokeLinejoin="round"
+                />
+              </Svg>
+            </Animated.View>
+          ))}
+        </View>
+      ) : null}
 
       <TouchableOpacity onPress={onStart} activeOpacity={0.9} disabled={isRunning} style={styles.startButtonContainer}>
         <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
@@ -272,13 +499,13 @@ const Speedometer = ({
 
         {/* Animated needle overlay */}
         {isRunning && (
-          <Animated.View style={[styles.needleWrap, { transform: [{ rotate: needleRotation }] }]}>
+          <View style={[styles.needleWrap, { transform: [{ rotate: needleRotation }] }]}>
             <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
               <Path d={`M ${CX - 5} ${CY} L ${CX} ${CY - INNER_R + 2} L ${CX + 5} ${CY} Z`} fill={t.accentGlow} />
               <Path d={`M ${CX - 3} ${CY} L ${CX} ${CY - INNER_R + 5} L ${CX + 3} ${CY} Z`} fill={resolvedNeedleColor} />
               <Path d={`M ${CX - 0.8} ${CY - 10} L ${CX} ${CY - INNER_R + 10} L ${CX + 0.8} ${CY - 10} Z`} fill="rgba(255,255,255,0.25)" />
             </Svg>
-          </Animated.View>
+          </View>
         )}
 
         {isRunning && onStop ? (
@@ -315,16 +542,22 @@ const styles = StyleSheet.create({
     width: SIZE,
     height: SIZE,
   },
-  outerGlow: {
+  waveLayer: {
     position: 'absolute',
-    width: SIZE + 24,
-    height: SIZE + 24,
-    borderRadius: (SIZE + 24) / 2,
-    borderWidth: 2,
+    width: WAVE_RING_SIZE + 32,
+    height: WAVE_RING_SIZE + 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  waveRing: {
+    position: 'absolute',
+    width: WAVE_RING_SIZE,
+    height: WAVE_RING_SIZE,
+    backgroundColor: 'transparent',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOpacity: 0.55,
+    shadowRadius: 22,
+    elevation: 8,
   },
   startButtonContainer: {
     position: 'relative',
@@ -348,11 +581,11 @@ const styles = StyleSheet.create({
   },
   stopButton: {
     position: 'absolute',
-    bottom: 18,
+    bottom: 16,
     alignSelf: 'center',
-    minWidth: 96,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    minWidth: 78,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     borderRadius: 999,
     borderWidth: 1,
     alignItems: 'center',
@@ -363,9 +596,9 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   stopButtonText: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '900',
-    letterSpacing: 2.2,
+    letterSpacing: 1.8,
   },
 });
 
