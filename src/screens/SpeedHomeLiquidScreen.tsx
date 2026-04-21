@@ -592,6 +592,7 @@ const SpeedHomeLiquidScreen = () => {
   const [progressText, setProgressText] = useState('');
   const [historySummary, setHistorySummary] = useState(summarizeHistory([]));
   const [lastTest, setLastTest] = useState<any | null>(null);
+  const [hasTestCompleted, setHasTestCompleted] = useState(false);
   const [peaks, setPeaks] = useState({ download: 0, upload: 0, ping: 0 });
   const [backgroundIntervalOpen, setBackgroundIntervalOpen] = useState(false);
   const [customIntervalOpen, setCustomIntervalOpen] = useState(false);
@@ -812,6 +813,7 @@ const SpeedHomeLiquidScreen = () => {
           setIsTestRunning(false);
           setCurrentType('Ready');
           resetLiveState();
+          setHasTestCompleted(true);
         }, 2600);
       },
       (error) => {
@@ -1219,18 +1221,18 @@ const SpeedHomeLiquidScreen = () => {
         <View style={styles.insightsWrap}>
           <InsightCard
             title="Connection Quality"
-            value={lastTest ? connectionQuality.label : 'Waiting...'}
-            subtitle={lastTest ? connectionQuality.summary : 'Run a test to assess your connection quality.'}
+            value={hasTestCompleted ? connectionQuality.label : 'Waiting...'}
+            subtitle={hasTestCompleted ? connectionQuality.summary : 'Run a test to assess your connection quality.'}
           />
           <InsightCard
             title="Last Test Traffic"
-            value={lastTest ? formatBytes(lastTest.totalBytes || historySummary.totalDataUsedBytes) : '---'}
-            subtitle={lastTest ? 'Download + upload payload used by the latest completed test.' : 'Run a test to see the actual traffic used.'}
+            value={hasTestCompleted ? formatBytes(lastTest?.totalBytes || historySummary.totalDataUsedBytes) : '---'}
+            subtitle={hasTestCompleted ? 'Download + upload payload used by the latest completed test.' : 'Run a test to see the actual traffic used.'}
           />
           <InsightCard
             title="Server Used"
-            value={lastTest ? lastTest.serverName || 'Automatic' : 'Waiting...'}
-            subtitle={lastTest ? `${lastTest.serverLocation || 'Unknown'} • ${lastTest.provider || 'Measurement Lab'}` : 'Searching for optimal server...'}
+            value={hasTestCompleted ? (lastTest?.serverName || 'Automatic') : 'Waiting...'}
+            subtitle={hasTestCompleted ? `${lastTest?.serverLocation || 'Unknown'} • ${lastTest?.provider || 'Measurement Lab'}` : 'Searching for optimal server...'}
           />
         </View>
 
