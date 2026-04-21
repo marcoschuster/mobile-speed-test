@@ -22,6 +22,7 @@ interface SpeedometerProps {
   needleColor?: string;
   isRunning?: boolean;
   onStart?: () => void;
+  onStop?: () => void;
 }
 
 const SIZE = 280;
@@ -66,6 +67,7 @@ const Speedometer = ({
   needleColor,
   isRunning = false,
   onStart,
+  onStop,
 }: SpeedometerProps) => {
   const { t } = useTheme();
   const needleAnim = useRef(new Animated.Value(MIN_DEG)).current;
@@ -278,6 +280,23 @@ const Speedometer = ({
             </Svg>
           </Animated.View>
         )}
+
+        {isRunning && onStop ? (
+          <TouchableOpacity
+            onPress={onStop}
+            activeOpacity={0.82}
+            style={[
+              styles.stopButton,
+              {
+                backgroundColor: t.surfaceElevated,
+                borderColor: t.glassBorderTop,
+                shadowColor: t.accent,
+              },
+            ]}
+          >
+            <Text style={[styles.stopButtonText, { color: t.textPrimary }]}>STOP</Text>
+          </TouchableOpacity>
+        ) : null}
       </TouchableOpacity>
     </View>
   );
@@ -326,6 +345,27 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowRadius: 15,
     shadowOpacity: 0.8,
+  },
+  stopButton: {
+    position: 'absolute',
+    bottom: 18,
+    alignSelf: 'center',
+    minWidth: 96,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.24,
+    shadowRadius: 18,
+    elevation: 10,
+  },
+  stopButtonText: {
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 2.2,
   },
 });
 

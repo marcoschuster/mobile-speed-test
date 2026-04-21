@@ -9,6 +9,7 @@ interface Settings {
   speedUnit: 'Mbps' | 'MB/s' | 'kB/s';
   showPing: boolean;
   backgroundTestInterval: number | null;
+  backgroundTestIntervalSeconds: number | null;
   dataDisclosureAccepted: boolean;
   historyRetentionDays: number;
   testProvider: string;
@@ -26,6 +27,7 @@ const DEFAULT_SETTINGS: Settings = {
   speedUnit: 'Mbps',
   showPing: true,
   backgroundTestInterval: null,
+  backgroundTestIntervalSeconds: null,
   dataDisclosureAccepted: false,
   historyRetentionDays: 30,
   testProvider: 'ookla',
@@ -43,7 +45,16 @@ export const AppSettingsProvider = ({ children }: { children: ReactNode }) => {
     try {
       const savedSettings = await AsyncStorage.getItem(APP_SETTINGS.STORAGE_KEY);
       if (savedSettings) {
-        setSettings(JSON.parse(savedSettings));
+        const parsed = JSON.parse(savedSettings);
+        setSettings({
+          ...DEFAULT_SETTINGS,
+          ...parsed,
+          backgroundTestIntervalSeconds:
+            parsed.backgroundTestIntervalSeconds ??
+            (typeof parsed.backgroundTestInterval === 'number'
+              ? parsed.backgroundTestInterval * 60
+              : null),
+        });
       }
     } catch (error) {
       console.error('Failed to load settings:', error);

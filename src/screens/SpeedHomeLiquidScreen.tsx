@@ -8,7 +8,6 @@ import {
   Share,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -36,12 +35,83 @@ import {
 const APP_NAME = 'Flash';
 
 const BACKGROUND_TEST_INTERVALS = [
-  { key: 'off', label: 'Off', minutes: null },
-  { key: '30m', label: '30 Min', minutes: 30 },
-  { key: '1h', label: '1 Hour', minutes: 60 },
-  { key: '3h', label: '3 Hours', minutes: 180 },
-  { key: '6h', label: '6 Hours', minutes: 360 },
+  { key: 'off', label: 'Off', seconds: null },
+  { key: '1h', label: '1 Hour', seconds: 60 * 60 },
+  { key: '3h', label: '3 Hours', seconds: 3 * 60 * 60 },
+  { key: '6h', label: '6 Hours', seconds: 6 * 60 * 60 },
+  { key: '12h', label: '12 Hours', seconds: 12 * 60 * 60 },
+  { key: '1d', label: '1 Day', seconds: 24 * 60 * 60 },
 ];
+const MAX_CUSTOM_INTERVAL = {
+  days: 99,
+  hours: 23,
+  minutes: 59,
+  seconds: 59,
+} as const;
+const MIN_PERFORMANCE_WARNING_SECONDS = 60 * 60;
+
+type DurationParts = {
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+};
+
+const clampDurationPart = (
+  value: number,
+  min: number,
+  max: number,
+) => Math.max(min, Math.min(max, Math.trunc(value)));
+
+const durationPartsToSeconds = (parts: DurationParts) => (
+  parts.days * 24 * 60 * 60 +
+  parts.hours * 60 * 60 +
+  parts.minutes * 60 +
+  parts.seconds
+);
+
+const secondsToDurationParts = (totalSeconds: number): DurationParts => {
+  const safe = Math.max(0, Math.min(totalSeconds, (((MAX_CUSTOM_INTERVAL.days * 24) + MAX_CUSTOM_INTERVAL.hours) * 60 + MAX_CUSTOM_INTERVAL.minutes) * 60 + MAX_CUSTOM_INTERVAL.seconds));
+  const days = Math.floor(safe / (24 * 60 * 60));
+  const dayRemainder = safe % (24 * 60 * 60);
+  const hours = Math.floor(dayRemainder / (60 * 60));
+  const hourRemainder = dayRemainder % (60 * 60);
+  const minutes = Math.floor(hourRemainder / 60);
+  const seconds = hourRemainder % 60;
+
+  return { days, hours, minutes, seconds };
+};
+
+const formatIntervalLabel = (totalSeconds: number | null) => {
+  if (!totalSeconds) {
+    return 'Off';
+  }
+
+  const preset = BACKGROUND_TEST_INTERVALS.find((option) => option.seconds === totalSeconds);
+  if (preset) {
+    return preset.label;
+  }
+
+  const { days, hours, minutes, seconds } = secondsToDurationParts(totalSeconds);
+  const parts = [
+    days ? `${days}d` : null,
+    hours ? `${hours}h` : null,
+    minutes ? `${minutes}m` : null,
+    seconds ? `${seconds}s` : null,
+  ].filter(Boolean);
+
+  return `Custom • ${parts.join(' ')}`;
+};
+
+const resolveStoredBackgroundIntervalSeconds = (
+  settings: {
+    backgroundTestInterval: number | null;
+    backgroundTestIntervalSeconds?: number | null;
+  },
+) => settings.backgroundTestIntervalSeconds
+  ?? (typeof settings.backgroundTestInterval === 'number'
+    ? settings.backgroundTestInterval * 60
+    : null);
 
 const resolveSpeedUnitKey = (unit: 'Mbps' | 'MB/s' | 'kB/s') => {
   switch (unit) {
@@ -467,6 +537,47 @@ const InsightCard = ({ title, value, subtitle }: { title: string; value: string;
   );
 };
 
+const DurationPickerColumn = ({
+  label,
+  value,
+  max,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  max: number;
+  onChange: (nextValue: number) => void;
+}) => {
+  const { t } = useTheme();
+
+  return (
+    <View style={styles.durationColumn}>
+      <Text style={[styles.durationColumnLabel, { color: t.textSecondary }]}>{label}</Text>
+      <LiquidGlass
+        onPress={() => onChange(clampDurationPart(value + 1, 0, max))}
+        style={styles.durationAdjustButton}
+        contentStyle={styles.durationAdjustButtonContent}
+        borderRadius={16}
+        blurIntensity={24}
+      >
+        <Text style={[styles.durationAdjustText, { color: t.textPrimary }]}>+</Text>
+      </LiquidGlass>
+      <View style={[styles.durationValueWrap, { borderColor: withAlpha(t.textPrimary, 0.14) }]}>
+        <Text style={[styles.durationValueText, { color: t.textPrimary }]}>{String(value).padStart(2, '0')}</Text>
+      </View>
+      <LiquidGlass
+        onPress={() => onChange(clampDurationPart(value - 1, 0, max))}
+        style={styles.durationAdjustButton}
+        contentStyle={styles.durationAdjustButtonContent}
+        borderRadius={16}
+        blurIntensity={24}
+      >
+        <Text style={[styles.durationAdjustText, { color: t.textPrimary }]}>-</Text>
+      </LiquidGlass>
+    </View>
+  );
+};
+
 const SpeedHomeLiquidScreen = () => {
   const { t } = useTheme();
   const { settings, updateSettings } = useAppSettings();
@@ -486,13 +597,19 @@ const SpeedHomeLiquidScreen = () => {
   const [lastTest, setLastTest] = useState<any | null>(null);
   const [peaks, setPeaks] = useState({ download: 0, upload: 0, ping: 0 });
   const [backgroundIntervalOpen, setBackgroundIntervalOpen] = useState(false);
+  const [customIntervalOpen, setCustomIntervalOpen] = useState(false);
+  const [customInterval, setCustomInterval] = useState<DurationParts>({
+    days: 0,
+    hours: 1,
+    minutes: 0,
+    seconds: 0,
+  });
   const [backgroundTimer, setBackgroundTimer] = useState<ReturnType<typeof setInterval> | null>(null);
   const [metricTrackWidth, setMetricTrackWidth] = useState(0);
   const [runnerVisible, setRunnerVisible] = useState(false);
   const gaugeWhirRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const liveSpeedRef = useRef(0);
   const contentFade = useRef(new Animated.Value(0)).current;
-  const stopFloatAnim = useRef(new Animated.Value(0)).current;
   const runnerX = useRef(new Animated.Value(0)).current;
   const runnerY = useRef(new Animated.Value(400)).current;
   const runnerOpacity = useRef(new Animated.Value(0)).current;
@@ -545,17 +662,9 @@ const SpeedHomeLiquidScreen = () => {
 
     loadPersistedData();
 
-    // Floating animation for stop button
-    const stopFloat = Animated.loop(Animated.sequence([
-      Animated.timing(stopFloatAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
-      Animated.timing(stopFloatAnim, { toValue: 0, duration: 2000, useNativeDriver: true }),
-    ]));
-    stopFloat.start();
-
     return () => {
       if (gaugeWhirRef.current) clearInterval(gaugeWhirRef.current);
       if (backgroundTimer) clearInterval(backgroundTimer);
-      stopFloat.stop();
     };
   }, [backgroundTimer, contentFade, loadPersistedData]);
 
@@ -618,6 +727,14 @@ const SpeedHomeLiquidScreen = () => {
     ping: ping || lastTest?.ping || 0,
   };
   const connectionQuality = getConnectionQuality(qualitySource);
+  const currentBackgroundIntervalSeconds = resolveStoredBackgroundIntervalSeconds(settings);
+  const customIntervalSeconds = durationPartsToSeconds(customInterval);
+  const customIntervalSummaryLabel = customIntervalSeconds > 0
+    ? formatIntervalLabel(customIntervalSeconds).replace('Custom • ', '')
+    : '0s';
+  const hasActivePresetInterval = BACKGROUND_TEST_INTERVALS.some(
+    (option) => option.seconds === currentBackgroundIntervalSeconds,
+  );
 
   const resetLiveState = () => {
     setProgressText('');
@@ -637,15 +754,23 @@ const SpeedHomeLiquidScreen = () => {
       setBackgroundTimer(null);
     }
 
-    await updateSettings({ backgroundTestInterval: minutes });
+    const seconds = minutes;
 
-    if (!minutes) return;
+    await updateSettings({
+      backgroundTestInterval:
+        typeof seconds === 'number' && seconds % 60 === 0
+          ? seconds / 60
+          : null,
+      backgroundTestIntervalSeconds: seconds,
+    });
+
+    if (!seconds) return;
 
     const interval = setInterval(() => {
       if (!SpeedTestService.isTestRunning) {
         runTest(true);
       }
-    }, minutes * 60 * 1000);
+    }, seconds * 1000);
 
     setBackgroundTimer(interval);
   };
@@ -793,6 +918,26 @@ const SpeedHomeLiquidScreen = () => {
     setCurrentType('Ready');
     resetLiveState();
   };
+
+  const updateCustomIntervalPart = useCallback((
+    key: keyof DurationParts,
+    nextValue: number,
+  ) => {
+    setCustomInterval((previous) => ({
+      ...previous,
+      [key]: clampDurationPart(nextValue, 0, MAX_CUSTOM_INTERVAL[key]),
+    }));
+  }, []);
+
+  const applyCustomInterval = useCallback(() => {
+    if (customIntervalSeconds <= 0) {
+      Alert.alert('Choose a valid interval', 'Set at least one second for the custom background test interval.');
+      return;
+    }
+
+    startBackgroundTests(customIntervalSeconds);
+    setCustomIntervalOpen(false);
+  }, [customIntervalSeconds]);
 
   const gaugeValue = useMemo(() => {
     const rawSpeed = (() => {
@@ -989,9 +1134,7 @@ const SpeedHomeLiquidScreen = () => {
     }
   }, [animateRunnerToPhase, currentType, exitRunner, isTestRunning, runnerOpacity, runnerScale, runnerY]);
 
-  const selectedBackgroundLabel = BACKGROUND_TEST_INTERVALS.find(
-    (option) => option.minutes === settings.backgroundTestInterval,
-  )?.label || 'Off';
+  const selectedBackgroundLabel = formatIntervalLabel(currentBackgroundIntervalSeconds);
 
   const metricSlots = [
     {
@@ -1082,15 +1225,8 @@ const SpeedHomeLiquidScreen = () => {
           needleColor={gaugeNeedleColor}
           isRunning={isTestRunning}
           onStart={startTest}
+          onStop={stopTest}
         />
-
-        {isTestRunning && (
-          <Animated.View style={{ transform: [{ translateY: stopFloatAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -5] }) }] }}>
-            <TouchableOpacity onPress={stopTest} style={styles.stopButtonFloating} activeOpacity={0.7}>
-              <Text style={[styles.stopButtonText, { color: t.accent }]}>Stop</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
 
         {shouldShowMetricTrack ? (
           <View style={styles.metricTrack} onLayout={handleMetricTrackLayout}>
@@ -1186,11 +1322,14 @@ const SpeedHomeLiquidScreen = () => {
             <Text style={[styles.intervalSubtitle, { color: t.textSecondary }]}>Current: {selectedBackgroundLabel}</Text>
             <View style={styles.intervalOptions}>
               {BACKGROUND_TEST_INTERVALS.map((option) => {
-                const active = settings.backgroundTestInterval === option.minutes;
+                const active = currentBackgroundIntervalSeconds === option.seconds;
                 return (
                   <LiquidGlass
                     key={option.key}
-                    onPress={() => startBackgroundTests(option.minutes)}
+                    onPress={() => {
+                      setCustomIntervalOpen(false);
+                      startBackgroundTests(option.seconds);
+                    }}
                     style={[styles.intervalChip, active && styles.intervalChipActive]}
                     contentStyle={styles.intervalChipContent}
                     borderRadius={999}
@@ -1208,7 +1347,96 @@ const SpeedHomeLiquidScreen = () => {
                   </LiquidGlass>
                 );
               })}
+              <LiquidGlass
+                onPress={() => {
+                  setCustomIntervalOpen((value) => !value);
+                  if (!customIntervalOpen) {
+                    setCustomInterval(
+                      secondsToDurationParts(currentBackgroundIntervalSeconds || (60 * 60)),
+                    );
+                  }
+                }}
+                style={[
+                  styles.intervalChip,
+                  customIntervalOpen && styles.intervalChipActive,
+                  !hasActivePresetInterval && currentBackgroundIntervalSeconds
+                    ? styles.intervalChipActive
+                    : null,
+                ]}
+                contentStyle={styles.intervalChipContent}
+                borderRadius={999}
+                blurIntensity={24}
+              >
+                {customIntervalOpen || (!hasActivePresetInterval && currentBackgroundIntervalSeconds) ? (
+                  <LinearGradient
+                    colors={[palette.accent || '#8B5CF6', palette.accent2 || '#6366f1']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                ) : null}
+                <Text style={[styles.intervalChipText, { color: t.textPrimary }, (customIntervalOpen || (!hasActivePresetInterval && currentBackgroundIntervalSeconds)) && styles.intervalChipTextActive]}>
+                  Custom
+                </Text>
+              </LiquidGlass>
             </View>
+            {customIntervalOpen ? (
+              <View style={styles.customIntervalWrap}>
+                <Text style={[styles.customIntervalTitle, { color: t.textPrimary }]}>Custom Interval</Text>
+                <Text style={[styles.customIntervalSubtitle, { color: t.textSecondary }]}>
+                  Pick a repeating timer up to 99 days, 23 hours, 59 minutes, and 59 seconds.
+                </Text>
+                <View style={styles.durationPickerRow}>
+                  <DurationPickerColumn
+                    label="Days"
+                    value={customInterval.days}
+                    max={MAX_CUSTOM_INTERVAL.days}
+                    onChange={(nextValue) => updateCustomIntervalPart('days', nextValue)}
+                  />
+                  <DurationPickerColumn
+                    label="Hours"
+                    value={customInterval.hours}
+                    max={MAX_CUSTOM_INTERVAL.hours}
+                    onChange={(nextValue) => updateCustomIntervalPart('hours', nextValue)}
+                  />
+                  <DurationPickerColumn
+                    label="Min"
+                    value={customInterval.minutes}
+                    max={MAX_CUSTOM_INTERVAL.minutes}
+                    onChange={(nextValue) => updateCustomIntervalPart('minutes', nextValue)}
+                  />
+                  <DurationPickerColumn
+                    label="Sec"
+                    value={customInterval.seconds}
+                    max={MAX_CUSTOM_INTERVAL.seconds}
+                    onChange={(nextValue) => updateCustomIntervalPart('seconds', nextValue)}
+                  />
+                </View>
+                <Text style={[styles.customIntervalSummary, { color: t.textPrimary }]}>
+                  Repeats every {customIntervalSummaryLabel}
+                </Text>
+                {customIntervalSeconds > 0 && customIntervalSeconds < MIN_PERFORMANCE_WARNING_SECONDS ? (
+                  <Text style={[styles.intervalWarning, { color: palette.danger || '#FF6B6B' }]}>
+                    Intervals under 1 hour may reduce phone performance and heat up the device.
+                  </Text>
+                ) : null}
+                <LiquidGlass
+                  onPress={applyCustomInterval}
+                  style={styles.customApplyButton}
+                  contentStyle={styles.customApplyButtonContent}
+                  borderRadius={18}
+                  blurIntensity={26}
+                >
+                  <LinearGradient
+                    colors={[palette.accent || '#8B5CF6', palette.accent2 || '#6366f1']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <Text style={[styles.customApplyButtonText, { color: t.textPrimary }]}>Apply Custom Interval</Text>
+                </LiquidGlass>
+              </View>
+            ) : null}
           </LiquidGlass>
         ) : null}
 
@@ -1279,17 +1507,6 @@ const styles = StyleSheet.create({
     paddingVertical: 22,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  stopButtonFloating: {
-    marginTop: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    alignSelf: 'center',
-  },
-  stopButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 1,
   },
   startButtonShell: {
     minHeight: 60,
@@ -1485,6 +1702,84 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   intervalChipTextActive: {
+  },
+  customIntervalWrap: {
+    marginTop: 16,
+    gap: 12,
+  },
+  customIntervalTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  customIntervalSubtitle: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  durationPickerRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  durationColumn: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 8,
+  },
+  durationColumnLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  durationAdjustButton: {
+    width: '100%',
+    minHeight: 42,
+  },
+  durationAdjustButtonContent: {
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  durationAdjustText: {
+    fontSize: 24,
+    fontWeight: '500',
+    lineHeight: 24,
+  },
+  durationValueWrap: {
+    width: '100%',
+    minHeight: 60,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  durationValueText: {
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: -0.8,
+  },
+  customIntervalSummary: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  intervalWarning: {
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+  customApplyButton: {
+    marginTop: 2,
+  },
+  customApplyButtonContent: {
+    minHeight: 54,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customApplyButtonText: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
 });
 
