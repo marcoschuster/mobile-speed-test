@@ -436,11 +436,14 @@ class SpeedTestService {
     const finalSpeed = Math.max(calc.getFinalSpeed(), 0.1);
     if (onSpeedUpdate) onSpeedUpdate(finalSpeed, 'download');
 
-    // Log download samples
+    // Log download samples with filtering to remove unrealistic spikes
     const rawDownloadSamples = liveSamples.map(s => Math.round(s));
+    const sortedDownloadSamples = [...rawDownloadSamples].sort((a, b) => a - b);
+    const downloadTrimCount = Math.floor(sortedDownloadSamples.length * 0.05);
+    const filteredDownloadSamples = sortedDownloadSamples.slice(downloadTrimCount, sortedDownloadSamples.length - downloadTrimCount);
     const elapsed = (Date.now() - measureStart) / 1000;
     console.log(
-      `Download: ${finalSpeed.toFixed(2)} Mbps (${rawDownloadSamples.length} samples, raw: ${rawDownloadSamples.join(',')})`
+      `Download: ${finalSpeed.toFixed(2)} Mbps (${filteredDownloadSamples.length} samples, raw: ${filteredDownloadSamples.join(',')})`
     );
     console.log(
       `Download done: ${(shared.totalBytes / 1048576).toFixed(1)} MB in ${elapsed.toFixed(1)}s — ` +
@@ -611,11 +614,14 @@ class SpeedTestService {
     );
     if (onSpeedUpdate) onSpeedUpdate(finalSpeed, 'upload');
 
-    // Log upload samples
+    // Log upload samples with filtering to remove unrealistic spikes
     const rawUploadSamples = liveSamples.map(s => Math.round(s));
+    const sortedUploadSamples = [...rawUploadSamples].sort((a, b) => a - b);
+    const uploadTrimCount = Math.floor(sortedUploadSamples.length * 0.05);
+    const filteredUploadSamples = sortedUploadSamples.slice(uploadTrimCount, sortedUploadSamples.length - uploadTrimCount);
     const elapsed = (Date.now() - measureStart) / 1000;
     console.log(
-      `Upload: ${finalSpeed.toFixed(2)} Mbps (${rawUploadSamples.length} samples, raw: ${rawUploadSamples.join(',')})`
+      `Upload: ${finalSpeed.toFixed(2)} Mbps (${filteredUploadSamples.length} samples, raw: ${filteredUploadSamples.join(',')})`
     );
     console.log(
       `Upload done: ${(shared.totalBytes / 1048576).toFixed(1)} MB in ${elapsed.toFixed(1)}s — ` +
