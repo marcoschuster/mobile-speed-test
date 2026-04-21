@@ -458,12 +458,12 @@ class SpeedTestService {
           // Store raw speed value for logging
           liveSamples.push(speed);
 
-          // Apply smoothing to prevent spikes - limit rate of change to 50% per update
+          // Apply smoothing to prevent spikes - limit rate of change to 30% per update (reduced for more accuracy)
           let smoothedSpeed;
           if (lastSmoothedSpeed === 0) {
             smoothedSpeed = speed;
           } else {
-            const maxChange = lastSmoothedSpeed * 0.5;
+            const maxChange = lastSmoothedSpeed * 0.3;
             const change = speed - lastSmoothedSpeed;
             if (Math.abs(change) > maxChange) {
               smoothedSpeed = lastSmoothedSpeed + (change > 0 ? maxChange : -maxChange);
@@ -510,7 +510,7 @@ class SpeedTestService {
       `Download done: ${(shared.totalBytes / 1048576).toFixed(1)} MB in ${elapsed.toFixed(1)}s — ` +
       `rolling: ${finalSpeed.toFixed(2)} Mbps`
     );
-    return finalSpeed;
+    return { speed: finalSpeed, totalBytes: shared.totalBytes };
   }
 
   async _downloadWorkerXHR(chunkSizes, startTime, testDuration, shared, calc, idx) {
@@ -644,12 +644,12 @@ class SpeedTestService {
           // Store raw speed value for logging
           liveSamples.push(speed);
 
-          // Apply smoothing to prevent spikes - limit rate of change to 50% per update
+          // Apply smoothing to prevent spikes - limit rate of change to 30% per update (reduced for more accuracy)
           let smoothedSpeed;
           if (lastSmoothedSpeed === 0) {
             smoothedSpeed = speed;
           } else {
-            const maxChange = lastSmoothedSpeed * 0.5;
+            const maxChange = lastSmoothedSpeed * 0.3;
             const change = speed - lastSmoothedSpeed;
             if (Math.abs(change) > maxChange) {
               smoothedSpeed = lastSmoothedSpeed + (change > 0 ? maxChange : -maxChange);
@@ -711,7 +711,7 @@ class SpeedTestService {
       `Upload done: ${(shared.totalBytes / 1048576).toFixed(1)} MB in ${elapsed.toFixed(1)}s — ` +
       `rolling: ${finalSpeed.toFixed(2)} Mbps`
     );
-    return finalSpeed;
+    return { speed: finalSpeed, totalBytes: shared.totalBytes };
   }
 
   async _uploadWorkerXHR(payloads, startTime, testDuration, shared, calc, idx) {
@@ -796,6 +796,7 @@ class SpeedTestService {
       download: 0,
       upload: 0,
       ping: 0,
+      totalBytes: 0,
       serverName: null,
       serverLocation: null,
       provider: null,
@@ -820,22 +821,24 @@ class SpeedTestService {
       // Phase 2: Download (parallel XHR with onprogress, rolling window)
       onProgress('Testing download speed...', 'download');
       const downloadResult = await this.runDownloadTest(onSpeedUpdate);
-      this.currentTest.download = downloadResult;
-      if (onPhaseComplete) onPhaseComplete('download', downloadResult);
+      this.currentTest.download = downloadResult.speed;
+      this.currentTest.totalBytes += downloadResult.totalBytes;
+      if (onPhaseComplete) onPhaseComplete('download', downloadResult.speed);
 
-      if (downloadResult > this.peaks.download) {
-        this.peaks.download = downloadResult;
+      if (downloadResult.speed > this.peaks.download) {
+        this.peaks.download = downloadResult.speed;
         await this.savePeaks();
       }
 
       // Phase 3: Upload (parallel XHR with upload.onprogress, rolling window)
       onProgress('Testing upload speed...', 'upload');
       const uploadResult = await this.runUploadTest(onSpeedUpdate);
-      this.currentTest.upload = uploadResult;
-      if (onPhaseComplete) onPhaseComplete('upload', uploadResult);
+      this.currentTest.upload = uploadResult.speed;
+      this.currentTest.totalBytes += uploadResult.totalBytes;
+      if (onPhaseComplete) onPhaseComplete('upload', uploadResult.speed);
 
-      if (uploadResult > this.peaks.upload) {
-        this.peaks.upload = uploadResult;
+      if (uploadResult.speed > this.peaks.upload) {
+        this.peaks.upload = uploadResult.speed;
         await this.savePeaks();
       }
 
