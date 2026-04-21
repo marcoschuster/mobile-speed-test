@@ -385,6 +385,7 @@ class SpeedTestService {
     const startTime = Date.now();
     const calc = this._createRollingCalc();
     const shared = { totalBytes: 0 };
+    const liveSamples = [];
     let lastReportedBytes = 0;
     let lastReportedAt = Date.now();
 
@@ -414,7 +415,10 @@ class SpeedTestService {
         lastReportedBytes = shared.totalBytes;
         lastReportedAt = now;
 
-        if (speed > 0) onSpeedUpdate(speed, 'download');
+        if (speed > 0) {
+          liveSamples.push(speed);
+          onSpeedUpdate(speed, 'download');
+        }
       }
     }, 140);
 
@@ -432,22 +436,11 @@ class SpeedTestService {
     const finalSpeed = Math.max(calc.getFinalSpeed(), 0.1);
     if (onSpeedUpdate) onSpeedUpdate(finalSpeed, 'download');
 
-    // Extract raw speed samples from the rolling calc
-    const rawSpeedSamples = [];
-    for (let i = 1; i < calc.samples.length; i++) {
-      const prev = calc.samples[i - 1];
-      const curr = calc.samples[i];
-      const dt = (curr.t - prev.t) / 1000;
-      if (dt >= 0.1) {
-        const db = curr.bytes - prev.bytes;
-        const speed = (db * 8) / (dt * 1000000);
-        if (speed > 0) rawSpeedSamples.push(Math.round(speed));
-      }
-    }
-
+    // Log download samples
+    const rawDownloadSamples = liveSamples.map(s => Math.round(s));
     const elapsed = (Date.now() - measureStart) / 1000;
     console.log(
-      `Download: ${finalSpeed.toFixed(2)} Mbps (${rawSpeedSamples.length} samples, raw: ${rawSpeedSamples.join(',')})`
+      `Download: ${finalSpeed.toFixed(2)} Mbps (${rawDownloadSamples.length} samples, raw: ${rawDownloadSamples.join(',')})`
     );
     console.log(
       `Download done: ${(shared.totalBytes / 1048576).toFixed(1)} MB in ${elapsed.toFixed(1)}s — ` +
