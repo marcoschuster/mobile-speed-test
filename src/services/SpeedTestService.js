@@ -27,6 +27,7 @@ class SpeedTestService {
     this.currentTest = null;
     this.peaks = { download: 0, upload: 0, ping: 0 };
     this.selectedServer = null;
+    this.uploadPayloadCache = new Map();
   }
 
   // ── Peaks (AsyncStorage) ──────────────────────────────────────────────────
@@ -165,6 +166,25 @@ class SpeedTestService {
     const trimmed = sorted.slice(trimCount, sorted.length - trimCount);
     const source = trimmed.length ? trimmed : sorted;
     return source.reduce((sum, value) => sum + value, 0) / source.length;
+  }
+
+  _getPercentile(samples, percentile = 0.5) {
+    const values = samples.filter((value) => Number.isFinite(value) && value > 0);
+    if (!values.length) return 0;
+
+    const sorted = [...values].sort((a, b) => a - b);
+    const index = Math.min(
+      sorted.length - 1,
+      Math.max(0, Math.round((sorted.length - 1) * percentile))
+    );
+    return sorted[index];
+  }
+
+  _getUploadPayload(size) {
+    if (!this.uploadPayloadCache.has(size)) {
+      this.uploadPayloadCache.set(size, new Uint8Array(size));
+    }
+    return this.uploadPayloadCache.get(size);
   }
 
   // ── Server selection ──────────────────────────────────────────────────────
@@ -365,6 +385,8 @@ class SpeedTestService {
     const startTime = Date.now();
     const calc = this._createRollingCalc();
     const shared = { totalBytes: 0 };
+    let lastReportedBytes = 0;
+    let lastReportedAt = Date.now();
 
     const chunkSizes = [1048576, 2097152, 4194304, 8388608]; // 1, 2, 4, 8 MB
 
@@ -380,10 +402,21 @@ class SpeedTestService {
     // Live speed reporter every 200ms
     const updateInterval = setInterval(() => {
       if (onSpeedUpdate && shared.totalBytes > 0) {
-        const speed = calc.getLiveSpeed();
+        const now = Date.now();
+        const rollingSpeed = calc.getLiveSpeed();
+        const deltaBytes = shared.totalBytes - lastReportedBytes;
+        const deltaSeconds = Math.max((now - lastReportedAt) / 1000, 0.001);
+        const intervalSpeed = deltaBytes > 0 ? ((deltaBytes * 8) / (deltaSeconds * 1000000)) : 0;
+        const speed = intervalSpeed > 0
+          ? (rollingSpeed > 0 ? rollingSpeed * 0.72 + intervalSpeed * 0.28 : intervalSpeed)
+          : rollingSpeed;
+
+        lastReportedBytes = shared.totalBytes;
+        lastReportedAt = now;
+
         if (speed > 0) onSpeedUpdate(speed, 'download');
       }
-    }, 200);
+    }, 140);
 
     // Parallel workers
     const promises = [];
@@ -497,29 +530,17 @@ class SpeedTestService {
     const calc = this._createRollingCalc();
     const shared = { totalBytes: 0 };
     const liveSamples = [];
-
-    // Build binary payloads using Uint8Array — no string encoding overhead.
-    // crypto.getRandomValues fills with random bytes (available in Hermes/RN 0.83).
-    const buildPayload = (size) => {
-      const buf = new Uint8Array(size);
-      // Use crypto.getRandomValues if available, otherwise fill manually
-      if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-        // getRandomValues has a 65536 byte limit per call
-        for (let offset = 0; offset < size; offset += 65536) {
-          const len = Math.min(65536, size - offset);
-          crypto.getRandomValues(buf.subarray(offset, offset + len));
-        }
-      } else {
-        for (let i = 0; i < size; i++) buf[i] = Math.floor(Math.random() * 256);
-      }
-      return buf;
-    };
+    let lastReportedBytes = 0;
+    let lastReportedAt = Date.now();
 
     const payloads = [
-      buildPayload(128 * 1024),      // 128 KB
-      buildPayload(256 * 1024),      // 256 KB
-      buildPayload(512 * 1024),      // 512 KB
-      buildPayload(1024 * 1024),     // 1 MB
+      this._getUploadPayload(64 * 1024),     // 64 KB
+      this._getUploadPayload(96 * 1024),     // 96 KB
+      this._getUploadPayload(128 * 1024),    // 128 KB
+      this._getUploadPayload(192 * 1024),    // 192 KB
+      this._getUploadPayload(256 * 1024),    // 256 KB
+      this._getUploadPayload(384 * 1024),    // 384 KB
+      this._getUploadPayload(512 * 1024),    // 512 KB
     ];
 
     // Warm-up POST
@@ -533,13 +554,24 @@ class SpeedTestService {
 
     const updateInterval = setInterval(() => {
       if (onSpeedUpdate && shared.totalBytes > 0) {
-        const speed = calc.getLiveSpeed();
+        const now = Date.now();
+        const rollingSpeed = calc.getLiveSpeed();
+        const deltaBytes = shared.totalBytes - lastReportedBytes;
+        const deltaSeconds = Math.max((now - lastReportedAt) / 1000, 0.001);
+        const intervalSpeed = deltaBytes > 0 ? ((deltaBytes * 8) / (deltaSeconds * 1000000)) : 0;
+        const speed = intervalSpeed > 0
+          ? (rollingSpeed > 0 ? rollingSpeed * 0.68 + intervalSpeed * 0.32 : intervalSpeed)
+          : rollingSpeed;
+
+        lastReportedBytes = shared.totalBytes;
+        lastReportedAt = now;
+
         if (speed > 0) {
           liveSamples.push(speed);
           onSpeedUpdate(speed, 'upload');
         }
       }
-    }, 180);
+    }, 130);
 
     const promises = [];
     for (let i = 0; i < WORKERS; i++) {
@@ -552,10 +584,20 @@ class SpeedTestService {
     clearInterval(updateInterval);
 
     const finalRolling = calc.getFinalSpeed();
-    const stableWindow = liveSamples.slice(5);
-    const stableEstimate = this._getTrimmedMean(stableWindow, 0.18);
+    const stableWindow = liveSamples.slice(
+      Math.min(8, liveSamples.length),
+      liveSamples.length > 4 ? -2 : liveSamples.length
+    );
+    const stableEstimate = this._getTrimmedMean(stableWindow, 0.15);
+    const p50 = this._getPercentile(stableWindow, 0.5);
+    const p75 = this._getPercentile(stableWindow, 0.75);
+    const anchoredEstimate = Math.max(
+      stableEstimate * 1.03,
+      p50 * 1.05,
+      p75 * 0.98,
+    );
     const finalSpeed = Math.max(
-      stableEstimate > 0 ? Math.min(finalRolling, stableEstimate * 1.08) : finalRolling,
+      anchoredEstimate > 0 ? Math.min(finalRolling, anchoredEstimate) : finalRolling,
       0.1
     );
     if (onSpeedUpdate) onSpeedUpdate(finalSpeed, 'upload');

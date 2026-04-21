@@ -482,7 +482,7 @@ const Speedometer = ({
                 {unit}
               </SvgText>
               {label ? (
-                <SvgText x={CX} y={CY + 44} fontSize="10" fontWeight="800" fill={t.accent} textAnchor="middle" letterSpacing="2" opacity={0.9}>
+                <SvgText x={CX} y={CY + 44} fontSize="10" fontWeight="800" fill={resolvedNeedleColor} textAnchor="middle" letterSpacing="2" opacity={0.9}>
                   {label}
                 </SvgText>
               ) : null}

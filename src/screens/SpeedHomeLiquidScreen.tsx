@@ -891,8 +891,6 @@ const SpeedHomeLiquidScreen = () => {
           return liveUpload;
         case 'Ping':
           return livePing;
-        case 'Complete':
-          return downloadSpeed;
         default:
           return 0;
       }
