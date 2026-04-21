@@ -1221,18 +1221,18 @@ const SpeedHomeLiquidScreen = () => {
         <View style={styles.insightsWrap}>
           <InsightCard
             title="Connection Quality"
-            value={hasTestCompleted ? connectionQuality.label : 'Waiting...'}
-            subtitle={hasTestCompleted ? connectionQuality.summary : 'Run a test to assess your connection quality.'}
+            value={!isTestRunning && !hasTestCompleted ? 'Waiting...' : connectionQuality.label}
+            subtitle={!isTestRunning && !hasTestCompleted ? 'Run a test to assess your connection quality.' : connectionQuality.summary}
           />
           <InsightCard
             title="Last Test Traffic"
-            value={hasTestCompleted ? formatBytes(lastTest?.totalBytes || historySummary.totalDataUsedBytes) : '---'}
-            subtitle={hasTestCompleted ? 'Download + upload payload used by the latest completed test.' : 'Run a test to see the actual traffic used.'}
+            value={!isTestRunning && !hasTestCompleted ? '---' : formatBytes(lastTest?.totalBytes || historySummary.totalDataUsedBytes)}
+            subtitle={!isTestRunning && !hasTestCompleted ? 'Run a test to see the actual traffic used.' : 'Download + upload payload used by the latest completed test.'}
           />
           <InsightCard
             title="Server Used"
-            value={hasTestCompleted ? (lastTest?.serverName || 'Automatic') : 'Waiting...'}
-            subtitle={hasTestCompleted ? `${lastTest?.serverLocation || 'Unknown'} • ${lastTest?.provider || 'Measurement Lab'}` : 'Searching for optimal server...'}
+            value={!isTestRunning && !hasTestCompleted ? 'Waiting...' : (lastTest?.serverName || 'Automatic')}
+            subtitle={!isTestRunning && !hasTestCompleted ? 'Searching for optimal server...' : `${lastTest?.serverLocation || 'Unknown'} • ${lastTest?.provider || 'Measurement Lab'}`}
           />
         </View>
 
