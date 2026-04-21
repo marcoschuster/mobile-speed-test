@@ -5,6 +5,7 @@ import {
   Easing,
   LayoutChangeEvent,
   Platform,
+  ScrollView,
   Share,
   StyleSheet,
   Text,
@@ -614,6 +615,8 @@ const SpeedHomeLiquidScreen = () => {
   const runnerScale = useRef(new Animated.Value(0.92)).current;
   const runnerMounted = useRef(false);
   const lastScrollY = useRef(0);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const insightsOpacity = useRef(new Animated.Value(hasTestCompleted ? 1 : 0)).current;
   const speedUnitKey = resolveSpeedUnitKey(settings.speedUnit);
   const speedUnitLabel = getSpeedUnitLabel(speedUnitKey);
   const palette = useMemo(() => ({
@@ -674,6 +677,18 @@ const SpeedHomeLiquidScreen = () => {
 
     lastScrollY.current = offsetY;
   }, [setTabBarMode]);
+
+  // Animate insights when test completes
+  useEffect(() => {
+    if (hasTestCompleted) {
+      Animated.timing(insightsOpacity, {
+        toValue: 1,
+        duration: 400,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [hasTestCompleted]);
 
   const qualitySource = {
     download: downloadSpeed || lastTest?.download || 0,
@@ -814,6 +829,11 @@ const SpeedHomeLiquidScreen = () => {
           setCurrentType('Ready');
           resetLiveState();
           setHasTestCompleted(true);
+
+          // Auto-scroll to show stats cards and hide nav bar
+          setTimeout(() => {
+            scrollViewRef.current?.scrollTo({ y: 300, animated: true });
+          }, 300);
         }, 2600);
       },
       (error) => {
@@ -1119,6 +1139,7 @@ const SpeedHomeLiquidScreen = () => {
       <LinearGradient colors={palette.bgGradient || ['#0a0e27', '#1a1f3a', '#2d1b69']} style={StyleSheet.absoluteFill} />
       <ParticleField color={palette.particle || '#8B5CF6'} />
       <Animated.ScrollView
+        ref={scrollViewRef}
         style={{ opacity: contentFade }}
         contentContainerStyle={styles.content}
         onScroll={handleScroll}
@@ -1218,23 +1239,23 @@ const SpeedHomeLiquidScreen = () => {
           <Text style={[styles.progressText, { color: t.textSecondary }]}>{progressText}</Text>
         ) : null}
 
-        <View style={styles.insightsWrap}>
+        <Animated.View style={[styles.insightsWrap, { opacity: insightsOpacity }]}>
           <InsightCard
             title="Connection Quality"
-            value={!isTestRunning && !hasTestCompleted ? 'Waiting...' : connectionQuality.label}
-            subtitle={!isTestRunning && !hasTestCompleted ? 'Run a test to assess your connection quality.' : connectionQuality.summary}
+            value={isTestRunning || !hasTestCompleted ? 'Waiting...' : connectionQuality.label}
+            subtitle={isTestRunning || !hasTestCompleted ? 'Run a test to assess your connection quality.' : connectionQuality.summary}
           />
           <InsightCard
             title="Last Test Traffic"
-            value={!isTestRunning && !hasTestCompleted ? '---' : formatBytes(lastTest?.totalBytes || historySummary.totalDataUsedBytes)}
-            subtitle={!isTestRunning && !hasTestCompleted ? 'Run a test to see the actual traffic used.' : 'Download + upload payload used by the latest completed test.'}
+            value={isTestRunning || !hasTestCompleted ? '---' : formatBytes(lastTest?.totalBytes || historySummary.totalDataUsedBytes)}
+            subtitle={isTestRunning || !hasTestCompleted ? 'Run a test to see the actual traffic used.' : 'Download + upload payload used by the latest completed test.'}
           />
           <InsightCard
             title="Server Used"
-            value={!isTestRunning && !hasTestCompleted ? 'Waiting...' : (lastTest?.serverName || 'Automatic')}
-            subtitle={!isTestRunning && !hasTestCompleted ? 'Searching for optimal server...' : `${lastTest?.serverLocation || 'Unknown'} • ${lastTest?.provider || 'Measurement Lab'}`}
+            value={isTestRunning || !hasTestCompleted ? 'Waiting...' : (lastTest?.serverName || 'Automatic')}
+            subtitle={isTestRunning || !hasTestCompleted ? 'Searching for optimal server...' : `${lastTest?.serverLocation || 'Unknown'} • ${lastTest?.provider || 'Measurement Lab'}`}
           />
-        </View>
+        </Animated.View>
 
         <View style={styles.iconRow}>
           <LiquidGlass
