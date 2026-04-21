@@ -388,6 +388,7 @@ class SpeedTestService {
     const liveSamples = [];
     let lastReportedBytes = 0;
     let lastReportedAt = Date.now();
+    let lastSmoothedSpeed = 0;
 
     const chunkSizes = [1048576, 2097152, 4194304, 8388608]; // 1, 2, 4, 8 MB
 
@@ -416,8 +417,23 @@ class SpeedTestService {
         lastReportedAt = now;
 
         if (speed > 0) {
-          liveSamples.push(speed);
-          onSpeedUpdate(speed, 'download');
+          // Apply smoothing to prevent spikes - limit rate of change to 50% per update
+          let smoothedSpeed;
+          if (lastSmoothedSpeed === 0) {
+            smoothedSpeed = speed;
+          } else {
+            const maxChange = lastSmoothedSpeed * 0.5;
+            const change = speed - lastSmoothedSpeed;
+            if (Math.abs(change) > maxChange) {
+              smoothedSpeed = lastSmoothedSpeed + (change > 0 ? maxChange : -maxChange);
+            } else {
+              smoothedSpeed = speed;
+            }
+          }
+          lastSmoothedSpeed = smoothedSpeed;
+
+          liveSamples.push(smoothedSpeed);
+          onSpeedUpdate(smoothedSpeed, 'download');
         }
       }
     }, 140);
@@ -549,6 +565,7 @@ class SpeedTestService {
     const liveSamples = [];
     let lastReportedBytes = 0;
     let lastReportedAt = Date.now();
+    let lastSmoothedSpeed = 0;
 
     const payloads = [
       this._getUploadPayload(64 * 1024),     // 64 KB
@@ -584,8 +601,23 @@ class SpeedTestService {
         lastReportedAt = now;
 
         if (speed > 0) {
-          liveSamples.push(speed);
-          onSpeedUpdate(speed, 'upload');
+          // Apply smoothing to prevent spikes - limit rate of change to 50% per update
+          let smoothedSpeed;
+          if (lastSmoothedSpeed === 0) {
+            smoothedSpeed = speed;
+          } else {
+            const maxChange = lastSmoothedSpeed * 0.5;
+            const change = speed - lastSmoothedSpeed;
+            if (Math.abs(change) > maxChange) {
+              smoothedSpeed = lastSmoothedSpeed + (change > 0 ? maxChange : -maxChange);
+            } else {
+              smoothedSpeed = speed;
+            }
+          }
+          lastSmoothedSpeed = smoothedSpeed;
+
+          liveSamples.push(smoothedSpeed);
+          onSpeedUpdate(smoothedSpeed, 'upload');
         }
       }
     }, 130);
