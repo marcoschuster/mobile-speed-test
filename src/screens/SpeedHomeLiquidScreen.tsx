@@ -157,7 +157,110 @@ const PingMetricIcon = ({ size = 18, color = '#00C48C' }: { size?: number; color
 );
 
 const TEST_PHASE_ORDER = ['Download', 'Upload', 'Ping'] as const;
-const RUNNER_WIDTH = 108;
+const PHASE_MARKER_SIZE = 46;
+const DISPLAY_TICK_MS = 50;
+const DISPLAY_PREDICTION_HORIZON_MS = 180;
+
+const MetricPhaseMarker = ({
+  color,
+}: {
+  color: string;
+}) => {
+  const pulse = useRef(new Animated.Value(0)).current;
+  const bars = useRef([
+    new Animated.Value(0.42),
+    new Animated.Value(0.85),
+    new Animated.Value(0.56),
+  ]).current;
+
+  useEffect(() => {
+    const pulseLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 620,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0,
+          duration: 620,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    const barLoops = bars.map((bar, index) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(index * 110),
+          Animated.timing(bar, {
+            toValue: 1,
+            duration: 240,
+            easing: Easing.inOut(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(bar, {
+            toValue: 0.42,
+            duration: 240,
+            easing: Easing.inOut(Easing.quad),
+            useNativeDriver: true,
+          }),
+        ])
+      )
+    );
+
+    pulseLoop.start();
+    barLoops.forEach((loop) => loop.start());
+
+    return () => {
+      pulseLoop.stop();
+      barLoops.forEach((loop) => loop.stop());
+    };
+  }, [bars, pulse]);
+
+  return (
+    <View style={styles.metricMarkerWrap}>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.metricMarkerHalo,
+          {
+            backgroundColor: `${color}22`,
+            opacity: pulse.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0.18, 0.38],
+            }),
+            transform: [
+              {
+                scale: pulse.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.9, 1.28],
+                }),
+              },
+            ],
+          },
+        ]}
+      />
+      <View style={styles.metricPillsRow}>
+        {bars.map((bar, index) => (
+          <Animated.View
+            key={index}
+            style={[
+              styles.metricPill,
+              {
+                backgroundColor: color,
+                opacity: bar,
+                transform: [{ scaleY: bar }],
+              },
+            ]}
+          />
+        ))}
+      </View>
+    </View>
+  );
+};
 
 const MetricSlot = ({
   icon,
@@ -166,7 +269,7 @@ const MetricSlot = ({
   unit,
   active,
   complete,
-  slotKey,
+  placeholder,
 }: {
   icon: React.ReactNode;
   color: string;
@@ -174,29 +277,126 @@ const MetricSlot = ({
   unit: string;
   active: boolean;
   complete: boolean;
-  slotKey: string;
-}) => (
-  <View style={styles.metricSlot}>
-    <View style={[styles.metricIconWrap, active && styles.metricSlotHidden]}>
-      {icon}
-    </View>
-    <View style={styles.metricValueWrap}>
-      {active && (
-        <View style={{ position: 'absolute', top: -12, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: color + '33', alignItems: 'center', justifyContent: 'center' }}>
-            <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: '#000', fontWeight: 'bold', fontSize: 12 }}>{slotKey.charAt(0)}</Text>
-            </View>
-          </View>
+  placeholder: boolean;
+}) => {
+  const revealOpacity = useRef(new Animated.Value(complete && !active ? 1 : 0)).current;
+  const revealTranslateY = useRef(new Animated.Value(complete && !active ? 0 : 10)).current;
+  const placeholderOpacity = useRef(new Animated.Value(placeholder ? 1 : 0)).current;
+  const placeholderTranslateY = useRef(new Animated.Value(placeholder ? 0 : 8)).current;
+
+  useEffect(() => {
+    if (complete && !active) {
+      Animated.parallel([
+        Animated.timing(revealOpacity, {
+          toValue: 1,
+          duration: 260,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(revealTranslateY, {
+          toValue: 0,
+          duration: 260,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]).start();
+      return;
+    }
+
+    revealOpacity.setValue(0);
+    revealTranslateY.setValue(10);
+  }, [active, complete, revealOpacity, revealTranslateY]);
+
+  useEffect(() => {
+    if (placeholder) {
+      Animated.parallel([
+        Animated.timing(placeholderOpacity, {
+          toValue: 1,
+          duration: 180,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(placeholderTranslateY, {
+          toValue: 0,
+          duration: 180,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]).start();
+      return;
+    }
+
+    Animated.parallel([
+      Animated.timing(placeholderOpacity, {
+        toValue: 0,
+        duration: 130,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(placeholderTranslateY, {
+        toValue: 8,
+        duration: 130,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [placeholder, placeholderOpacity, placeholderTranslateY]);
+
+  return (
+    <View style={styles.metricSlot}>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.metricValueWrap,
+          styles.metricPlaceholderWrap,
+          {
+            opacity: placeholderOpacity,
+            transform: [{ translateY: placeholderTranslateY }],
+          },
+        ]}
+      >
+        <View style={styles.metricIconWrap}>
+          {icon}
         </View>
-      )}
-      <Text style={[styles.metricValue, { color: complete ? color : 'rgba(255,255,255,0.92)', opacity: active ? 0 : 1 }]}>
-        {complete ? value : '--'}
-      </Text>
-      <Text style={[styles.metricUnit, { opacity: active ? 0 : 1 }]}>{unit}</Text>
+        <Text
+          style={[
+            styles.metricValue,
+            styles.metricPlaceholderValue,
+            {
+              color,
+            },
+          ]}
+        >
+          ?
+        </Text>
+      </Animated.View>
+      <Animated.View
+        style={[
+          styles.metricValueWrap,
+          {
+            opacity: revealOpacity,
+            transform: [{ translateY: revealTranslateY }],
+          },
+        ]}
+      >
+        <View style={styles.metricIconWrap}>
+          {icon}
+        </View>
+        <Text
+          style={[
+            styles.metricValue,
+            {
+              color,
+            },
+          ]}
+        >
+          {value}
+        </Text>
+        <Text style={styles.metricUnit}>{unit}</Text>
+      </Animated.View>
     </View>
-  </View>
-);
+  );
+};
 
 const ParticleField = ({ color }: { color: string }) => {
   const opacity = useRef(Array.from({ length: 8 }, () => new Animated.Value(0.25))).current;
@@ -280,6 +480,7 @@ const SpeedHomeLiquidScreen = () => {
   const [liveDownload, setLiveDownload] = useState(0);
   const [liveUpload, setLiveUpload] = useState(0);
   const [livePing, setLivePing] = useState(0);
+  const [displayLive, setDisplayLive] = useState({ download: 0, upload: 0, ping: 0 });
   const [progressText, setProgressText] = useState('');
   const [historySummary, setHistorySummary] = useState(summarizeHistory([]));
   const [lastTest, setLastTest] = useState<any | null>(null);
@@ -298,6 +499,11 @@ const SpeedHomeLiquidScreen = () => {
   const runnerScale = useRef(new Animated.Value(0.92)).current;
   const runnerMounted = useRef(false);
   const lastScrollY = useRef(0);
+  const liveMotionRef = useRef({
+    download: { raw: 0, prevRaw: 0, ts: Date.now(), prevTs: Date.now() },
+    upload: { raw: 0, prevRaw: 0, ts: Date.now(), prevTs: Date.now() },
+    ping: { raw: 0, prevRaw: 0, ts: Date.now(), prevTs: Date.now() },
+  });
   const speedUnitKey = resolveSpeedUnitKey(settings.speedUnit);
   const speedUnitLabel = getSpeedUnitLabel(speedUnitKey);
   const palette = useMemo(() => ({
@@ -315,6 +521,19 @@ const SpeedHomeLiquidScreen = () => {
     setLastTest(history[0] || null);
     await SpeedTestService.loadPeaks();
     setPeaks(SpeedTestService.getPeaks());
+  }, []);
+
+  const pushLiveSample = useCallback((kind: 'download' | 'upload' | 'ping', value: number) => {
+    const now = Date.now();
+    const sample = liveMotionRef.current[kind];
+    sample.prevRaw = sample.raw;
+    sample.prevTs = sample.ts;
+    sample.raw = value;
+    sample.ts = now;
+
+    if (kind === 'download') setLiveDownload(value);
+    else if (kind === 'upload') setLiveUpload(value);
+    else setLivePing(value);
   }, []);
 
   useEffect(() => {
@@ -339,6 +558,38 @@ const SpeedHomeLiquidScreen = () => {
       stopFloat.stop();
     };
   }, [backgroundTimer, contentFade, loadPersistedData]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+
+      setDisplayLive((previous) => {
+        const next = { ...previous };
+
+        (['download', 'upload', 'ping'] as const).forEach((kind) => {
+          const sample = liveMotionRef.current[kind];
+          const sampleDeltaMs = Math.max(sample.ts - sample.prevTs, 1);
+          const sampleVelocity = (sample.raw - sample.prevRaw) / sampleDeltaMs;
+          const predictiveElapsed = Math.min(
+            Math.max(now - sample.ts, 0),
+            DISPLAY_PREDICTION_HORIZON_MS,
+          );
+          const predictedTarget = Math.max(0, sample.raw + sampleVelocity * predictiveElapsed);
+          const catchup = kind === 'ping' ? 0.38 : 0.28;
+          const snapThreshold = kind === 'ping' ? 0.8 : 0.08;
+          const delta = predictedTarget - previous[kind];
+
+          next[kind] = Math.abs(delta) <= snapThreshold
+            ? predictedTarget
+            : previous[kind] + delta * catchup;
+        });
+
+        return next;
+      });
+    }, DISPLAY_TICK_MS);
+
+    return () => clearInterval(interval);
+  }, []);
 
   useFocusEffect(useCallback(() => {
     setTabBarMode('expanded');
@@ -373,6 +624,11 @@ const SpeedHomeLiquidScreen = () => {
     setLiveDownload(0);
     setLiveUpload(0);
     setLivePing(0);
+    setDisplayLive({ download: 0, upload: 0, ping: 0 });
+    const now = Date.now();
+    liveMotionRef.current.download = { raw: 0, prevRaw: 0, ts: now, prevTs: now };
+    liveMotionRef.current.upload = { raw: 0, prevRaw: 0, ts: now, prevTs: now };
+    liveMotionRef.current.ping = { raw: 0, prevRaw: 0, ts: now, prevTs: now };
   };
 
   const startBackgroundTests = async (minutes: number | null) => {
@@ -457,8 +713,9 @@ const SpeedHomeLiquidScreen = () => {
       },
       (speed, type) => {
         liveSpeedRef.current = speed;
-        if (type === 'download') setLiveDownload(speed);
-        else if (type === 'upload') setLiveUpload(speed);
+        if (type === 'download' || type === 'upload') {
+          pushLiveSample(type, speed);
+        }
       },
       async (result) => {
         if (gaugeWhirRef.current) {
@@ -472,6 +729,11 @@ const SpeedHomeLiquidScreen = () => {
         setLiveDownload(result.download);
         setLiveUpload(result.upload);
         setLivePing(result.ping);
+        setDisplayLive({
+          download: result.download,
+          upload: result.upload,
+          ping: result.ping,
+        });
         setCurrentType('Complete');
         setProgressText(`Completed on ${result.serverName || 'Automatic server'}`);
         if (!backgroundOnly) SoundEngine.playTestComplete();
@@ -496,7 +758,7 @@ const SpeedHomeLiquidScreen = () => {
         resetLiveState();
         Alert.alert('Test Failed', error);
       },
-      (pingSample) => setLivePing(pingSample),
+      (pingSample) => pushLiveSample('ping', pingSample),
       (type, value) => {
         if (!backgroundOnly) SoundEngine.playPhaseComplete();
         if (type === 'ping') setPing(value);
@@ -536,11 +798,11 @@ const SpeedHomeLiquidScreen = () => {
     const rawSpeed = (() => {
       switch (currentType) {
         case 'Download':
-          return liveDownload;
+          return displayLive.download;
         case 'Upload':
-          return liveUpload;
+          return displayLive.upload;
         case 'Ping':
-          return livePing;
+          return displayLive.ping;
         case 'Complete':
           return downloadSpeed;
         default:
@@ -549,7 +811,7 @@ const SpeedHomeLiquidScreen = () => {
     })();
 
     return currentType === 'Ping' ? rawSpeed : convertSpeedFromMbps(rawSpeed, speedUnitKey);
-  }, [currentType, downloadSpeed, liveDownload, livePing, liveUpload, speedUnitKey]);
+  }, [currentType, displayLive.download, displayLive.ping, displayLive.upload, downloadSpeed, speedUnitKey]);
 
   const gaugeMax = currentType === 'Ping' ? 1500 : convertSpeedFromMbps(200, speedUnitKey);
 
@@ -588,15 +850,15 @@ const SpeedHomeLiquidScreen = () => {
   const runnerSpeed = useMemo(() => {
     switch (currentType) {
       case 'Download':
-        return liveDownload;
+        return displayLive.download;
       case 'Upload':
-        return liveUpload;
+        return displayLive.upload;
       case 'Ping':
-        return Math.max(40, 220 - livePing * 7);
+        return Math.max(40, 220 - displayLive.ping * 7);
       default:
         return 72;
     }
-  }, [currentType, liveDownload, livePing, liveUpload]);
+  }, [currentType, displayLive.download, displayLive.ping, displayLive.upload]);
 
   const runnerLabel = currentType === 'Testing' ? 'Connecting' : currentType;
   const runnerColor = currentType === 'Upload'
@@ -620,13 +882,13 @@ const SpeedHomeLiquidScreen = () => {
       return;
     }
 
-    const targetX = getPhaseSlotCenter(phase) - 36;
+    const targetX = getPhaseSlotCenter(phase) - PHASE_MARKER_SIZE / 2;
 
     if (!runnerMounted.current) {
       runnerMounted.current = true;
       setRunnerVisible(true);
-      runnerX.setValue(targetX);
-      runnerY.setValue(400);
+      runnerX.setValue(targetX - 18);
+      runnerY.setValue(10);
       runnerOpacity.setValue(0);
       runnerScale.setValue(0.92);
 
@@ -643,9 +905,15 @@ const SpeedHomeLiquidScreen = () => {
           useNativeDriver: true,
         }),
         Animated.timing(runnerY, {
-          toValue: 400,
-          duration: 200,
-          easing: Easing.out(Easing.quad),
+          toValue: 0,
+          duration: 280,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(runnerX, {
+          toValue: targetX,
+          duration: 320,
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
       ]).start();
@@ -659,6 +927,20 @@ const SpeedHomeLiquidScreen = () => {
         easing: Easing.inOut(Easing.cubic),
         useNativeDriver: true,
       }),
+      Animated.sequence([
+        Animated.timing(runnerY, {
+          toValue: -6,
+          duration: 140,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(runnerY, {
+          toValue: 0,
+          duration: 220,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
     ]).start();
   }, [getPhaseSlotCenter, metricTrackWidth, runnerOpacity, runnerScale, runnerX, runnerY]);
 
@@ -682,7 +964,7 @@ const SpeedHomeLiquidScreen = () => {
     ]).start(() => {
       runnerMounted.current = false;
       setRunnerVisible(false);
-      runnerY.setValue(400);
+      runnerY.setValue(10);
       runnerScale.setValue(0.92);
     });
   }, [metricTrackWidth, runnerOpacity, runnerScale, runnerX, runnerY]);
@@ -702,7 +984,7 @@ const SpeedHomeLiquidScreen = () => {
       runnerMounted.current = false;
       setRunnerVisible(false);
       runnerOpacity.setValue(0);
-      runnerY.setValue(400);
+      runnerY.setValue(10);
       runnerScale.setValue(0.92);
     }
   }, [animateRunnerToPhase, currentType, exitRunner, isTestRunning, runnerOpacity, runnerScale, runnerY]);
@@ -737,6 +1019,7 @@ const SpeedHomeLiquidScreen = () => {
       icon: <PingMetricIcon color={t.success} />,
     },
   ] as const;
+  const shouldShowMetricTrack = isTestRunning || metricSlots.some((slot) => slot.complete);
 
   const handleMetricTrackLayout = (event: LayoutChangeEvent) => {
     const { width } = event.nativeEvent.layout;
@@ -809,22 +1092,48 @@ const SpeedHomeLiquidScreen = () => {
           </Animated.View>
         )}
 
-        <View style={styles.metricTrack} onLayout={handleMetricTrackLayout}>
-          <View style={styles.metricRow}>
-            {metricSlots.map((slot) => (
-              <MetricSlot
-                key={slot.key}
-                icon={slot.icon}
-                color={slot.color}
-                value={slot.value}
-                unit={slot.unit}
-                active={currentType === slot.key && isTestRunning}
-                complete={slot.complete}
-                slotKey={slot.key}
-              />
-            ))}
+        {shouldShowMetricTrack ? (
+          <View style={styles.metricTrack} onLayout={handleMetricTrackLayout}>
+            {runnerVisible ? (
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.runnerOverlay,
+                  {
+                    opacity: runnerOpacity,
+                    transform: [
+                      { translateX: runnerX },
+                      { translateY: runnerY },
+                      { scale: runnerScale },
+                    ],
+                  },
+                ]}
+              >
+                <MetricPhaseMarker color={runnerColor} />
+              </Animated.View>
+            ) : null}
+
+            <View style={styles.metricRow}>
+              {metricSlots.map((slot) => {
+                const active = currentType === slot.key && isTestRunning;
+                const placeholder = isTestRunning && !slot.complete && !active;
+
+                return (
+                  <MetricSlot
+                    key={slot.key}
+                    icon={slot.icon}
+                    color={slot.color}
+                    value={slot.value}
+                    unit={slot.unit}
+                    active={active}
+                    complete={slot.complete}
+                    placeholder={placeholder}
+                  />
+                );
+              })}
+            </View>
           </View>
-        </View>
+        ) : null}
 
         {!isTestRunning && progressText ? (
           <Text style={[styles.progressText, { color: t.textSecondary }]}>{progressText}</Text>
@@ -1017,13 +1326,13 @@ const styles = StyleSheet.create({
   metricRow: {
     flexDirection: 'row',
     width: '100%',
-    alignItems: 'flex-end',
+    alignItems: 'center',
   },
   metricSlot: {
     flex: 1,
     minHeight: 94,
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     gap: 8,
   },
   metricIconWrap: {
@@ -1034,11 +1343,21 @@ const styles = StyleSheet.create({
   metricValueWrap: {
     alignItems: 'center',
     justifyContent: 'center',
+    width: '100%',
+  },
+  metricPlaceholderWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
   },
   metricValue: {
     fontSize: 22,
     fontWeight: '800',
     letterSpacing: -0.5,
+  },
+  metricPlaceholderValue: {
+    fontSize: 28,
+    lineHeight: 30,
   },
   metricUnit: {
     marginTop: 2,
@@ -1048,16 +1367,39 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
-  metricSlotHidden: {
-    opacity: 0,
+  metricMarkerWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 52,
+    height: 32,
+  },
+  metricMarkerHalo: {
+    position: 'absolute',
+    width: 52,
+    height: 28,
+    borderRadius: 999,
+  },
+  metricPillsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    height: 20,
+  },
+  metricPill: {
+    width: 8,
+    height: 18,
+    borderRadius: 999,
   },
   runnerOverlay: {
     position: 'absolute',
-    top: 300,
+    top: 0,
+    bottom: 0,
     left: 0,
-    width: RUNNER_WIDTH,
+    width: 52,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 3,
   },
   insightsWrap: {
     gap: 12,

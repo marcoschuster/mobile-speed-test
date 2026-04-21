@@ -153,6 +153,20 @@ class SpeedTestService {
     };
   }
 
+  _getTrimmedMean(samples, trimFraction = 0.2) {
+    const values = samples.filter((value) => Number.isFinite(value) && value > 0);
+    if (!values.length) return 0;
+    if (values.length < 5) {
+      return values.reduce((sum, value) => sum + value, 0) / values.length;
+    }
+
+    const sorted = [...values].sort((a, b) => a - b);
+    const trimCount = Math.floor(sorted.length * trimFraction);
+    const trimmed = sorted.slice(trimCount, sorted.length - trimCount);
+    const source = trimmed.length ? trimmed : sorted;
+    return source.reduce((sum, value) => sum + value, 0) / source.length;
+  }
+
   // ── Server selection ──────────────────────────────────────────────────────
   // Fetches the nearest M-Lab NDT7 server. The returned URLs contain
   // single-use access tokens and are used directly for download/upload.
@@ -206,9 +220,10 @@ class SpeedTestService {
 
   _wsPing(onPingSample) {
     return new Promise((resolve, reject) => {
-      const TOTAL_PINGS = 20;
+      const TOTAL_PINGS = 28;
       const WARMUP = 3;
-      const TIMEOUT = 10000;
+      const TIMEOUT = 16000;
+      const PING_DELAY_MS = 90;
       const pings = [];
       let count = 0;
       let sendTime = 0;
@@ -244,9 +259,13 @@ class SpeedTestService {
         if (onPingSample) onPingSample(rtt);
 
         if (count < TOTAL_PINGS) {
-          // Send next ping immediately
-          sendTime = Date.now();
-          ws.send('ping');
+          setTimeout(() => {
+            if (!this.isTestRunning || ws.readyState !== WebSocket.OPEN) {
+              return;
+            }
+            sendTime = Date.now();
+            ws.send('ping');
+          }, PING_DELAY_MS);
         } else {
           // Done — close and compute
           clearTimeout(timeout);
@@ -303,7 +322,7 @@ class SpeedTestService {
       'https://1.1.1.1',
     ];
 
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 20; i++) {
       try {
         const server = servers[i % servers.length];
         const start = Date.now();
@@ -314,6 +333,7 @@ class SpeedTestService {
         const rtt = Date.now() - start;
         pings.push(rtt);
         if (onPingSample) onPingSample(rtt);
+        await new Promise((resolve) => setTimeout(resolve, 80));
       } catch (e) {
         console.log('HTTP ping failed:', e.message);
       }
@@ -472,10 +492,11 @@ class SpeedTestService {
   // handles this fine — tested and confirmed no rate limiting at 6 connections.
 
   async runUploadTest(onSpeedUpdate) {
-    const testDuration = 12000;
+    const testDuration = 13500;
     const startTime = Date.now();
     const calc = this._createRollingCalc();
     const shared = { totalBytes: 0 };
+    const liveSamples = [];
 
     // Build binary payloads using Uint8Array — no string encoding overhead.
     // crypto.getRandomValues fills with random bytes (available in Hermes/RN 0.83).
@@ -495,10 +516,10 @@ class SpeedTestService {
     };
 
     const payloads = [
-      buildPayload(256 * 1024),    // 256 KB
-      buildPayload(512 * 1024),    // 512 KB
-      buildPayload(1024 * 1024),   // 1 MB
-      buildPayload(2 * 1024 * 1024), // 2 MB
+      buildPayload(128 * 1024),      // 128 KB
+      buildPayload(256 * 1024),      // 256 KB
+      buildPayload(512 * 1024),      // 512 KB
+      buildPayload(1024 * 1024),     // 1 MB
     ];
 
     // Warm-up POST
@@ -507,15 +528,18 @@ class SpeedTestService {
     const measureStart = Date.now();
     calc.push(0);
 
-    const WORKERS = 4;
-    console.log(`Starting upload test — ${WORKERS} XHR connections for 12s`);
+    const WORKERS = 3;
+    console.log(`Starting upload test — ${WORKERS} XHR connections for 13.5s`);
 
     const updateInterval = setInterval(() => {
       if (onSpeedUpdate && shared.totalBytes > 0) {
         const speed = calc.getLiveSpeed();
-        if (speed > 0) onSpeedUpdate(speed, 'upload');
+        if (speed > 0) {
+          liveSamples.push(speed);
+          onSpeedUpdate(speed, 'upload');
+        }
       }
-    }, 200);
+    }, 180);
 
     const promises = [];
     for (let i = 0; i < WORKERS; i++) {
@@ -527,7 +551,13 @@ class SpeedTestService {
     await Promise.allSettled(promises);
     clearInterval(updateInterval);
 
-    const finalSpeed = Math.max(calc.getFinalSpeed(), 0.1);
+    const finalRolling = calc.getFinalSpeed();
+    const stableWindow = liveSamples.slice(5);
+    const stableEstimate = this._getTrimmedMean(stableWindow, 0.18);
+    const finalSpeed = Math.max(
+      stableEstimate > 0 ? Math.min(finalRolling, stableEstimate * 1.08) : finalRolling,
+      0.1
+    );
     if (onSpeedUpdate) onSpeedUpdate(finalSpeed, 'upload');
 
     const elapsed = (Date.now() - measureStart) / 1000;

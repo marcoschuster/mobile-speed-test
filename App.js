@@ -268,16 +268,17 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                 tabStyles.tabButtonShell,
                 {
                   opacity: isFocused ? 1 : 0.72,
-                  backgroundColor: isCompact ? 'transparent' : withAlpha(t.glassStrong || '#08111a', 0.94),
-                  borderColor: isCompact ? withAlpha('#FFFFFF', 0.08) : withAlpha('#FFFFFF', 0.18),
+                  backgroundColor: isCompact
+                    ? 'transparent'
+                    : isFocused
+                      ? withAlpha(t.surfaceElevated || t.glassStrong || '#08111a', 0.98)
+                      : withAlpha(t.glassStrong || '#08111a', 0.92),
+                  borderColor: isCompact ? withAlpha('#FFFFFF', 0.08) : withAlpha('#FFFFFF', 0.16),
                   shadowColor: isFocused ? t.accent : t.accentDark,
                   shadowOffset: { width: 0, height: 0 },
-                  shadowOpacity: isFocused ? 0.42 : 0.14,
-                  shadowRadius: isFocused ? 26 : 16,
-                  elevation: isFocused ? 14 : 4,
-                },
-                isFocused && {
-                  borderColor: withAlpha(t.accentLight || t.accent, isCompact ? 0.26 : 0.42),
+                  shadowOpacity: isFocused ? 0.34 : 0.14,
+                  shadowRadius: isFocused ? 38 : 16,
+                  elevation: isFocused ? 18 : 4,
                 },
               ]}
               contentStyle={tabStyles.tabButtonContent}
@@ -285,14 +286,14 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
               <Animated.View
                 style={[
                   tabStyles.tabInner,
-                  {
-                    backgroundColor: isFocused
-                      ? withAlpha(t.accent, isCompact ? 0.08 : 0.16)
-                      : 'transparent',
-                  },
                   isFocused && {
+                    shadowColor: t.accent,
+                    shadowOffset: { width: 0, height: 0 },
+                    shadowOpacity: isCompact ? 0.4 : 0.62,
+                    shadowRadius: isCompact ? 28 : 38,
+                    elevation: isCompact ? 12 : 18,
                     transform: [{ scale: 1.05 }],
-                  }
+                  },
                 ]}
               >
                 <TabIcon
