@@ -188,11 +188,12 @@ class SpeedTestService {
   }
 
   // ── Server selection ──────────────────────────────────────────────────────
-  // Fetches the nearest M-Lab NDT7 server. The returned URLs contain
-  // single-use access tokens and are used directly for download/upload.
+  // Fetches multiple nearby M-Lab NDT7 servers and tests their latency
+  // to select the best one, similar to Ookla's approach.
 
   async selectBestServer() {
     try {
+      // Fetch multiple nearby servers
       const response = await fetch(
         'https://locate.measurementlab.net/v2/nearest/ndt/ndt7',
         { method: 'GET', cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } }
@@ -204,8 +205,23 @@ class SpeedTestService {
       const results = data.results || data;
 
       if (results && results.length > 0) {
-        this.selectedServer = results[0];
-        console.log(`Selected server: ${this.selectedServer.machine} (${this.selectedServer.location?.city})`);
+        // Take top 5 servers and test their latency
+        const candidates = results.slice(0, 5);
+        console.log(`Testing ${candidates.length} candidate servers...`);
+
+        const serverLatencies = await Promise.all(
+          candidates.map(async (server) => {
+            const latency = await this._testServerLatency(server);
+            return { server, latency };
+          })
+        );
+
+        // Select server with lowest latency
+        serverLatencies.sort((a, b) => a.latency - b.latency);
+        const best = serverLatencies[0];
+
+        this.selectedServer = best.server;
+        console.log(`Selected server: ${this.selectedServer.machine} (${this.selectedServer.location?.city}) with ${best.latency}ms latency`);
         return this.selectedServer;
       }
     } catch (e) {
@@ -216,6 +232,28 @@ class SpeedTestService {
     this.selectedServer = null;
     console.log('No NDT7 server available, will use Cloudflare HTTP fallback');
     return null;
+  }
+
+  async _testServerLatency(server) {
+    try {
+      const start = Date.now();
+      // Simple HEAD request to test latency
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+      await fetch(server.url || `https://${server.machine}`, {
+        method: 'HEAD',
+        cache: 'no-store',
+        signal: controller.signal,
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+
+      clearTimeout(timeoutId);
+      return Date.now() - start;
+    } catch (e) {
+      console.log(`Latency test failed for ${server.machine}: ${e.message}`);
+      return 9999; // Return high latency on failure
+    }
   }
 
   // ── Ping: WebSocket round-trip ────────────────────────────────────────────
@@ -758,12 +796,26 @@ class SpeedTestService {
       download: 0,
       upload: 0,
       ping: 0,
+      serverName: null,
+      serverLocation: null,
+      provider: null,
     };
 
     try {
       // Phase 1: Select nearest M-Lab NDT7 server
       onProgress('Selecting server...', 'server');
       await this.selectBestServer();
+
+      // Store server information in test result
+      if (this.selectedServer) {
+        this.currentTest.serverName = this.selectedServer.machine || 'Cloudflare';
+        this.currentTest.serverLocation = this.selectedServer.location?.city || this.selectedServer.location?.country || 'Unknown';
+        this.currentTest.provider = this.selectedServer.location?.site || 'Measurement Lab';
+      } else {
+        this.currentTest.serverName = 'Cloudflare';
+        this.currentTest.serverLocation = 'Global';
+        this.currentTest.provider = 'Cloudflare';
+      }
 
       // Phase 2: Download (parallel XHR with onprogress, rolling window)
       onProgress('Testing download speed...', 'download');

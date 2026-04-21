@@ -1219,18 +1219,18 @@ const SpeedHomeLiquidScreen = () => {
         <View style={styles.insightsWrap}>
           <InsightCard
             title="Connection Quality"
-            value={connectionQuality.label}
-            subtitle={connectionQuality.summary}
+            value={lastTest ? connectionQuality.label : 'Waiting...'}
+            subtitle={lastTest ? connectionQuality.summary : 'Run a test to assess your connection quality.'}
           />
           <InsightCard
             title="Last Test Traffic"
-            value={lastTest ? formatBytes(lastTest.totalBytes || historySummary.totalDataUsedBytes) : 'No data yet'}
+            value={lastTest ? formatBytes(lastTest.totalBytes || historySummary.totalDataUsedBytes) : '---'}
             subtitle={lastTest ? 'Download + upload payload used by the latest completed test.' : 'Run a test to see the actual traffic used.'}
           />
           <InsightCard
             title="Server Used"
-            value={lastTest ? lastTest.serverName || 'Automatic' : 'Automatic'}
-            subtitle={lastTest ? `${lastTest.serverLocation || 'Unknown'} • ${lastTest.provider || 'Measurement Lab'}` : 'The app automatically picks the best available endpoint.'}
+            value={lastTest ? lastTest.serverName || 'Automatic' : 'Waiting...'}
+            subtitle={lastTest ? `${lastTest.serverLocation || 'Unknown'} • ${lastTest.provider || 'Measurement Lab'}` : 'Searching for optimal server...'}
           />
         </View>
 
