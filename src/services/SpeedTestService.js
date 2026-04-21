@@ -436,10 +436,15 @@ class SpeedTestService {
     const finalSpeed = Math.max(calc.getFinalSpeed(), 0.1);
     if (onSpeedUpdate) onSpeedUpdate(finalSpeed, 'download');
 
-    // Log download samples with filtering to remove unrealistic spikes
+    // Log download samples with aggressive filtering to remove unrealistic spikes
     const rawDownloadSamples = liveSamples.map(s => Math.round(s));
-    const sortedDownloadSamples = [...rawDownloadSamples].sort((a, b) => a - b);
-    const downloadTrimCount = Math.floor(sortedDownloadSamples.length * 0.05);
+    // Exclude first 10 samples (warmup) and last 2 samples (tail effects)
+    const stableDownloadWindow = rawDownloadSamples.slice(
+      Math.min(10, rawDownloadSamples.length),
+      rawDownloadSamples.length > 4 ? -2 : rawDownloadSamples.length
+    );
+    const sortedDownloadSamples = [...stableDownloadWindow].sort((a, b) => a - b);
+    const downloadTrimCount = Math.floor(sortedDownloadSamples.length * 0.15);
     const filteredDownloadSamples = sortedDownloadSamples.slice(downloadTrimCount, sortedDownloadSamples.length - downloadTrimCount);
     const elapsed = (Date.now() - measureStart) / 1000;
     console.log(
@@ -614,10 +619,15 @@ class SpeedTestService {
     );
     if (onSpeedUpdate) onSpeedUpdate(finalSpeed, 'upload');
 
-    // Log upload samples with filtering to remove unrealistic spikes
+    // Log upload samples with aggressive filtering to remove unrealistic spikes
     const rawUploadSamples = liveSamples.map(s => Math.round(s));
-    const sortedUploadSamples = [...rawUploadSamples].sort((a, b) => a - b);
-    const uploadTrimCount = Math.floor(sortedUploadSamples.length * 0.05);
+    // Exclude first 10 samples (warmup) and last 2 samples (tail effects)
+    const stableUploadWindow = rawUploadSamples.slice(
+      Math.min(10, rawUploadSamples.length),
+      rawUploadSamples.length > 4 ? -2 : rawUploadSamples.length
+    );
+    const sortedUploadSamples = [...stableUploadWindow].sort((a, b) => a - b);
+    const uploadTrimCount = Math.floor(sortedUploadSamples.length * 0.15);
     const filteredUploadSamples = sortedUploadSamples.slice(uploadTrimCount, sortedUploadSamples.length - uploadTrimCount);
     const elapsed = (Date.now() - measureStart) / 1000;
     console.log(
