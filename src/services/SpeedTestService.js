@@ -417,6 +417,9 @@ class SpeedTestService {
         lastReportedAt = now;
 
         if (speed > 0) {
+          // Store raw speed value for logging
+          liveSamples.push(speed);
+
           // Apply smoothing to prevent spikes - limit rate of change to 50% per update
           let smoothedSpeed;
           if (lastSmoothedSpeed === 0) {
@@ -432,7 +435,6 @@ class SpeedTestService {
           }
           lastSmoothedSpeed = smoothedSpeed;
 
-          liveSamples.push(smoothedSpeed);
           onSpeedUpdate(smoothedSpeed, 'download');
         }
       }
@@ -601,6 +603,9 @@ class SpeedTestService {
         lastReportedAt = now;
 
         if (speed > 0) {
+          // Store raw speed value for logging
+          liveSamples.push(speed);
+
           // Apply smoothing to prevent spikes - limit rate of change to 50% per update
           let smoothedSpeed;
           if (lastSmoothedSpeed === 0) {
@@ -616,7 +621,6 @@ class SpeedTestService {
           }
           lastSmoothedSpeed = smoothedSpeed;
 
-          liveSamples.push(smoothedSpeed);
           onSpeedUpdate(smoothedSpeed, 'upload');
         }
       }
