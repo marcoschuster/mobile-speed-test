@@ -224,7 +224,7 @@ const CustomHeader = ({ title, navigation, routeName }) => {
 const CustomTabBar = ({ state, descriptors, navigation }) => {
   const { t } = useTheme();
   const insets = useSafeAreaInsets();
-  const { tabBarTranslateY, tabBarScale, tabBarMode } = useTabBarMotion();
+  const { tabBarTranslateY, tabBarScale, tabBarOpacity, tabBarMode } = useTabBarMotion();
   const isCompact = tabBarMode === 'compact';
 
   return (
@@ -237,6 +237,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
               { translateY: tabBarTranslateY },
               { scale: tabBarScale },
             ],
+            opacity: tabBarOpacity,
           },
         ]}
       >

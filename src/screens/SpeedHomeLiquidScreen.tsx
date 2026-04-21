@@ -670,7 +670,7 @@ const SpeedHomeLiquidScreen = () => {
     if (offsetY <= 12) {
       setTabBarMode('expanded');
     } else if (delta > 6) {
-      setTabBarMode('compact');
+      setTabBarMode('hidden');
     } else if (delta < -6) {
       setTabBarMode('expanded');
     }
@@ -833,6 +833,7 @@ const SpeedHomeLiquidScreen = () => {
           // Auto-scroll to show stats cards and hide nav bar
           setTimeout(() => {
             scrollViewRef.current?.scrollTo({ y: 300, animated: true });
+            setTabBarMode('hidden');
           }, 300);
         }, 2600);
       },
