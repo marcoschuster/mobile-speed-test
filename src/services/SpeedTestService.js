@@ -928,6 +928,90 @@ class SpeedTestService {
     };
   }
 
+  // ── Connection Scaling Test ──────────────────────────────────────────────────
+  // Tests if ISP throttles per-connection by running download tests with different thread counts
+  async runScalingTest(serverUrl = 'https://speed.cloudflare.com/__down?bytes=1048576') {
+    const threadCounts = [1, 4, 8, 16];
+    const results = [];
+    const testDuration = 4000; // 4 seconds per test
+
+    for (const threads of threadCounts) {
+      try {
+        console.log(`Running scaling test with ${threads} threads...`);
+        const result = await this.runScalingTestWithThreads(serverUrl, threads, testDuration);
+        results.push({ threads, mbps: result });
+        console.log(`${threads} threads: ${result.toFixed(2)} Mbps`);
+      } catch (e) {
+        console.log(`Scaling test failed for ${threads} threads:`, e.message);
+        results.push({ threads, mbps: 0, error: true });
+      }
+    }
+
+    return results;
+  }
+
+  async runScalingTestWithThreads(serverUrl, threads, duration) {
+    const shared = { totalBytes: 0 };
+    const calc = this._createRollingCalc();
+    const startTime = Date.now();
+    const chunkSize = 1048576; // 1 MB chunks
+
+    const promises = [];
+    for (let i = 0; i < threads; i++) {
+      promises.push(
+        this._scalingWorker(serverUrl, chunkSize, startTime, duration, shared, calc, i)
+      );
+    }
+
+    await Promise.allSettled(promises);
+
+    const finalSpeed = calc.getFinalSpeed();
+    return Math.max(finalSpeed, 0.1);
+  }
+
+  async _scalingWorker(url, chunkSize, startTime, duration, shared, calc, idx) {
+    // Stagger worker starts slightly
+    await new Promise(r => setTimeout(r, idx * 50));
+
+    while (Date.now() - startTime < duration && this.isTestRunning) {
+      try {
+        const testUrl = `${url}&_=${Date.now()}_${idx}`;
+        await this._xhrDownloadChunk(testUrl, duration, (loaded) => {
+          shared.totalBytes += loaded;
+          calc.push(shared.totalBytes);
+        });
+      } catch (e) {
+        // Continue on error
+      }
+    }
+  }
+
+  detectThrottling(scalingResults) {
+    if (scalingResults.length < 4) return null;
+
+    const result4 = scalingResults.find(r => r.threads === 4);
+    const result16 = scalingResults.find(r => r.threads === 16);
+
+    if (!result4 || !result16 || result4.mbps === 0) return null;
+
+    const ratio = result16.mbps / result4.mbps;
+
+    // If 16-thread result is less than 1.5x of 4-thread result, flag as throttling
+    if (ratio < 1.5) {
+      return {
+        throttling: true,
+        ratio: ratio.toFixed(2),
+        message: `Possible per-connection throttling. 16 threads (${result16.mbps.toFixed(1)} Mbps) is only ${ratio.toFixed(1)}x faster than 4 threads (${result4.mbps.toFixed(1)} Mbps).`
+      };
+    }
+
+    return {
+      throttling: false,
+      ratio: ratio.toFixed(2),
+      message: `No throttling detected. 16 threads is ${ratio.toFixed(1)}x faster than 4 threads.`
+    };
+  }
+
   async _uploadWorkerXHR(payloads, startTime, testDuration, shared, calc, idx) {
     let errors = 0;
     let payloadIdx = 0;
