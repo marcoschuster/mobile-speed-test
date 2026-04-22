@@ -10,19 +10,19 @@ import {
   Alert,
   RefreshControl,
   Animated,
+  PanResponder,
   Share,
   ViewStyle,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Polygon, Path } from 'react-native-svg';
 import SpeedTestService from '../services/SpeedTestService';
-import FlashTitle from '../components/FlashTitle';
 import LiquidGlass from '../components/LiquidGlass';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useTabBarMotion } from '../context/TabBarMotionContext';
 import { buildHistoryCsv, summarizeHistory } from '../utils/history';
 import { formatBytes, formatSpeedValue, getSpeedUnitLabel } from '../utils/measurements';
-import { COLORS, RADIUS, useTheme } from '../utils/theme';
+import { COLORS, RADIUS, useTheme, withAlpha } from '../utils/theme';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -57,6 +57,7 @@ interface HistoryCardProps {
   formatDate: (dateString: string) => string;
   speedUnit: any;
   speedUnitLabel: string;
+  onDelete: (item: any, resetSwipe?: () => void) => void;
 }
 
 interface SummaryStripProps {
@@ -96,6 +97,14 @@ const ChevronRight = ({ size = 18, color }: IconProps) => (
     <Path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z" fill={color} />
   </Svg>
 );
+const TrashIcon = ({ size = 16, color = COLORS.danger }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 7h2v8h-2v-8zm4 0h2v8h-2v-8zM7 10h2v8H7v-8zm-1 10h12l1-13H5l1 13z" fill={color} />
+  </Svg>
+);
+
+const SWIPE_REVEAL_WIDTH = 92;
+const SWIPE_DELETE_THRESHOLD = 148;
 
 // ── Calendar helpers ────────────────────────────────────────────────────────
 const toDateKey = (d: Date): string => {
@@ -362,10 +371,12 @@ const PulsingDate = ({ text, baseColor, accentColor }: PulsingDateProps) => {
 };
 
 // ── Animated History Card ───────────────────────────────────────────────────
-const HistoryCard = ({ item, index, formatDate, speedUnit, speedUnitLabel }: HistoryCardProps) => {
+const HistoryCard = ({ item, index, formatDate, speedUnit, speedUnitLabel, onDelete }: HistoryCardProps) => {
   const { t } = useTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
+  const swipeOpenRef = useRef(false);
 
   useEffect(() => {
     const delay = Math.min(index * 80, 600);
@@ -375,6 +386,67 @@ const HistoryCard = ({ item, index, formatDate, speedUnit, speedUnitLabel }: His
     ]).start();
   }, []);
 
+  const closeSwipe = useCallback(() => {
+    swipeOpenRef.current = false;
+    Animated.spring(translateX, {
+      toValue: 0,
+      damping: 18,
+      stiffness: 180,
+      mass: 0.9,
+      useNativeDriver: true,
+    }).start();
+  }, [translateX]);
+
+  const openSwipe = useCallback(() => {
+    swipeOpenRef.current = true;
+    Animated.spring(translateX, {
+      toValue: -SWIPE_REVEAL_WIDTH,
+      damping: 18,
+      stiffness: 180,
+      mass: 0.9,
+      useNativeDriver: true,
+    }).start();
+  }, [translateX]);
+
+  const triggerDelete = useCallback(() => {
+    onDelete(item, closeSwipe);
+  }, [closeSwipe, item, onDelete]);
+
+  const panResponder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gestureState) => (
+      Math.abs(gestureState.dx) > Math.abs(gestureState.dy) &&
+      Math.abs(gestureState.dx) > 8
+    ),
+    onPanResponderMove: (_, gestureState) => {
+      const base = swipeOpenRef.current ? -SWIPE_REVEAL_WIDTH : 0;
+      const nextValue = Math.max(-SWIPE_DELETE_THRESHOLD, Math.min(0, base + gestureState.dx));
+      translateX.setValue(nextValue);
+    },
+    onPanResponderRelease: (_, gestureState) => {
+      const base = swipeOpenRef.current ? -SWIPE_REVEAL_WIDTH : 0;
+      const finalX = base + gestureState.dx;
+
+      if (finalX <= -SWIPE_DELETE_THRESHOLD || (gestureState.vx < -1.2 && finalX < -32)) {
+        Animated.timing(translateX, {
+          toValue: -220,
+          duration: 160,
+          useNativeDriver: true,
+        }).start(({ finished }) => {
+          if (finished) triggerDelete();
+        });
+        return;
+      }
+
+      if (finalX <= -(SWIPE_REVEAL_WIDTH * 0.45)) {
+        openSwipe();
+        return;
+      }
+
+      closeSwipe();
+    },
+    onPanResponderTerminate: closeSwipe,
+  }), [closeSwipe, openSwipe, translateX, triggerDelete]);
+
   return (
     <Animated.View
       style={[
@@ -382,57 +454,92 @@ const HistoryCard = ({ item, index, formatDate, speedUnit, speedUnitLabel }: His
         {
           opacity: fadeAnim,
           transform: [{ translateY: slideAnim }],
-          overflow: 'visible',
         },
       ]}
     >
-      <LiquidGlass style={styles.historyItemInner} borderRadius={20} contentStyle={styles.historyItemInnerContent}>
-        <View style={styles.historyContent}>
-          <PulsingDate text={formatDate(item.date)} baseColor={t.textSecondary} accentColor={t.accent} />
-          <View style={styles.historyStats}>
-            <View style={styles.historyStat}>
-              <View style={styles.statIconRow}>
-                <DownloadIcon color={t.accent} />
-                <Text style={[styles.historyStatLabel, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Download</Text>
-              </View>
-              <Text style={[styles.historyStatValue, { color: t.textPrimary }]}>
-                {formatSpeedValue(item.download, speedUnit as any, 1)}
-                <Text style={[styles.historyStatUnit, { color: t.textSecondary }]}> {speedUnitLabel}</Text>
-              </Text>
+      <View style={[styles.historyDeleteUnderlay, { backgroundColor: withAlpha(COLORS.danger, 0.14) }]}>
+        <Pressable
+          onPress={triggerDelete}
+          style={({ pressed }) => [
+            styles.historyDeleteRevealButton,
+            {
+              backgroundColor: pressed ? withAlpha(COLORS.danger, 0.24) : withAlpha(COLORS.danger, 0.18),
+              borderColor: withAlpha(COLORS.danger, 0.44),
+            },
+          ]}
+        >
+          <TrashIcon size={18} color={COLORS.danger} />
+          <Text style={styles.historyDeleteRevealText}>Delete</Text>
+        </Pressable>
+      </View>
+
+      <Animated.View
+        style={[styles.historySwipeCard, { transform: [{ translateX }] }]}
+        {...panResponder.panHandlers}
+      >
+        <LiquidGlass style={styles.historyItemInner} borderRadius={20} contentStyle={styles.historyItemInnerContent}>
+          <View style={styles.historyContent}>
+            <View style={styles.historyTopRow}>
+              <PulsingDate text={formatDate(item.date)} baseColor={t.textSecondary} accentColor={t.accent} />
+              <Pressable
+                onPress={triggerDelete}
+                hitSlop={10}
+                style={({ pressed }) => [
+                  styles.inlineDeleteButton,
+                  {
+                    backgroundColor: pressed ? withAlpha(COLORS.danger, 0.24) : withAlpha(COLORS.danger, 0.16),
+                    borderColor: withAlpha(COLORS.danger, 0.36),
+                  },
+                ]}
+              >
+                <TrashIcon size={13} color={COLORS.danger} />
+              </Pressable>
             </View>
-
-            <View style={[styles.historyStatDivider, { backgroundColor: t.separator }]} />
-
-            <View style={styles.historyStat}>
-              <View style={styles.statIconRow}>
-                <UploadIcon color={t.uploadLine} />
-                <Text style={[styles.historyStatLabel, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Upload</Text>
+            <View style={styles.historyStats}>
+              <View style={styles.historyStat}>
+                <View style={styles.statIconRow}>
+                  <DownloadIcon color={t.accent} />
+                  <Text style={[styles.historyStatLabel, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Download</Text>
+                </View>
+                <Text style={[styles.historyStatValue, { color: t.textPrimary }]}>
+                  {formatSpeedValue(item.download, speedUnit as any, 1)}
+                  <Text style={[styles.historyStatUnit, { color: t.textSecondary }]}> {speedUnitLabel}</Text>
+                </Text>
               </View>
-              <Text style={[styles.historyStatValue, { color: t.textPrimary }]}>
-                {formatSpeedValue(item.upload, speedUnit as any, 1)}
-                <Text style={[styles.historyStatUnit, { color: t.textSecondary }]}> {speedUnitLabel}</Text>
-              </Text>
+
+              <View style={[styles.historyStatDivider, { backgroundColor: t.separator }]} />
+
+              <View style={styles.historyStat}>
+                <View style={styles.statIconRow}>
+                  <UploadIcon color={t.uploadLine} />
+                  <Text style={[styles.historyStatLabel, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Upload</Text>
+                </View>
+                <Text style={[styles.historyStatValue, { color: t.textPrimary }]}>
+                  {formatSpeedValue(item.upload, speedUnit as any, 1)}
+                  <Text style={[styles.historyStatUnit, { color: t.textSecondary }]}> {speedUnitLabel}</Text>
+                </Text>
+              </View>
+
+              <View style={[styles.historyStatDivider, { backgroundColor: t.separator }]} />
+
+              <View style={styles.historyStat}>
+                <View style={styles.statIconRow}>
+                  <PingIcon color={t.success} />
+                  <Text style={[styles.historyStatLabel, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Ping</Text>
+                </View>
+                <Text style={[styles.historyStatValue, { color: t.textPrimary }]}>
+                  {item.ping}
+                  <Text style={[styles.historyStatUnit, { color: t.textSecondary, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}> ms</Text>
+                </Text>
+              </View>
             </View>
-
-            <View style={[styles.historyStatDivider, { backgroundColor: t.separator }]} />
-
-            <View style={styles.historyStat}>
-              <View style={styles.statIconRow}>
-                <PingIcon color={t.success} />
-                <Text style={[styles.historyStatLabel, { color: t.textMuted, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Ping</Text>
-              </View>
-              <Text style={[styles.historyStatValue, { color: t.textPrimary }]}>
-                {item.ping}
-                <Text style={[styles.historyStatUnit, { color: t.textSecondary, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}> ms</Text>
-              </Text>
+            <View style={[styles.metaRow, { borderTopColor: t.separator }]}>
+              <Text style={[styles.metaText, { color: t.textMuted }]}>{formatBytes(item.totalBytes || 0)} used</Text>
+              <Text style={[styles.metaText, { color: t.textMuted }]}>{(item.serverName || 'Automatic')}{item.serverLocation ? ` • ${item.serverLocation}` : ''}</Text>
             </View>
           </View>
-          <View style={[styles.metaRow, { borderTopColor: t.separator }]}>
-            <Text style={[styles.metaText, { color: t.textMuted }]}>{formatBytes(item.totalBytes || 0)} used</Text>
-            <Text style={[styles.metaText, { color: t.textMuted }]}>{(item.serverName || 'Automatic')}{item.serverLocation ? ` • ${item.serverLocation}` : ''}</Text>
-          </View>
-        </View>
-      </LiquidGlass>
+        </LiquidGlass>
+      </Animated.View>
     </Animated.View>
   );
 };
@@ -555,6 +662,27 @@ const HistoryScreen = () => {
 
   const onRefresh = async () => { setRefreshing(true); await loadHistory(); setRefreshing(false); };
 
+  const deleteHistoryItem = useCallback((targetItem: any, resetSwipe?: () => void) => {
+    Alert.alert('Delete Test', 'Remove this speed test result from history?', [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+        onPress: () => resetSwipe?.(),
+      },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          const updatedHistory = await SpeedTestService.deleteHistoryEntry(targetItem);
+          setHistory(updatedHistory);
+          if (updatedHistory.length === 0) {
+            setSelectedDate(null);
+          }
+        },
+      },
+    ]);
+  }, []);
+
   const toggleCalendar = useCallback(() => {
     const opening = !calendarOpen;
     setCalendarOpen(opening);
@@ -603,6 +731,7 @@ const HistoryScreen = () => {
       formatDate={formatDate}
       speedUnit={settings.speedUnit as any}
       speedUnitLabel={speedUnitLabel}
+      onDelete={deleteHistoryItem}
     />
   );
 
@@ -626,12 +755,6 @@ const HistoryScreen = () => {
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <FlashTitle text="TEST HISTORY" size="small" interval={5000} />
-        </View>
-
-        {/* Action buttons moved under title */}
         <View style={styles.actionButtons}>
           {history.length > 0 && (
             <LiquidGlass
@@ -731,10 +854,10 @@ const HistoryScreen = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
   scrollContainer: { flex: 1 },
-  scrollContentContainer: { padding: 16, paddingBottom: 32 },
+  scrollContentContainer: { padding: 16, paddingTop: 6, paddingBottom: 32 },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingVertical: 14,
+    paddingHorizontal: 20, paddingTop: 6, paddingBottom: 10,
   },
 
   actionButtons: {
@@ -742,7 +865,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingTop: 0,
+    paddingBottom: 4,
+    marginBottom: 12,
     flexWrap: 'wrap',
     gap: 8,
   },
@@ -785,7 +910,32 @@ const styles = StyleSheet.create({
   listContainer: { padding: 16, paddingBottom: 32 },
 
   historyItem: {
-    borderRadius: 20, marginBottom: 12, overflow: 'hidden',
+    borderRadius: 20, marginBottom: 12, overflow: 'hidden', position: 'relative',
+  },
+  historyDeleteUnderlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    paddingRight: 14,
+    borderRadius: 20,
+  },
+  historyDeleteRevealButton: {
+    width: 74,
+    height: '86%',
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  historyDeleteRevealText: {
+    color: COLORS.danger,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  historySwipeCard: {
+    borderRadius: 20,
   },
   historyItemInner: {
     borderRadius: 20,
@@ -796,7 +946,21 @@ const styles = StyleSheet.create({
 
   gradientTint: { ...StyleSheet.absoluteFillObject, borderRadius: 20 },
   historyContent: { flex: 1, padding: 16, paddingLeft: 16 },
-  historyDate: { fontSize: 11, marginBottom: 10, fontWeight: '500' },
+  historyTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  historyDate: { fontSize: 11, marginBottom: 0, fontWeight: '500' },
+  inlineDeleteButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   historyStats: { flexDirection: 'row', alignItems: 'center' },
   historyStat: { flex: 1, alignItems: 'center' },
   statIconRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4, gap: 4 },
@@ -817,32 +981,32 @@ const styles = StyleSheet.create({
   summaryRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 14,
+    gap: 8,
+    marginBottom: 12,
   },
   summaryCard: {
     width: '48.5%',
-    borderRadius: 20,
-    padding: 16,
+    borderRadius: 18,
   },
   summaryCardContent: {
-    padding: 16,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
   },
   summaryLabel: {
     fontSize: 10,
     textTransform: 'uppercase',
     letterSpacing: 1,
     fontWeight: '700',
-    marginBottom: 6,
-  },
-  summaryValue: {
-    fontSize: 18,
-    fontWeight: '800',
     marginBottom: 4,
   },
+  summaryValue: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 3,
+  },
   summarySubtitle: {
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: 10,
+    lineHeight: 14,
   },
 
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },

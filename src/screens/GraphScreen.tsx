@@ -724,7 +724,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
   filterRow: {
     flexDirection: 'row', justifyContent: 'center',
-    paddingVertical: 14, paddingHorizontal: 16, gap: 10,
+    paddingTop: 2, paddingBottom: 22, paddingHorizontal: 16, gap: 10,
   },
   filterButton: {
     minWidth: 92,
@@ -751,7 +751,7 @@ const styles = StyleSheet.create({
   filterButtonTextActive: {},
 
   content: { flex: 1 },
-  contentContainer: { padding: 16, paddingBottom: 30 },
+  contentContainer: { padding: 16, paddingTop: 8, paddingBottom: 30 },
   summaryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

@@ -5,6 +5,7 @@ import {
   Easing,
   LayoutChangeEvent,
   Platform,
+  Pressable,
   ScrollView,
   Share,
   StyleSheet,
@@ -47,7 +48,6 @@ const MAX_CUSTOM_INTERVAL = {
   days: 99,
   hours: 23,
   minutes: 59,
-  seconds: 59,
 } as const;
 const MIN_PERFORMANCE_WARNING_SECONDS = 60 * 60;
 
@@ -55,7 +55,6 @@ type DurationParts = {
   days: number;
   hours: number;
   minutes: number;
-  seconds: number;
 };
 
 const clampDurationPart = (
@@ -67,20 +66,23 @@ const clampDurationPart = (
 const durationPartsToSeconds = (parts: DurationParts) => (
   parts.days * 24 * 60 * 60 +
   parts.hours * 60 * 60 +
-  parts.minutes * 60 +
-  parts.seconds
+  parts.minutes * 60
 );
 
 const secondsToDurationParts = (totalSeconds: number): DurationParts => {
-  const safe = Math.max(0, Math.min(totalSeconds, (((MAX_CUSTOM_INTERVAL.days * 24) + MAX_CUSTOM_INTERVAL.hours) * 60 + MAX_CUSTOM_INTERVAL.minutes) * 60 + MAX_CUSTOM_INTERVAL.seconds));
-  const days = Math.floor(safe / (24 * 60 * 60));
-  const dayRemainder = safe % (24 * 60 * 60);
-  const hours = Math.floor(dayRemainder / (60 * 60));
-  const hourRemainder = dayRemainder % (60 * 60);
-  const minutes = Math.floor(hourRemainder / 60);
-  const seconds = hourRemainder % 60;
+  const safeTotalMinutes = Math.max(
+    0,
+    Math.min(
+      Math.round(totalSeconds / 60),
+      (MAX_CUSTOM_INTERVAL.days * 24 * 60) + (MAX_CUSTOM_INTERVAL.hours * 60) + MAX_CUSTOM_INTERVAL.minutes,
+    ),
+  );
+  const days = Math.floor(safeTotalMinutes / (24 * 60));
+  const dayRemainderMinutes = safeTotalMinutes % (24 * 60);
+  const hours = Math.floor(dayRemainderMinutes / 60);
+  const minutes = dayRemainderMinutes % 60;
 
-  return { days, hours, minutes, seconds };
+  return { days, hours, minutes };
 };
 
 const formatIntervalLabel = (totalSeconds: number | null) => {
@@ -93,12 +95,11 @@ const formatIntervalLabel = (totalSeconds: number | null) => {
     return preset.label;
   }
 
-  const { days, hours, minutes, seconds } = secondsToDurationParts(totalSeconds);
+  const { days, hours, minutes } = secondsToDurationParts(totalSeconds);
   const parts = [
     days ? `${days}d` : null,
     hours ? `${hours}h` : null,
     minutes ? `${minutes}m` : null,
-    seconds ? `${seconds}s` : null,
   ].filter(Boolean);
 
   return `Custom • ${parts.join(' ')}`;
@@ -540,39 +541,98 @@ const DurationPickerColumn = ({
   label,
   value,
   max,
-  onChange,
+  onAdjust,
 }: {
   label: string;
   value: number;
   max: number;
-  onChange: (nextValue: number) => void;
+  onAdjust: (delta: number) => void;
 }) => {
   const { t } = useTheme();
+  const holdTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holdIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const holdStartRef = useRef(0);
+  const holdTriggeredRef = useRef(false);
+
+  const stopHold = useCallback(() => {
+    if (holdTimeoutRef.current) {
+      clearTimeout(holdTimeoutRef.current);
+      holdTimeoutRef.current = null;
+    }
+    if (holdIntervalRef.current) {
+      clearInterval(holdIntervalRef.current);
+      holdIntervalRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => stopHold, [stopHold]);
+
+  const startHold = useCallback((direction: 1 | -1) => {
+    holdTriggeredRef.current = false;
+    holdStartRef.current = Date.now();
+
+    stopHold();
+
+    holdTimeoutRef.current = setTimeout(() => {
+      holdTriggeredRef.current = true;
+      holdIntervalRef.current = setInterval(() => {
+        const elapsed = Date.now() - holdStartRef.current;
+        const step = elapsed > 1300 ? 10 : elapsed > 750 ? 5 : 1;
+        onAdjust(direction * step);
+      }, 95);
+    }, 240);
+  }, [onAdjust, stopHold]);
 
   return (
     <View style={styles.durationColumn}>
       <Text style={[styles.durationColumnLabel, { color: t.textSecondary }]}>{label}</Text>
-      <LiquidGlass
-        onPress={() => onChange(clampDurationPart(value + 1, 0, max))}
-        style={styles.durationAdjustButton}
-        contentStyle={styles.durationAdjustButtonContent}
-        borderRadius={16}
-        blurIntensity={24}
+      <Pressable
+        onPress={() => {
+          if (!holdTriggeredRef.current) {
+            onAdjust(1);
+          }
+          holdTriggeredRef.current = false;
+        }}
+        onPressIn={() => startHold(1)}
+        onPressOut={stopHold}
+        style={({ pressed }) => [
+          styles.durationAdjustButton,
+          styles.durationAdjustShell,
+          {
+            backgroundColor: withAlpha(t.surfaceElevated || '#FFFFFF', pressed ? 0.22 : 0.14),
+            borderColor: withAlpha(t.textPrimary, 0.12),
+          },
+        ]}
       >
-        <Text style={[styles.durationAdjustText, { color: t.textPrimary }]}>+</Text>
-      </LiquidGlass>
+        <View style={styles.durationAdjustButtonContent}>
+          <Text style={[styles.durationAdjustText, { color: t.textPrimary }]}>+</Text>
+        </View>
+      </Pressable>
       <View style={[styles.durationValueWrap, { borderColor: withAlpha(t.textPrimary, 0.14) }]}>
         <Text style={[styles.durationValueText, { color: t.textPrimary }]}>{String(value).padStart(2, '0')}</Text>
       </View>
-      <LiquidGlass
-        onPress={() => onChange(clampDurationPart(value - 1, 0, max))}
-        style={styles.durationAdjustButton}
-        contentStyle={styles.durationAdjustButtonContent}
-        borderRadius={16}
-        blurIntensity={24}
+      <Pressable
+        onPress={() => {
+          if (!holdTriggeredRef.current) {
+            onAdjust(-1);
+          }
+          holdTriggeredRef.current = false;
+        }}
+        onPressIn={() => startHold(-1)}
+        onPressOut={stopHold}
+        style={({ pressed }) => [
+          styles.durationAdjustButton,
+          styles.durationAdjustShell,
+          {
+            backgroundColor: withAlpha(t.surfaceElevated || '#FFFFFF', pressed ? 0.22 : 0.14),
+            borderColor: withAlpha(t.textPrimary, 0.12),
+          },
+        ]}
       >
-        <Text style={[styles.durationAdjustText, { color: t.textPrimary }]}>-</Text>
-      </LiquidGlass>
+        <View style={styles.durationAdjustButtonContent}>
+          <Text style={[styles.durationAdjustText, { color: t.textPrimary }]}>-</Text>
+        </View>
+      </Pressable>
     </View>
   );
 };
@@ -601,7 +661,6 @@ const SpeedHomeLiquidScreen = () => {
     days: 0,
     hours: 1,
     minutes: 0,
-    seconds: 0,
   });
   const [backgroundTimer, setBackgroundTimer] = useState<ReturnType<typeof setInterval> | null>(null);
   const [metricTrackWidth, setMetricTrackWidth] = useState(0);
@@ -616,7 +675,9 @@ const SpeedHomeLiquidScreen = () => {
   const runnerMounted = useRef(false);
   const lastScrollY = useRef(0);
   const scrollViewRef = useRef<ScrollView>(null);
-  const insightsOpacity = useRef(new Animated.Value(hasTestCompleted ? 1 : 0)).current;
+  const detailsOpacity = useRef(new Animated.Value(0)).current;
+  const detailsTranslateY = useRef(new Animated.Value(20)).current;
+  const [detailsMounted, setDetailsMounted] = useState(false);
   const speedUnitKey = resolveSpeedUnitKey(settings.speedUnit);
   const speedUnitLabel = getSpeedUnitLabel(speedUnitKey);
   const palette = useMemo(() => ({
@@ -632,6 +693,7 @@ const SpeedHomeLiquidScreen = () => {
     const history = await SpeedTestService.getHistory();
     setHistorySummary(summarizeHistory(history));
     setLastTest(history[0] || null);
+    setHasTestCompleted(Boolean(history[0]));
     await SpeedTestService.loadPeaks();
     setPeaks(SpeedTestService.getPeaks());
   }, []);
@@ -678,17 +740,56 @@ const SpeedHomeLiquidScreen = () => {
     lastScrollY.current = offsetY;
   }, [setTabBarMode]);
 
-  // Animate insights when test completes
+  const shouldRevealPostTestDetails = !isTestRunning && (hasTestCompleted || Boolean(lastTest));
+
+  // Animate insights + actions when test completes
   useEffect(() => {
-    if (hasTestCompleted) {
-      Animated.timing(insightsOpacity, {
-        toValue: 1,
-        duration: 400,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }).start();
+    let cancelled = false;
+
+    if (shouldRevealPostTestDetails) {
+      setDetailsMounted(true);
+      Animated.parallel([
+        Animated.timing(detailsOpacity, {
+          toValue: 1,
+          duration: 420,
+          delay: 70,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(detailsTranslateY, {
+          toValue: 0,
+          duration: 420,
+          delay: 70,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+      return;
     }
-  }, [hasTestCompleted]);
+
+    Animated.parallel([
+      Animated.timing(detailsOpacity, {
+        toValue: 0,
+        duration: 180,
+        easing: Easing.inOut(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(detailsTranslateY, {
+        toValue: 20,
+        duration: 180,
+        easing: Easing.inOut(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (finished && !cancelled) {
+        setDetailsMounted(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [detailsOpacity, detailsTranslateY, shouldRevealPostTestDetails]);
 
   const qualitySource = {
     download: downloadSpeed || lastTest?.download || 0,
@@ -885,13 +986,13 @@ const SpeedHomeLiquidScreen = () => {
     resetLiveState();
   };
 
-  const updateCustomIntervalPart = useCallback((
+  const adjustCustomIntervalPart = useCallback((
     key: keyof DurationParts,
-    nextValue: number,
+    delta: number,
   ) => {
     setCustomInterval((previous) => ({
       ...previous,
-      [key]: clampDurationPart(nextValue, 0, MAX_CUSTOM_INTERVAL[key]),
+      [key]: clampDurationPart(previous[key] + delta, 0, MAX_CUSTOM_INTERVAL[key]),
     }));
   }, []);
 
@@ -1240,67 +1341,109 @@ const SpeedHomeLiquidScreen = () => {
           <Text style={[styles.progressText, { color: t.textSecondary }]}>{progressText}</Text>
         ) : null}
 
-        <Animated.View style={[styles.insightsWrap, { opacity: insightsOpacity }]}>
-          <InsightCard
-            title="Connection Quality"
-            value={isTestRunning || !hasTestCompleted ? 'Waiting...' : connectionQuality.label}
-            subtitle={isTestRunning || !hasTestCompleted ? 'Run a test to assess your connection quality.' : connectionQuality.summary}
-          />
-          <InsightCard
-            title="Last Test Traffic"
-            value={isTestRunning || !hasTestCompleted ? '---' : formatBytes(lastTest?.totalBytes || historySummary.totalDataUsedBytes)}
-            subtitle={isTestRunning || !hasTestCompleted ? 'Run a test to see the actual traffic used.' : 'Download + upload payload used by the latest completed test.'}
-          />
-          <InsightCard
-            title="Server Used"
-            value={isTestRunning || !hasTestCompleted ? 'Waiting...' : (lastTest?.serverName || 'Automatic')}
-            subtitle={isTestRunning || !hasTestCompleted ? 'Searching for optimal server...' : `${lastTest?.serverLocation || 'Unknown'} • ${lastTest?.provider || 'Measurement Lab'}`}
-          />
-        </Animated.View>
-
-        <View style={styles.iconRow}>
-          <LiquidGlass
-            onPress={() => setBackgroundIntervalOpen((value) => !value)}
-            style={styles.iconButton}
-            contentStyle={styles.iconButtonContent}
-            borderRadius={20}
-            blurIntensity={28}
+        {detailsMounted ? (
+          <Animated.View
+            style={[
+              styles.postTestDetails,
+              {
+                opacity: detailsOpacity,
+                transform: [{ translateY: detailsTranslateY }],
+              },
+            ]}
           >
-            <CycleIcon color={t.textPrimary} />
-            <Text style={[styles.iconButtonText, { color: t.textPrimary }]}>Auto</Text>
-          </LiquidGlass>
-          <LiquidGlass
-            onPress={shareLastResult}
-            style={styles.iconButton}
-            contentStyle={styles.iconButtonContent}
-            borderRadius={20}
-            blurIntensity={28}
-          >
-            <ShareIcon color={t.textPrimary} />
-            <Text numberOfLines={1} ellipsizeMode="clip" style={[styles.iconButtonText, { color: t.textPrimary }]}>Share</Text>
-          </LiquidGlass>
-        </View>
+            <View style={styles.insightsWrap}>
+              <InsightCard
+                title="Connection Quality"
+                value={connectionQuality.label}
+                subtitle={connectionQuality.summary}
+              />
+              <InsightCard
+                title="Last Test Traffic"
+                value={formatBytes(lastTest?.totalBytes || historySummary.totalDataUsedBytes)}
+                subtitle="Download + upload payload used by the latest completed test."
+              />
+              <InsightCard
+                title="Server Used"
+                value={lastTest?.serverName || 'Automatic'}
+                subtitle={`${lastTest?.serverLocation || 'Unknown'} • ${lastTest?.provider || 'Measurement Lab'}`}
+              />
+            </View>
 
-        {backgroundIntervalOpen ? (
-          <LiquidGlass style={styles.intervalPanel} contentStyle={styles.intervalPanelContent}>
-            <Text style={[styles.intervalTitle, { color: t.textPrimary }]}>Background Test Interval</Text>
-            <Text style={[styles.intervalSubtitle, { color: t.textSecondary }]}>Current: {selectedBackgroundLabel}</Text>
-            <View style={styles.intervalOptions}>
-              {BACKGROUND_TEST_INTERVALS.map((option) => {
-                const active = currentBackgroundIntervalSeconds === option.seconds;
-                return (
+            <View style={styles.iconRow}>
+              <LiquidGlass
+                onPress={() => setBackgroundIntervalOpen((value) => !value)}
+                style={styles.iconButton}
+                contentStyle={styles.iconButtonContent}
+                borderRadius={20}
+                blurIntensity={28}
+              >
+                <CycleIcon color={t.textPrimary} />
+                <Text style={[styles.iconButtonText, { color: t.textPrimary }]}>Auto</Text>
+              </LiquidGlass>
+              <LiquidGlass
+                onPress={shareLastResult}
+                style={styles.iconButton}
+                contentStyle={styles.iconButtonContent}
+                borderRadius={20}
+                blurIntensity={28}
+              >
+                <ShareIcon color={t.textPrimary} />
+                <Text numberOfLines={1} ellipsizeMode="clip" style={[styles.iconButtonText, { color: t.textPrimary }]}>Share</Text>
+              </LiquidGlass>
+            </View>
+
+            {backgroundIntervalOpen ? (
+              <LiquidGlass style={styles.intervalPanel} contentStyle={styles.intervalPanelContent}>
+                <Text style={[styles.intervalTitle, { color: t.textPrimary }]}>Background Test Interval</Text>
+                <Text style={[styles.intervalSubtitle, { color: t.textSecondary }]}>Current: {selectedBackgroundLabel}</Text>
+                <View style={styles.intervalOptions}>
+                  {BACKGROUND_TEST_INTERVALS.map((option) => {
+                    const active = currentBackgroundIntervalSeconds === option.seconds;
+                    return (
+                      <LiquidGlass
+                        key={option.key}
+                        onPress={() => {
+                          setCustomIntervalOpen(false);
+                          startBackgroundTests(option.seconds);
+                        }}
+                        style={[styles.intervalChip, active && styles.intervalChipActive]}
+                        contentStyle={styles.intervalChipContent}
+                        borderRadius={999}
+                        blurIntensity={24}
+                      >
+                        {active ? (
+                          <LinearGradient
+                            colors={[palette.accent || '#8B5CF6', palette.accent2 || '#6366f1']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={StyleSheet.absoluteFill}
+                          />
+                        ) : null}
+                        <Text style={[styles.intervalChipText, { color: t.textPrimary }, active && styles.intervalChipTextActive]}>{option.label}</Text>
+                      </LiquidGlass>
+                    );
+                  })}
                   <LiquidGlass
-                    key={option.key}
                     onPress={() => {
-                      setCustomIntervalOpen(false);
-                      startBackgroundTests(option.seconds);
+                      setCustomIntervalOpen((value) => !value);
+                      if (!customIntervalOpen) {
+                        setCustomInterval(
+                          secondsToDurationParts(currentBackgroundIntervalSeconds || (60 * 60)),
+                        );
+                      }
                     }}
-                    style={[styles.intervalChip, active && styles.intervalChipActive]}
+                    style={[
+                      styles.intervalChip,
+                      customIntervalOpen && styles.intervalChipActive,
+                      !hasActivePresetInterval && currentBackgroundIntervalSeconds
+                        ? styles.intervalChipActive
+                        : null,
+                    ]}
                     contentStyle={styles.intervalChipContent}
                     borderRadius={999}
                     blurIntensity={24}
                   >
-                    {active ? (
+                    {customIntervalOpen || (!hasActivePresetInterval && currentBackgroundIntervalSeconds) ? (
                       <LinearGradient
                         colors={[palette.accent || '#8B5CF6', palette.accent2 || '#6366f1']}
                         start={{ x: 0, y: 0 }}
@@ -1308,101 +1451,65 @@ const SpeedHomeLiquidScreen = () => {
                         style={StyleSheet.absoluteFill}
                       />
                     ) : null}
-                    <Text style={[styles.intervalChipText, { color: t.textPrimary }, active && styles.intervalChipTextActive]}>{option.label}</Text>
+                    <Text style={[styles.intervalChipText, { color: t.textPrimary }, (customIntervalOpen || (!hasActivePresetInterval && currentBackgroundIntervalSeconds)) && styles.intervalChipTextActive]}>
+                      Custom
+                    </Text>
                   </LiquidGlass>
-                );
-              })}
-              <LiquidGlass
-                onPress={() => {
-                  setCustomIntervalOpen((value) => !value);
-                  if (!customIntervalOpen) {
-                    setCustomInterval(
-                      secondsToDurationParts(currentBackgroundIntervalSeconds || (60 * 60)),
-                    );
-                  }
-                }}
-                style={[
-                  styles.intervalChip,
-                  customIntervalOpen && styles.intervalChipActive,
-                  !hasActivePresetInterval && currentBackgroundIntervalSeconds
-                    ? styles.intervalChipActive
-                    : null,
-                ]}
-                contentStyle={styles.intervalChipContent}
-                borderRadius={999}
-                blurIntensity={24}
-              >
-                {customIntervalOpen || (!hasActivePresetInterval && currentBackgroundIntervalSeconds) ? (
-                  <LinearGradient
-                    colors={[palette.accent || '#8B5CF6', palette.accent2 || '#6366f1']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={StyleSheet.absoluteFill}
-                  />
-                ) : null}
-                <Text style={[styles.intervalChipText, { color: t.textPrimary }, (customIntervalOpen || (!hasActivePresetInterval && currentBackgroundIntervalSeconds)) && styles.intervalChipTextActive]}>
-                  Custom
-                </Text>
-              </LiquidGlass>
-            </View>
-            {customIntervalOpen ? (
-              <View style={styles.customIntervalWrap}>
-                <Text style={[styles.customIntervalTitle, { color: t.textPrimary }]}>Custom Interval</Text>
-                <Text style={[styles.customIntervalSubtitle, { color: t.textSecondary }]}>
-                  Pick a repeating timer up to 99 days, 23 hours, 59 minutes, and 59 seconds.
-                </Text>
-                <View style={styles.durationPickerRow}>
-                  <DurationPickerColumn
-                    label="Days"
-                    value={customInterval.days}
-                    max={MAX_CUSTOM_INTERVAL.days}
-                    onChange={(nextValue) => updateCustomIntervalPart('days', nextValue)}
-                  />
-                  <DurationPickerColumn
-                    label="Hours"
-                    value={customInterval.hours}
-                    max={MAX_CUSTOM_INTERVAL.hours}
-                    onChange={(nextValue) => updateCustomIntervalPart('hours', nextValue)}
-                  />
-                  <DurationPickerColumn
-                    label="Min"
-                    value={customInterval.minutes}
-                    max={MAX_CUSTOM_INTERVAL.minutes}
-                    onChange={(nextValue) => updateCustomIntervalPart('minutes', nextValue)}
-                  />
-                  <DurationPickerColumn
-                    label="Sec"
-                    value={customInterval.seconds}
-                    max={MAX_CUSTOM_INTERVAL.seconds}
-                    onChange={(nextValue) => updateCustomIntervalPart('seconds', nextValue)}
-                  />
                 </View>
-                <Text style={[styles.customIntervalSummary, { color: t.textPrimary }]}>
-                  Repeats every {customIntervalSummaryLabel}
-                </Text>
-                {customIntervalSeconds > 0 && customIntervalSeconds < MIN_PERFORMANCE_WARNING_SECONDS ? (
-                  <Text style={[styles.intervalWarning, { color: palette.danger || '#FF6B6B' }]}>
-                    Intervals under 1 hour may reduce phone performance and heat up the device.
-                  </Text>
+                {customIntervalOpen ? (
+                  <View style={styles.customIntervalWrap}>
+                    <Text style={[styles.customIntervalTitle, { color: t.textPrimary }]}>Custom Interval</Text>
+                    <Text style={[styles.customIntervalSubtitle, { color: t.textSecondary }]}>
+                      Pick a repeating timer up to 99 days, 23 hours, and 59 minutes.
+                    </Text>
+                    <View style={styles.durationPickerRow}>
+                      <DurationPickerColumn
+                        label="Days"
+                        value={customInterval.days}
+                        max={MAX_CUSTOM_INTERVAL.days}
+                        onAdjust={(delta) => adjustCustomIntervalPart('days', delta)}
+                      />
+                      <DurationPickerColumn
+                        label="Hours"
+                        value={customInterval.hours}
+                        max={MAX_CUSTOM_INTERVAL.hours}
+                        onAdjust={(delta) => adjustCustomIntervalPart('hours', delta)}
+                      />
+                      <DurationPickerColumn
+                        label="Min"
+                        value={customInterval.minutes}
+                        max={MAX_CUSTOM_INTERVAL.minutes}
+                        onAdjust={(delta) => adjustCustomIntervalPart('minutes', delta)}
+                      />
+                    </View>
+                    <Text style={[styles.customIntervalSummary, { color: t.textPrimary }]}>
+                      Repeats every {customIntervalSummaryLabel}
+                    </Text>
+                    {customIntervalSeconds > 0 && customIntervalSeconds < MIN_PERFORMANCE_WARNING_SECONDS ? (
+                      <Text style={[styles.intervalWarning, { color: palette.danger || '#FF6B6B' }]}>
+                        Intervals under 1 hour may reduce phone performance and heat up the device.
+                      </Text>
+                    ) : null}
+                    <LiquidGlass
+                      onPress={applyCustomInterval}
+                      style={styles.customApplyButton}
+                      contentStyle={styles.customApplyButtonContent}
+                      borderRadius={18}
+                      blurIntensity={26}
+                    >
+                      <LinearGradient
+                        colors={[palette.accent || '#8B5CF6', palette.accent2 || '#6366f1']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={StyleSheet.absoluteFill}
+                      />
+                      <Text style={[styles.customApplyButtonText, { color: t.textPrimary }]}>Apply Custom Interval</Text>
+                    </LiquidGlass>
+                  </View>
                 ) : null}
-                <LiquidGlass
-                  onPress={applyCustomInterval}
-                  style={styles.customApplyButton}
-                  contentStyle={styles.customApplyButtonContent}
-                  borderRadius={18}
-                  blurIntensity={26}
-                >
-                  <LinearGradient
-                    colors={[palette.accent || '#8B5CF6', palette.accent2 || '#6366f1']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={StyleSheet.absoluteFill}
-                  />
-                  <Text style={[styles.customApplyButtonText, { color: t.textPrimary }]}>Apply Custom Interval</Text>
-                </LiquidGlass>
-              </View>
+              </LiquidGlass>
             ) : null}
-          </LiquidGlass>
+          </Animated.View>
         ) : null}
 
       </Animated.ScrollView>
@@ -1496,6 +1603,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     textAlign: 'center',
     letterSpacing: 0.4,
+  },
+  postTestDetails: {
+    width: '100%',
   },
   metricTrack: {
     width: '100%',
@@ -1698,6 +1808,11 @@ const styles = StyleSheet.create({
   durationAdjustButton: {
     width: '100%',
     minHeight: 42,
+  },
+  durationAdjustShell: {
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
   durationAdjustButtonContent: {
     minHeight: 42,

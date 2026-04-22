@@ -350,9 +350,9 @@ const Speedometer = ({
   );
 
   const displayValue =
-    displaySpeed < 10
-      ? displaySpeed.toFixed(1)
-      : Math.round(displaySpeed).toString();
+    Number.isFinite(displaySpeed)
+      ? (Math.trunc(displaySpeed * 10) / 10).toFixed(1)
+      : '0.0';
 
   // Map old bezel tokens to new theme keys
   const dialOuter = t.mode === 'dark' ? 'rgba(5, 12, 20, 0.82)' : 'rgba(255, 255, 255, 0.82)';

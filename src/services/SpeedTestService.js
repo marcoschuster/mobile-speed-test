@@ -100,6 +100,37 @@ class SpeedTestService {
     }
   }
 
+  _historyItemsMatch(left, right) {
+    if (!left || !right) return false;
+
+    return (
+      left.date === right.date &&
+      Number(left.download || 0) === Number(right.download || 0) &&
+      Number(left.upload || 0) === Number(right.upload || 0) &&
+      Number(left.ping || 0) === Number(right.ping || 0) &&
+      Number(left.jitter || 0) === Number(right.jitter || 0) &&
+      String(left.serverName || '') === String(right.serverName || '') &&
+      String(left.serverLocation || '') === String(right.serverLocation || '') &&
+      Number(left.totalBytes || 0) === Number(right.totalBytes || 0)
+    );
+  }
+
+  async deleteHistoryEntry(targetEntry) {
+    try {
+      const history = await this.getHistory();
+      const index = history.findIndex((item) => this._historyItemsMatch(item, targetEntry));
+
+      if (index === -1) return history;
+
+      history.splice(index, 1);
+      await AsyncStorage.setItem('speedTestHistory', JSON.stringify(history));
+      return history;
+    } catch (e) {
+      console.error('Error deleting history entry:', e);
+      return this.getHistory();
+    }
+  }
+
   // ── Rolling window speed calculator ───────────────────────────────────────
   // Keeps timestamped byte samples. Live speed = bytes in last 3s window.
   // Final speed = middle 60% of all samples averaged.
