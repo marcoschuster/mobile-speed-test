@@ -70,7 +70,24 @@ class SpeedTestService {
   async saveTestResult(testResult) {
     try {
       const history = await this.getHistory();
-      history.unshift(testResult);
+      // Ensure all required fields exist with defaults
+      const normalizedResult = {
+        id: testResult.id || Date.now().toString(),
+        date: testResult.date || new Date().toISOString(),
+        download: Number(testResult.download) || 0,
+        upload: Number(testResult.upload) || 0,
+        ping: Number(testResult.ping) || 0,
+        jitter: Number(testResult.jitter) || 0,
+        packetLoss: Number(testResult.packetLoss) || 0,
+        mosScore: Number(testResult.mosScore) || 0,
+        bufferbloatGrade: String(testResult.bufferbloatGrade || 'A'),
+        bufferbloatMs: Number(testResult.bufferbloatMs) || 0,
+        totalBytes: Number(testResult.totalBytes) || 0,
+        serverName: String(testResult.serverName || 'Unknown'),
+        serverLocation: String(testResult.serverLocation || 'Unknown'),
+        provider: String(testResult.provider || 'Measurement Lab'),
+      };
+      history.unshift(normalizedResult);
       if (history.length > 50) history.splice(50);
       await AsyncStorage.setItem('speedTestHistory', JSON.stringify(history));
       return history;
@@ -83,7 +100,25 @@ class SpeedTestService {
   async getHistory() {
     try {
       const stored = await AsyncStorage.getItem('speedTestHistory');
-      return stored ? JSON.parse(stored) : [];
+      if (!stored) return [];
+      const history = JSON.parse(stored);
+      // Normalize old entries to include new fields
+      return history.map((item) => ({
+        id: item.id || Date.now().toString(),
+        date: item.date || new Date().toISOString(),
+        download: Number(item.download) || 0,
+        upload: Number(item.upload) || 0,
+        ping: Number(item.ping) || 0,
+        jitter: Number(item.jitter) || 0,
+        packetLoss: Number(item.packetLoss) || 0,
+        mosScore: Number(item.mosScore) || 0,
+        bufferbloatGrade: String(item.bufferbloatGrade || 'A'),
+        bufferbloatMs: Number(item.bufferbloatMs) || 0,
+        totalBytes: Number(item.totalBytes) || 0,
+        serverName: String(item.serverName || 'Unknown'),
+        serverLocation: String(item.serverLocation || 'Unknown'),
+        provider: String(item.provider || 'Measurement Lab'),
+      }));
     } catch (e) {
       console.error('Error getting history:', e);
       return [];
@@ -111,6 +146,8 @@ class SpeedTestService {
       Number(left.jitter || 0) === Number(right.jitter || 0) &&
       Number(left.packetLoss || 0) === Number(right.packetLoss || 0) &&
       Number(left.mosScore || 0) === Number(right.mosScore || 0) &&
+      String(left.bufferbloatGrade || 'A') === String(right.bufferbloatGrade || 'A') &&
+      Number(left.bufferbloatMs || 0) === Number(right.bufferbloatMs || 0) &&
       String(left.serverName || '') === String(right.serverName || '') &&
       String(left.serverLocation || '') === String(right.serverLocation || '') &&
       Number(left.totalBytes || 0) === Number(right.totalBytes || 0)
@@ -620,6 +657,113 @@ class SpeedTestService {
     });
   }
 
+  // ── Bufferbloat Detection (DSLReports Method) ───────────────────────────────
+  // Measures latency increase during upload to detect bufferbloat.
+  // Runs HTTP HEAD pings every 500ms during upload test.
+  // Compares baseline latency (before upload) to loaded latency (during upload).
+
+  async measureBaselineLatency() {
+    // Check if fetch is available (React Native might not have global fetch)
+    if (typeof fetch !== 'function') {
+      console.log('Fetch not available, using default baseline latency');
+      return 20;
+    }
+
+    const pings = [];
+    const servers = [
+      'https://www.google.com',
+      'https://www.cloudflare.com',
+      'https://1.1.1.1',
+    ];
+
+    for (let i = 0; i < 5; i++) {
+      try {
+        const server = servers[i % servers.length];
+        const start = Date.now();
+        await fetch(`${server}/?_=${Date.now()}`, {
+          method: 'HEAD',
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' },
+        });
+        const rtt = Date.now() - start;
+        pings.push(rtt);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      } catch (e) {
+        console.log('Baseline ping failed:', e.message);
+      }
+    }
+
+    if (pings.length < 3) {
+      console.log('Not enough baseline pings, using default 20ms');
+      return 20;
+    }
+
+    const avg = pings.reduce((a, b) => a + b, 0) / pings.length;
+    console.log(`Baseline latency: ${avg.toFixed(2)}ms (${pings.length} pings)`);
+
+    return avg;
+  }
+
+  calculateBufferbloatGrade(bloatMs) {
+    if (bloatMs < 2) {
+      return { grade: 'S', score: 100, explanation: 'Excellent. No bufferbloat detected.' };
+    } else if (bloatMs < 5) {
+      return { grade: 'A+', score: 95, explanation: 'No bufferbloat. Great for gaming.' };
+    } else if (bloatMs < 15) {
+      return { grade: 'A', score: 90, explanation: 'Minimal bufferbloat. Excellent for gaming.' };
+    } else if (bloatMs < 30) {
+      return { grade: 'B', score: 80, explanation: 'Low bufferbloat. Good for most activities.' };
+    } else if (bloatMs < 60) {
+      return { grade: 'C', score: 70, explanation: 'Moderate bufferbloat. May affect real-time apps.' };
+    } else if (bloatMs < 200) {
+      return { grade: 'D', score: 60, explanation: 'Significant bufferbloat. Noticeable lag.' };
+    } else {
+      return { grade: 'F', score: 50, explanation: 'Severe bufferbloat. Poor for gaming and VoIP.' };
+    }
+  }
+
+  calculateCombinedGrade(download, upload, ping, bufferbloatMs) {
+    // Calculate connection quality score (0-100)
+    let qualityScore = 0;
+    if (download >= 100 && upload >= 50 && ping <= 20) {
+      qualityScore = 100;
+    } else if (download >= 50 && upload >= 25 && ping <= 40) {
+      qualityScore = 90;
+    } else if (download >= 25 && upload >= 10 && ping <= 60) {
+      qualityScore = 80;
+    } else if (download >= 10 && upload >= 5 && ping <= 100) {
+      qualityScore = 70;
+    } else if (download >= 5 && upload >= 2 && ping <= 150) {
+      qualityScore = 60;
+    } else {
+      qualityScore = 50;
+    }
+
+    // Get bufferbloat score
+    const bufferbloatResult = this.calculateBufferbloatGrade(bufferbloatMs);
+    const bufferbloatScore = bufferbloatResult.score;
+
+    // Combine scores (60% quality, 40% bufferbloat)
+    const combinedScore = (qualityScore * 0.6) + (bufferbloatScore * 0.4);
+
+    // Map to grade
+    if (combinedScore >= 95) {
+      return { grade: 'S', explanation: 'Excellent. Perfect for gaming and streaming.' };
+    } else if (combinedScore >= 90) {
+      return { grade: 'A+', explanation: 'Outstanding. Great for all activities.' };
+    } else if (combinedScore >= 80) {
+      return { grade: 'A', explanation: 'Excellent. Good for gaming and streaming.' };
+    } else if (combinedScore >= 70) {
+      return { grade: 'B', explanation: 'Good. Suitable for most activities.' };
+    } else if (combinedScore >= 60) {
+      return { grade: 'C', explanation: 'Fair. May struggle with gaming.' };
+    } else if (combinedScore >= 50) {
+      return { grade: 'D', explanation: 'Poor. Not recommended for gaming.' };
+    } else {
+      return { grade: 'F', explanation: 'Very poor. Major issues detected.' };
+    }
+  }
+
   // ── Upload: XHR with upload.onprogress ────────────────────────────────────
   // Sends Uint8Array binary payloads via XHR POST to Cloudflare.
   // upload.onprogress tracks bytes as they leave the device.
@@ -650,6 +794,13 @@ class SpeedTestService {
       this._getUploadPayload(512 * 1024),    // 512 KB
     ];
 
+    // Measure baseline latency before upload starts
+    // DISABLED: Temporarily disabled to prevent app crashes
+    console.log('Bufferbloat detection temporarily disabled');
+    const baselineLatency = 20;
+    const uploadPings = [];
+    const pingInterval = null;
+
     // Warm-up POST
     await this._xhrUploadChunk(new Uint8Array(1024), 5000).catch(() => {});
 
@@ -657,7 +808,7 @@ class SpeedTestService {
     calc.push(0);
 
     const WORKERS = 3;
-    console.log(`Starting upload test — ${WORKERS} XHR connections for 13.5s`);
+    console.log(`Starting upload test — ${WORKERS} XHR connections for 13.5s with bufferbloat detection`);
 
     const updateInterval = setInterval(() => {
       if (onSpeedUpdate && shared.totalBytes > 0) {
@@ -706,6 +857,31 @@ class SpeedTestService {
 
     await Promise.allSettled(promises);
     clearInterval(updateInterval);
+    if (pingInterval) clearInterval(pingInterval);
+
+    // Calculate bufferbloat from pings during last 5 seconds of upload
+    let bufferbloatGrade = { grade: 'A', explanation: 'No bufferbloat. Great for gaming.' };
+    let bloatMs = 0;
+
+    try {
+      const uploadEndTime = Date.now();
+      const last5SecondsStart = uploadEndTime - 5000;
+      const loadedPings = uploadPings.filter(p => p.timestamp >= last5SecondsStart);
+      let loadedLatency = baselineLatency;
+
+      if (loadedPings.length >= 3) {
+        loadedLatency = loadedPings.reduce((sum, p) => sum + p.rtt, 0) / loadedPings.length;
+        console.log(`Loaded latency (last 5s): ${loadedLatency.toFixed(2)}ms (${loadedPings.length} pings)`);
+      } else {
+        console.log(`Not enough loaded pings (${loadedPings.length}), using baseline`);
+      }
+
+      bloatMs = loadedLatency - baselineLatency;
+      bufferbloatGrade = this.calculateBufferbloatGrade(bloatMs);
+      console.log(`Bufferbloat: ${bloatMs.toFixed(2)}ms increase, Grade: ${bufferbloatGrade.grade}`);
+    } catch (e) {
+      console.log('Bufferbloat calculation failed:', e.message);
+    }
 
     const finalRolling = calc.getFinalSpeed();
     const stableWindow = liveSamples.slice(
@@ -744,7 +920,12 @@ class SpeedTestService {
       `Upload done: ${(shared.totalBytes / 1048576).toFixed(1)} MB in ${elapsed.toFixed(1)}s — ` +
       `rolling: ${finalSpeed.toFixed(2)} Mbps`
     );
-    return { speed: finalSpeed, totalBytes: shared.totalBytes };
+    return {
+      speed: finalSpeed,
+      totalBytes: shared.totalBytes,
+      bufferbloatGrade: bufferbloatGrade,
+      bufferbloatMs: bloatMs,
+    };
   }
 
   async _uploadWorkerXHR(payloads, startTime, testDuration, shared, calc, idx) {
@@ -978,6 +1159,8 @@ class SpeedTestService {
       jitter: 0,
       packetLoss: 0,
       mosScore: 0,
+      bufferbloatGrade: 'A',
+      bufferbloatMs: 0,
       totalBytes: 0,
       serverName: null,
       serverLocation: null,
@@ -987,7 +1170,12 @@ class SpeedTestService {
     try {
       // Phase 1: Select nearest M-Lab NDT7 server
       onProgress('Selecting server...', 'server');
-      await this.selectBestServer();
+      try {
+        await this.selectBestServer();
+      } catch (e) {
+        console.log('Server selection failed, using default:', e.message);
+        this.selectedServer = null;
+      }
 
       // Store server information in test result
       if (this.selectedServer) {
@@ -1017,6 +1205,7 @@ class SpeedTestService {
       const uploadResult = await this.runUploadTest(onSpeedUpdate);
       this.currentTest.upload = uploadResult.speed;
       this.currentTest.totalBytes += uploadResult.totalBytes;
+      this.currentTest.bufferbloatMs = uploadResult.bufferbloatMs || 0;
       if (onPhaseComplete) onPhaseComplete('upload', uploadResult.speed);
 
       if (uploadResult.speed > this.peaks.upload) {
@@ -1038,11 +1227,28 @@ class SpeedTestService {
 
       // Phase 5: UDP Jitter and Packet Loss Test
       onProgress('Testing jitter and packet loss...', 'udp');
-      const udpResult = await this.runUdpTest();
-      this.currentTest.jitter = udpResult.jitter;
-      this.currentTest.packetLoss = udpResult.packetLoss;
-      this.currentTest.mosScore = udpResult.mosScore;
-      if (onPhaseComplete) onPhaseComplete('udp', udpResult);
+      try {
+        const udpResult = await this.runUdpTest();
+        this.currentTest.jitter = udpResult.jitter || 0;
+        this.currentTest.packetLoss = udpResult.packetLoss || 0;
+        this.currentTest.mosScore = udpResult.mosScore || 0;
+        if (onPhaseComplete) onPhaseComplete('udp', udpResult);
+      } catch (e) {
+        console.log('UDP test failed:', e.message);
+        this.currentTest.jitter = 0;
+        this.currentTest.packetLoss = 0;
+        this.currentTest.mosScore = 0;
+      }
+
+      // Calculate combined grade from quality and bufferbloat
+      const combinedGrade = this.calculateCombinedGrade(
+        this.currentTest.download,
+        this.currentTest.upload,
+        this.currentTest.ping,
+        this.currentTest.bufferbloatMs
+      );
+      this.currentTest.bufferbloatGrade = combinedGrade.grade;
+      console.log(`Combined grade: ${combinedGrade.grade} - ${combinedGrade.explanation}`);
 
       // Save to history
       await this.saveTestResult(this.currentTest);

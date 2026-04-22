@@ -7,6 +7,8 @@ export interface HistoryItem {
   jitter: number;
   packetLoss: number;
   mosScore: number;
+  bufferbloatGrade: string;
+  bufferbloatMs: number;
   testProvider: string;
 }
 
@@ -15,9 +17,9 @@ export const buildHistoryCsv = (history: HistoryItem[]): string => {
     return '';
   }
 
-  const header = 'Date,Download (Mbps),Upload (Mbps),Ping (ms),Jitter (ms),Packet Loss (%),MOS Score,Provider';
+  const header = 'Date,Download (Mbps),Upload (Mbps),Ping (ms),Jitter (ms),Packet Loss (%),MOS Score,Bufferbloat Grade,Bufferbloat (ms),Provider';
   const rows = history.map(item =>
-    `${item.date},${item.download.toFixed(2)},${item.upload.toFixed(2)},${item.ping.toFixed(2)},${item.jitter.toFixed(2)},${item.packetLoss.toFixed(2)},${item.mosScore.toFixed(2)},${item.testProvider}`
+    `${item.date},${item.download.toFixed(2)},${item.upload.toFixed(2)},${item.ping.toFixed(2)},${item.jitter.toFixed(2)},${item.packetLoss.toFixed(2)},${item.mosScore.toFixed(2)},${item.bufferbloatGrade},${item.bufferbloatMs.toFixed(2)},${item.testProvider}`
   );
 
   return [header, ...rows].join('\n');
@@ -32,6 +34,7 @@ export const summarizeHistory = (history: HistoryItem[]) => {
       avgJitter: 0,
       avgPacketLoss: 0,
       avgMosScore: 0,
+      avgBufferbloatMs: 0,
       totalTests: 0,
       totalDataUsedBytes: 0,
       bestDownload: 0,
@@ -46,6 +49,7 @@ export const summarizeHistory = (history: HistoryItem[]) => {
   const totalJitter = history.reduce((sum, item) => sum + item.jitter, 0);
   const totalPacketLoss = history.reduce((sum, item) => sum + item.packetLoss, 0);
   const totalMosScore = history.reduce((sum, item) => sum + item.mosScore, 0);
+  const totalBufferbloatMs = history.reduce((sum, item) => sum + item.bufferbloatMs, 0);
 
   const bestDownload = Math.max(...history.map(item => item.download));
   const bestUpload = Math.max(...history.map(item => item.upload));
@@ -61,6 +65,7 @@ export const summarizeHistory = (history: HistoryItem[]) => {
     avgJitter: totalJitter / history.length,
     avgPacketLoss: totalPacketLoss / history.length,
     avgMosScore: totalMosScore / history.length,
+    avgBufferbloatMs: totalBufferbloatMs / history.length,
     totalTests: history.length,
     totalDataUsedBytes,
     bestDownload,

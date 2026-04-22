@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Path } from 'react-native-svg';
 import FlashTitle from '../components/FlashTitle';
+import NetworkHealthCard from '../components/BufferbloatCard';
 import LiquidGlass from '../components/LiquidGlass';
 import Speedometer from '../components/Speedometer';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -649,6 +650,8 @@ const SpeedHomeLiquidScreen = () => {
   const [ping, setPing] = useState(0);
   const [jitter, setJitter] = useState(0);
   const [packetLoss, setPacketLoss] = useState(0);
+  const [bufferbloatGrade, setBufferbloatGrade] = useState('A');
+  const [bufferbloatMs, setBufferbloatMs] = useState(0);
   const [liveDownload, setLiveDownload] = useState(0);
   const [liveUpload, setLiveUpload] = useState(0);
   const [livePing, setLivePing] = useState(0);
@@ -697,10 +700,12 @@ const SpeedHomeLiquidScreen = () => {
     const lastTestEntry = history[0] || null;
     setLastTest(lastTestEntry);
     setHasTestCompleted(Boolean(lastTestEntry));
-    // Set jitter and packetLoss from last test if available, otherwise default to 0
+    // Set jitter, packetLoss, and bufferbloat from last test if available
     if (lastTestEntry) {
       setJitter(lastTestEntry.jitter || 0);
       setPacketLoss(lastTestEntry.packetLoss || 0);
+      setBufferbloatGrade(lastTestEntry.bufferbloatGrade || 'A');
+      setBufferbloatMs(lastTestEntry.bufferbloatMs || 0);
     }
     await SpeedTestService.loadPeaks();
     setPeaks(SpeedTestService.getPeaks());
@@ -804,7 +809,14 @@ const SpeedHomeLiquidScreen = () => {
     upload: uploadSpeed || lastTest?.upload || 0,
     ping: ping || lastTest?.ping || 0,
   };
-  const connectionQuality = getConnectionQuality(qualitySource);
+  const connectionQuality = useMemo(() => {
+    try {
+      return getConnectionQuality(qualitySource);
+    } catch (e) {
+      console.log('Connection quality calculation failed:', e.message);
+      return { label: 'Unknown', summary: 'No data available' };
+    }
+  }, [qualitySource]);
   const currentBackgroundIntervalSeconds = resolveStoredBackgroundIntervalSeconds(settings);
   const customIntervalSeconds = durationPartsToSeconds(customInterval);
   const customIntervalSummaryLabel = customIntervalSeconds > 0
@@ -892,6 +904,8 @@ const SpeedHomeLiquidScreen = () => {
     setPing(0);
     setJitter(0);
     setPacketLoss(0);
+    setBufferbloatGrade('A');
+    setBufferbloatMs(0);
     resetLiveState();
 
     liveSpeedRef.current = 0;
@@ -929,6 +943,8 @@ const SpeedHomeLiquidScreen = () => {
         setPing(result.ping);
         setJitter(result.jitter || 0);
         setPacketLoss(result.packetLoss || 0);
+        setBufferbloatGrade(result.bufferbloatGrade || 'A');
+        setBufferbloatMs(result.bufferbloatMs || 0);
         setLiveDownload(result.download);
         setLiveUpload(result.upload);
         setLivePing(result.ping);
@@ -1365,10 +1381,19 @@ const SpeedHomeLiquidScreen = () => {
             ]}
           >
             <View style={styles.insightsWrap}>
-              <InsightCard
-                title="Connection Quality"
-                value={connectionQuality.label}
-                subtitle={connectionQuality.summary}
+              <NetworkHealthCard
+                bufferbloatGrade={bufferbloatGrade}
+                bufferbloatExplanation={(() => {
+                  const grade = bufferbloatGrade;
+                  if (grade === 'S') return 'Excellent. Perfect for gaming and streaming.';
+                  if (grade === 'A+') return 'Outstanding. Great for all activities.';
+                  if (grade === 'A') return 'Excellent. Good for gaming and streaming.';
+                  if (grade === 'B') return 'Good. Suitable for most activities.';
+                  if (grade === 'C') return 'Fair. May struggle with gaming.';
+                  if (grade === 'D') return 'Poor. Not recommended for gaming.';
+                  return 'Very poor. Major issues detected.';
+                })()}
+                connectionQuality={connectionQuality || { label: 'Unknown', summary: 'No data available' }}
               />
               <InsightCard
                 title="Last Test Traffic"
