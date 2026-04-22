@@ -17,6 +17,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Path } from 'react-native-svg';
 import FlashTitle from '../components/FlashTitle';
 import NetworkHealthCard from '../components/BufferbloatCard';
+import CDNGrid from '../components/CDNGrid';
 import LiquidGlass from '../components/LiquidGlass';
 import Speedometer from '../components/Speedometer';
 import { useAppSettings } from '../context/AppSettingsContext';
@@ -1411,6 +1412,8 @@ const SpeedHomeLiquidScreen = () => {
                 subtitle={`${lastTest?.serverLocation || 'Unknown'} • ${lastTest?.provider || 'Measurement Lab'}`}
               />
             </View>
+
+            <CDNGrid showInsight={true} />
 
             <View style={styles.iconRow}>
               <LiquidGlass
