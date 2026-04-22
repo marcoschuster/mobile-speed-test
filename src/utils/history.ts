@@ -5,6 +5,8 @@ export interface HistoryItem {
   upload: number;
   ping: number;
   jitter: number;
+  packetLoss: number;
+  mosScore: number;
   testProvider: string;
 }
 
@@ -13,9 +15,9 @@ export const buildHistoryCsv = (history: HistoryItem[]): string => {
     return '';
   }
 
-  const header = 'Date,Download (Mbps),Upload (Mbps),Ping (ms),Jitter (ms),Provider';
+  const header = 'Date,Download (Mbps),Upload (Mbps),Ping (ms),Jitter (ms),Packet Loss (%),MOS Score,Provider';
   const rows = history.map(item =>
-    `${item.date},${item.download.toFixed(2)},${item.upload.toFixed(2)},${item.ping.toFixed(2)},${item.jitter.toFixed(2)},${item.testProvider}`
+    `${item.date},${item.download.toFixed(2)},${item.upload.toFixed(2)},${item.ping.toFixed(2)},${item.jitter.toFixed(2)},${item.packetLoss.toFixed(2)},${item.mosScore.toFixed(2)},${item.testProvider}`
   );
 
   return [header, ...rows].join('\n');
@@ -28,6 +30,8 @@ export const summarizeHistory = (history: HistoryItem[]) => {
       avgUpload: 0,
       avgPing: 0,
       avgJitter: 0,
+      avgPacketLoss: 0,
+      avgMosScore: 0,
       totalTests: 0,
       totalDataUsedBytes: 0,
       bestDownload: 0,
@@ -40,6 +44,8 @@ export const summarizeHistory = (history: HistoryItem[]) => {
   const totalUpload = history.reduce((sum, item) => sum + item.upload, 0);
   const totalPing = history.reduce((sum, item) => sum + item.ping, 0);
   const totalJitter = history.reduce((sum, item) => sum + item.jitter, 0);
+  const totalPacketLoss = history.reduce((sum, item) => sum + item.packetLoss, 0);
+  const totalMosScore = history.reduce((sum, item) => sum + item.mosScore, 0);
 
   const bestDownload = Math.max(...history.map(item => item.download));
   const bestUpload = Math.max(...history.map(item => item.upload));
@@ -53,6 +59,8 @@ export const summarizeHistory = (history: HistoryItem[]) => {
     avgUpload: totalUpload / history.length,
     avgPing: totalPing / history.length,
     avgJitter: totalJitter / history.length,
+    avgPacketLoss: totalPacketLoss / history.length,
+    avgMosScore: totalMosScore / history.length,
     totalTests: history.length,
     totalDataUsedBytes,
     bestDownload,

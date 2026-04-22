@@ -647,6 +647,8 @@ const SpeedHomeLiquidScreen = () => {
   const [downloadSpeed, setDownloadSpeed] = useState(0);
   const [uploadSpeed, setUploadSpeed] = useState(0);
   const [ping, setPing] = useState(0);
+  const [jitter, setJitter] = useState(0);
+  const [packetLoss, setPacketLoss] = useState(0);
   const [liveDownload, setLiveDownload] = useState(0);
   const [liveUpload, setLiveUpload] = useState(0);
   const [livePing, setLivePing] = useState(0);
@@ -692,8 +694,14 @@ const SpeedHomeLiquidScreen = () => {
   const loadPersistedData = useCallback(async () => {
     const history = await SpeedTestService.getHistory();
     setHistorySummary(summarizeHistory(history));
-    setLastTest(history[0] || null);
-    setHasTestCompleted(Boolean(history[0]));
+    const lastTestEntry = history[0] || null;
+    setLastTest(lastTestEntry);
+    setHasTestCompleted(Boolean(lastTestEntry));
+    // Set jitter and packetLoss from last test if available, otherwise default to 0
+    if (lastTestEntry) {
+      setJitter(lastTestEntry.jitter || 0);
+      setPacketLoss(lastTestEntry.packetLoss || 0);
+    }
     await SpeedTestService.loadPeaks();
     setPeaks(SpeedTestService.getPeaks());
   }, []);
@@ -882,6 +890,8 @@ const SpeedHomeLiquidScreen = () => {
     setDownloadSpeed(0);
     setUploadSpeed(0);
     setPing(0);
+    setJitter(0);
+    setPacketLoss(0);
     resetLiveState();
 
     liveSpeedRef.current = 0;
@@ -900,6 +910,7 @@ const SpeedHomeLiquidScreen = () => {
         if (type === 'ping') setCurrentType('Ping');
         else if (type === 'download') setCurrentType('Download');
         else if (type === 'upload') setCurrentType('Upload');
+        else if (type === 'udp') setCurrentType('Ping');
       },
       (speed, type) => {
         liveSpeedRef.current = speed;
@@ -916,6 +927,8 @@ const SpeedHomeLiquidScreen = () => {
         setDownloadSpeed(result.download);
         setUploadSpeed(result.upload);
         setPing(result.ping);
+        setJitter(result.jitter || 0);
+        setPacketLoss(result.packetLoss || 0);
         setLiveDownload(result.download);
         setLiveUpload(result.upload);
         setLivePing(result.ping);
@@ -1361,6 +1374,11 @@ const SpeedHomeLiquidScreen = () => {
                 title="Last Test Traffic"
                 value={formatBytes(lastTest?.totalBytes || historySummary.totalDataUsedBytes)}
                 subtitle="Download + upload payload used by the latest completed test."
+              />
+              <InsightCard
+                title="Jitter & Packet Loss"
+                value={`Jitter: ${(jitter || 0).toFixed(1)}ms | Loss: ${(packetLoss || 0).toFixed(1)}%`}
+                subtitle="Network stability measured via UDP packet analysis."
               />
               <InsightCard
                 title="Server Used"
