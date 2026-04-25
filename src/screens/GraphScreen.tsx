@@ -27,6 +27,8 @@ import SpeedTestService from '../services/SpeedTestService';
 import SoundEngine from '../services/SoundEngine';
 import FlashTitle from '../components/FlashTitle';
 import LiquidGlass from '../components/LiquidGlass';
+import BackgroundHistoryGraph from '../components/BackgroundHistoryGraph';
+import TimeOfDayHeatmap from '../components/TimeOfDayHeatmap';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useTabBarMotion } from '../context/TabBarMotionContext';
 import { summarizeHistory, type HistoryItem } from '../utils/history';
@@ -714,6 +716,8 @@ const GraphScreen = () => {
             </LiquidGlass>
           ))}
         </View>
+        <BackgroundHistoryGraph speedUnit={settings.speedUnit} />
+        <TimeOfDayHeatmap history={allHistory} speedUnit={settings.speedUnit} />
         {renderCharts()}
       </ScrollView>
     </Animated.View>
