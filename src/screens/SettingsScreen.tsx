@@ -13,6 +13,7 @@ import {
   LayoutAnimation,
   UIManager,
   LayoutChangeEvent,
+  PermissionsAndroid,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import SpeedTestService from '../services/SpeedTestService';
@@ -21,6 +22,8 @@ import FlashTitle from '../components/FlashTitle';
 import ColorPickerWheel from '../components/ColorPickerWheel';
 import LiquidGlass from '../components/LiquidGlass';
 import { useTabBarMotion } from '../context/TabBarMotionContext';
+import { useAppSettings } from '../context/AppSettingsContext';
+import BackgroundTestService, { BACKGROUND_INTERVALS } from '../services/BackgroundTestService';
 import { COLORS, RADIUS, useTheme, COLOR_THEMES } from '../utils/theme';
 
 // LayoutAnimation is now enabled by default on Android
@@ -209,9 +212,8 @@ const rowS = StyleSheet.create({
 const SettingsScreen = () => {
   const { t, themeChoice, setThemeChoice, colorThemeId, setColorThemeId } = useTheme();
   const { setTabBarMode } = useTabBarMotion();
+  const { settings, updateSettings } = useAppSettings();
 
-  const [autoBackground, setAutoBackground] = useState(false);
-  const [testInterval, setTestInterval] = useState('1h');
   const [speedUnit, setSpeedUnit] = useState('mbps');
   const [showPing, setShowPing] = useState(true);
   const [notifyComplete, setNotifyComplete] = useState(false);
@@ -283,6 +285,62 @@ const SettingsScreen = () => {
 
   const handleExport = () => Alert.alert('Export', 'CSV export functionality coming soon.');
 
+  const selectedBackgroundInterval = String(settings.backgroundTestIntervalSeconds ?? 30 * 60);
+
+  const enableContinuousMonitoring = () => {
+    Alert.alert(
+      'Enable continuous monitoring?',
+      'Background testing runs a short ping and 4-second download probe at the selected interval. It uses data and battery; 30 minutes or longer is recommended for low daily impact.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Enable',
+          onPress: async () => {
+            const status = await BackgroundTestService.getStatus();
+            if (!status.isAvailable || status.fetchStatus !== 2) {
+              Alert.alert(
+                'Background testing unavailable',
+                'The system is not allowing background fetch for this app right now. Check OS background app refresh settings and use a development or production build.',
+              );
+              return;
+            }
+
+            if (Platform.OS === 'android' && Platform.Version >= 33) {
+              const permission = await PermissionsAndroid.request(
+                PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+              );
+
+              if (permission !== PermissionsAndroid.RESULTS.GRANTED) {
+                Alert.alert(
+                  'Notification permission needed',
+                  'Allow notifications so Android can show the continuous monitoring status card and Turn off action.',
+                );
+                return;
+              }
+            }
+
+            updateSettings({
+              continuousMonitoringEnabled: true,
+              backgroundTestingPermissionAccepted: true,
+              backgroundTestIntervalSeconds: settings.backgroundTestIntervalSeconds ?? 30 * 60,
+            });
+          },
+        },
+      ],
+    );
+  };
+
+  const handleContinuousMonitoringToggle = (value: boolean) => {
+    if (!value) {
+      updateSettings({ continuousMonitoringEnabled: false });
+      SoundEngine.playToggleOff();
+      return;
+    }
+
+    SoundEngine.playToggleOn();
+    enableContinuousMonitoring();
+  };
+
   return (
     <Animated.ScrollView
       style={[styles.container, { opacity: contentFade }]}
@@ -326,24 +384,32 @@ const SettingsScreen = () => {
       {/* TESTING */}
       <FlashTitle text="TESTING" size="small" interval={5500} center style={styles.sectionHeader} />
       <LiquidGlass style={styles.sectionCard} borderRadius={RADIUS.lg} contentStyle={styles.sectionCardContent}>
-        <SettingsRow label="Auto Background Test">
+        <SettingsRow label="Continuous Monitoring">
           <Switch
-            value={autoBackground} onValueChange={() => handleToggle(autoBackground, setAutoBackground)}
+            value={settings.continuousMonitoringEnabled}
+            onValueChange={handleContinuousMonitoringToggle}
             trackColor={{ false: t.switchTrackOff, true: t.accent }}
-            thumbColor={autoBackground ? COLORS.white : t.switchThumbOff}
+            thumbColor={settings.continuousMonitoringEnabled ? COLORS.white : t.switchThumbOff}
             ios_backgroundColor={t.switchTrackOff}
           />
         </SettingsRow>
-        <SettingsRow label="Test Interval">
+        <Text style={[styles.backgroundHelperText, { color: t.textMuted, fontFamily: FONT_FAMILY }]}>
+          Runs a battery-conscious ping plus 4-second download probe in the background. Android can restart after boot; iOS schedules opportunistically.
+        </Text>
+        <SettingsRow label="Monitoring Interval">
           <View style={{ width: 160 }}>
             <Dropdown
-              options={[
-                { label: 'Every 30 min', value: '30m' },
-                { label: 'Every 1 hr', value: '1h' },
-                { label: 'Every 3 hrs', value: '3h' },
-                { label: 'Every 6 hrs', value: '6h' },
-              ]}
-              selected={testInterval} onSelect={setTestInterval}
+              options={BACKGROUND_INTERVALS.map((option) => ({
+                label: option.label,
+                value: String(option.value),
+              }))}
+              selected={selectedBackgroundInterval}
+              onSelect={(value) => {
+                updateSettings({
+                  backgroundTestIntervalSeconds: Number(value),
+                  backgroundTestInterval: Number(value) / 60,
+                });
+              }}
               isOpen={intervalOpen} onToggle={() => setIntervalOpen(!intervalOpen)}
             />
           </View>
@@ -454,6 +520,32 @@ const SettingsScreen = () => {
       {/* DATA */}
       <FlashTitle text="DATA" size="small" interval={7000} center style={styles.sectionHeader} />
       <LiquidGlass style={styles.sectionCard} borderRadius={RADIUS.lg} contentStyle={styles.sectionCardContent}>
+        <SettingsRow label="Detailed cellular radio">
+          <Switch
+            value={settings.detailedCellularRadioEnabled}
+            onValueChange={(value) => {
+              if (!value) {
+                updateSettings({ detailedCellularRadioEnabled: false });
+                return;
+              }
+
+              Alert.alert(
+                'Enable detailed cellular stats',
+                'This Android-only feature reads serving-cell radio details like RSRP, RSRQ, band, and cell ID during tests. Android may describe this as phone access and also request location because these radio APIs are permission-gated.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Enable', onPress: () => updateSettings({ detailedCellularRadioEnabled: true }) },
+                ],
+              );
+            }}
+            trackColor={{ false: t.switchTrackOff, true: t.accent }}
+            thumbColor={settings.detailedCellularRadioEnabled ? COLORS.white : t.switchThumbOff}
+            ios_backgroundColor={t.switchTrackOff}
+          />
+        </SettingsRow>
+        <Text style={[styles.dataHelperText, { color: t.textMuted, fontFamily: FONT_FAMILY }]}>
+          Off by default. When enabled, Android may request phone and location permissions to read serving-cell radio data.
+        </Text>
         <View style={styles.dataButtons}>
           <LiquidGlass
             style={[styles.destructiveButton, { backgroundColor: t.glass }]}
@@ -516,6 +608,20 @@ const styles = StyleSheet.create({
   thresholdUnit: { fontSize: 13, fontWeight: '600' },
 
   dataButtons: { padding: 16, gap: 12 },
+  dataHelperText: {
+    fontSize: 12,
+    lineHeight: 18,
+    paddingHorizontal: 16,
+    marginTop: -2,
+    marginBottom: 10,
+  },
+  backgroundHelperText: {
+    fontSize: 12,
+    lineHeight: 18,
+    paddingHorizontal: 16,
+    marginTop: -2,
+    marginBottom: 4,
+  },
   dataButtonContent: { paddingVertical: 13, alignItems: 'center', justifyContent: 'center' },
   destructiveButton: { borderRadius: RADIUS.pill, borderWidth: 1.5, borderColor: COLORS.danger, backgroundColor: 'transparent', alignItems: 'center' },
   destructiveButtonText: { color: COLORS.danger, fontSize: 14, fontWeight: '700' },

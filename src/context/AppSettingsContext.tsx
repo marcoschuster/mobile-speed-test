@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import BackgroundTestService from '../services/BackgroundTestService';
 
 const APP_SETTINGS = {
   STORAGE_KEY: 'mobile_speed_test_settings',
@@ -8,8 +10,11 @@ const APP_SETTINGS = {
 interface Settings {
   speedUnit: 'Mbps' | 'MB/s' | 'kB/s';
   showPing: boolean;
+  continuousMonitoringEnabled: boolean;
+  backgroundTestingPermissionAccepted: boolean;
   backgroundTestInterval: number | null;
   backgroundTestIntervalSeconds: number | null;
+  detailedCellularRadioEnabled: boolean;
   dataDisclosureAccepted: boolean;
   historyRetentionDays: number;
   testProvider: string;
@@ -26,8 +31,11 @@ const AppSettingsContext = createContext<AppSettingsContextType | undefined>(und
 const DEFAULT_SETTINGS: Settings = {
   speedUnit: 'Mbps',
   showPing: true,
+  continuousMonitoringEnabled: false,
+  backgroundTestingPermissionAccepted: false,
   backgroundTestInterval: null,
-  backgroundTestIntervalSeconds: null,
+  backgroundTestIntervalSeconds: 30 * 60,
+  detailedCellularRadioEnabled: false,
   dataDisclosureAccepted: false,
   historyRetentionDays: 30,
   testProvider: 'ookla',
@@ -41,12 +49,46 @@ export const AppSettingsProvider = ({ children }: { children: ReactNode }) => {
     loadSettings();
   }, []);
 
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        syncNotificationOptOut();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [settings]);
+
+  const persistSettings = async (updatedSettings: Settings) => {
+    setSettings(updatedSettings);
+    await AsyncStorage.setItem(APP_SETTINGS.STORAGE_KEY, JSON.stringify(updatedSettings));
+  };
+
+  const syncNotificationOptOut = async () => {
+    try {
+      const disabledFromNotification = await BackgroundTestService.wasDisabledFromNotification();
+      if (!disabledFromNotification || !settings.continuousMonitoringEnabled) {
+        return;
+      }
+
+      const updatedSettings = {
+        ...settings,
+        continuousMonitoringEnabled: false,
+      };
+
+      await persistSettings(updatedSettings);
+      await BackgroundTestService.configureFromSettings(updatedSettings);
+    } catch (error) {
+      console.error('Failed to sync background notification state:', error);
+    }
+  };
+
   const loadSettings = async () => {
     try {
       const savedSettings = await AsyncStorage.getItem(APP_SETTINGS.STORAGE_KEY);
       if (savedSettings) {
         const parsed = JSON.parse(savedSettings);
-        setSettings({
+        const hydratedSettings = {
           ...DEFAULT_SETTINGS,
           ...parsed,
           backgroundTestIntervalSeconds:
@@ -54,6 +96,22 @@ export const AppSettingsProvider = ({ children }: { children: ReactNode }) => {
             (typeof parsed.backgroundTestInterval === 'number'
               ? parsed.backgroundTestInterval * 60
               : null),
+        };
+
+        setSettings(hydratedSettings);
+        BackgroundTestService.configureFromSettings(hydratedSettings).then((result) => {
+          if (result?.disabledFromNotification && hydratedSettings.continuousMonitoringEnabled) {
+            void persistSettings({
+              ...hydratedSettings,
+              continuousMonitoringEnabled: false,
+            });
+          }
+        }).catch((error) => {
+          console.error('Failed to configure background testing:', error);
+        });
+      } else {
+        BackgroundTestService.configureFromSettings(DEFAULT_SETTINGS).catch((error) => {
+          console.error('Failed to configure background testing:', error);
         });
       }
     } catch (error) {
@@ -65,18 +123,23 @@ export const AppSettingsProvider = ({ children }: { children: ReactNode }) => {
 
   const updateSettings = async (newSettings: Partial<Settings>) => {
     const updatedSettings = { ...settings, ...newSettings };
-    setSettings(updatedSettings);
     try {
-      await AsyncStorage.setItem(APP_SETTINGS.STORAGE_KEY, JSON.stringify(updatedSettings));
+      if (newSettings.continuousMonitoringEnabled) {
+        await BackgroundTestService.clearNotificationOptOut();
+      }
+
+      await persistSettings(updatedSettings);
+      await BackgroundTestService.configureFromSettings(updatedSettings);
     } catch (error) {
       console.error('Failed to save settings:', error);
     }
   };
 
   const resetSettings = async () => {
-    setSettings(DEFAULT_SETTINGS);
     try {
+      setSettings(DEFAULT_SETTINGS);
       await AsyncStorage.removeItem(APP_SETTINGS.STORAGE_KEY);
+      await BackgroundTestService.configureFromSettings(DEFAULT_SETTINGS);
     } catch (error) {
       console.error('Failed to reset settings:', error);
     }
