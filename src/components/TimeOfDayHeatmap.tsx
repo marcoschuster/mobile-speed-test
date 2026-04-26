@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, Modal, ScrollView } from 'react-native';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, Modal, ScrollView, Animated } from 'react-native';
 import Svg, { Rect, Text as SvgText } from 'react-native-svg';
 import LiquidGlass from './LiquidGlass';
 import { RADIUS, useTheme } from '../utils/theme';
@@ -28,7 +28,27 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
   const [selectedCell, setSelectedCell] = useState<HeatmapCell | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
+  const [pulsingCell, setPulsingCell] = useState<{ day: number; hour: number } | null>(null);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
   const speedUnitLabel = getSpeedUnitLabel(speedUnit);
+
+  // Pulse animation
+  const triggerPulse = useCallback((day: number, hour: number) => {
+    setPulsingCell({ day, hour });
+    pulseAnim.setValue(1);
+    Animated.sequence([
+      Animated.timing(pulseAnim, {
+        toValue: 1.3,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(pulseAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setPulsingCell(null));
+  }, [pulseAnim]);
 
   // Merge regular and background history
   const allHistory = useMemo(() => {
@@ -184,6 +204,7 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
   const expandedChartHeight = expandedRowHeight * 7;
 
   const handleCellPress = (cell: HeatmapCell) => {
+    triggerPulse(cell.day, cell.hour);
     setSelectedCell(cell);
     const dayName = DAYS[cell.day];
     const hourStr = cell.hour === 0 ? '12am' : cell.hour === 12 ? '12pm' : cell.hour > 12 ? `${cell.hour - 12}pm` : `${cell.hour}am`;
@@ -199,24 +220,23 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
   return (
     <>
       <LiquidGlass style={styles.card} borderRadius={RADIUS.lg} contentStyle={styles.content}>
-        <TouchableOpacity 
-          onPress={() => setIsExpanded(true)} 
-          activeOpacity={0.7}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={styles.headerTouchable}
-        >
-          <View style={styles.headerRow}>
-            <View>
-              <Text style={[styles.title, { color: t.textPrimary }]}>Time of Day Performance</Text>
-              {slowestPeriod && (
-                <Text style={[styles.insight, { color: t.textMuted }]}>
-                  Your ISP is slowest: {slowestPeriod.start}-{slowestPeriod.end} (avg {slowestPeriod.avg} Mbps)
-                </Text>
-              )}
-            </View>
-            <Text style={[styles.tapHint, { color: t.accent }]}>Tap to expand →</Text>
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.title, { color: t.textPrimary }]}>Time of Day Performance</Text>
+            {slowestPeriod && (
+              <Text style={[styles.insight, { color: t.textMuted }]}>
+                Your ISP is slowest: {slowestPeriod.start}-{slowestPeriod.end} (avg {slowestPeriod.avg} Mbps)
+              </Text>
+            )}
           </View>
-        </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={() => setIsExpanded(true)} 
+            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            style={styles.expandButton}
+          >
+            <Text style={[styles.tapHint, { color: t.accent }]}>Tap to expand →</Text>
+          </TouchableOpacity>
+        </View>
 
       <View style={styles.chartContainer}>
         <Svg width={labelWidth + chartWidth} height={chartHeight + 20}>
@@ -276,20 +296,34 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
 
         {/* Touch overlay for cells */}
         <View style={[styles.touchOverlay, { width: chartWidth, height: chartHeight, marginLeft: labelWidth }]}>
-          {heatmapData.map((cell) => (
-            <TouchableOpacity
-              key={`touch-${cell.day}-${cell.hour}`}
-              style={{
-                position: 'absolute',
-                left: cell.hour * cellSize,
-                top: cell.day * rowHeight,
-                width: cellSize,
-                height: cellSize,
-              }}
-              onPress={() => handleCellPress(cell)}
-              activeOpacity={0.7}
-            />
-          ))}
+          {heatmapData.map((cell) => {
+            const isPulsing = pulsingCell?.day === cell.day && pulsingCell?.hour === cell.hour;
+            return (
+              <TouchableOpacity
+                key={`touch-${cell.day}-${cell.hour}`}
+                style={{
+                  position: 'absolute',
+                  left: cell.hour * cellSize,
+                  top: cell.day * rowHeight,
+                  width: cellSize,
+                  height: cellSize,
+                }}
+                onPress={() => handleCellPress(cell)}
+              >
+                {isPulsing && (
+                  <Animated.View
+                    style={[
+                      styles.pulseRing,
+                      {
+                        transform: [{ scale: pulseAnim }],
+                        borderColor: t.accent,
+                      },
+                    ]}
+                  />
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
@@ -416,20 +450,36 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
 
                 {/* Touch overlay for expanded cells */}
                 <View style={[styles.touchOverlay, { width: expandedChartWidth, height: expandedChartHeight, marginLeft: expandedLabelWidth }]}>
-                  {heatmapData.map((cell) => (
-                    <TouchableOpacity
-                      key={`expanded-touch-${cell.day}-${cell.hour}`}
-                      style={{
-                        position: 'absolute',
-                        left: cell.hour * expandedCellSize,
-                        top: cell.day * expandedRowHeight,
-                        width: expandedCellSize,
-                        height: expandedCellSize,
-                      }}
-                      onPress={() => handleCellPress(cell)}
-                      activeOpacity={0.7}
-                    />
-                  ))}
+                  {heatmapData.map((cell) => {
+                    const isPulsing = pulsingCell?.day === cell.day && pulsingCell?.hour === cell.hour;
+                    return (
+                      <TouchableOpacity
+                        key={`expanded-touch-${cell.day}-${cell.hour}`}
+                        style={{
+                          position: 'absolute',
+                          left: cell.hour * expandedCellSize,
+                          top: cell.day * expandedRowHeight,
+                          width: expandedCellSize,
+                          height: expandedCellSize,
+                        }}
+                        onPress={() => handleCellPress(cell)}
+                      >
+                        {isPulsing && (
+                          <Animated.View
+                            style={[
+                              styles.pulseRing,
+                              {
+                                transform: [{ scale: pulseAnim }],
+                                borderColor: t.accent,
+                                width: expandedCellSize,
+                                height: expandedCellSize,
+                              },
+                            ]}
+                          />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </View>
 
@@ -502,12 +552,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  headerTouchable: {
-    width: '100%',
+  expandButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   tapHint: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  pulseRing: {
+    position: 'absolute',
+    borderWidth: 2,
+    borderRadius: 4,
+    width: '100%',
+    height: '100%',
   },
   title: {
     fontSize: 16,
