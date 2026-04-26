@@ -18,6 +18,7 @@ import { ThemeProvider, useTheme, withAlpha } from './src/utils/theme';
 import { AppSettingsProvider } from './src/context/AppSettingsContext';
 import { TestProvider, useTestContext } from './src/context/TestContext';
 import SoundEngine from './src/services/SoundEngine';
+import './src/services/BackgroundTestService';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const Tab = createBottomTabNavigator();

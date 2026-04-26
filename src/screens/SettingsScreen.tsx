@@ -297,10 +297,10 @@ const SettingsScreen = () => {
           text: 'Enable',
           onPress: async () => {
             const status = await BackgroundTestService.getStatus();
-            if (!status.isAvailable || status.fetchStatus !== 2) {
+            if (!status.nativeAndroidAvailable && (!status.isAvailable || status.fetchStatus !== 2)) {
               Alert.alert(
                 'Background testing unavailable',
-                'The system is not allowing background fetch for this app right now. Check OS background app refresh settings and use a development or production build.',
+                'The system is not allowing background tasks for this app right now. Check OS background app refresh settings and use a development or production build.',
               );
               return;
             }
