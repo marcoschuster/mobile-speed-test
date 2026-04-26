@@ -391,7 +391,10 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
               </TouchableOpacity>
             </View>
             
-            <ScrollView style={styles.modalScroll}>
+            <ScrollView 
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+            >
               <View style={styles.expandedChartContainer}>
                 <Svg width={expandedLabelWidth + expandedChartWidth} height={expandedChartHeight + 30}>
                   {/* Day labels */}
@@ -673,8 +676,11 @@ const styles = StyleSheet.create({
   modalScroll: {
     flex: 1,
   },
+  modalScrollContent: {
+    alignItems: 'center',
+    paddingBottom: 20,
+  },
   expandedChartContainer: {
-    position: 'relative',
     marginVertical: 16,
   },
 });
