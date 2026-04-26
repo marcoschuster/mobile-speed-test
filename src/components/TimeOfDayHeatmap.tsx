@@ -391,8 +391,13 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
               </TouchableOpacity>
             </View>
             
-            <View style={styles.expandedChartWrapper}>
-              <Svg width={expandedLabelWidth + expandedChartWidth} height={expandedChartHeight + 30}>
+            <ScrollView 
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={true}
+            >
+              <View style={styles.expandedChartWrapper}>
+                <Svg width={expandedLabelWidth + expandedChartWidth} height={expandedChartHeight + 30}>
                   {/* Day labels */}
                   {DAYS.map((day, i) => (
                     <SvgText
@@ -528,7 +533,7 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
                   <Text style={[styles.legendText, { color: t.textSecondary }]}>&lt;20 Mbps</Text>
                 </View>
               </View>
-            </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -669,9 +674,17 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
   },
+  modalScroll: {
+    flex: 1,
+  },
+  modalScrollContent: {
+    alignItems: 'center',
+    paddingBottom: 20,
+  },
   expandedChartWrapper: {
     alignItems: 'center',
     paddingVertical: 20,
+    width: '100%',
   },
   expandedChartContainer: {
     marginVertical: 16,
