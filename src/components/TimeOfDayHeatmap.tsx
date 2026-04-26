@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, Modal, ScrollView } from 'react-native';
 import Svg, { Rect, Text as SvgText } from 'react-native-svg';
 import LiquidGlass from './LiquidGlass';
 import { RADIUS, useTheme } from '../utils/theme';
@@ -19,19 +19,59 @@ interface HeatmapCell {
 
 interface TimeOfDayHeatmapProps {
   history: HistoryItem[];
+  backgroundHistory: HistoryItem[];
   speedUnit: any;
 }
 
-const TimeOfDayHeatmap = ({ history, speedUnit }: TimeOfDayHeatmapProps) => {
+const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHeatmapProps) => {
   const { t } = useTheme();
   const [selectedCell, setSelectedCell] = useState<HeatmapCell | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
   const speedUnitLabel = getSpeedUnitLabel(speedUnit);
 
-  // Aggregate data by day of week and hour
+  // Merge regular and background history
+  const allHistory = useMemo(() => {
+    return [...history, ...backgroundHistory];
+  }, [history, backgroundHistory]);
+
+  // Get unique weeks from data
+  const weekRanges = useMemo(() => {
+    if (allHistory.length === 0) return [];
+    
+    const dates = allHistory.map(item => new Date(item.date).getTime());
+    const minDate = Math.min(...dates);
+    const maxDate = Math.max(...dates);
+    const weekMs = 7 * 24 * 60 * 60 * 1000;
+    
+    const weeks = [];
+    let currentWeekStart = minDate;
+    while (currentWeekStart <= maxDate) {
+      weeks.push({
+        start: currentWeekStart,
+        end: currentWeekStart + weekMs,
+      });
+      currentWeekStart += weekMs;
+    }
+    
+    return weeks;
+  }, [allHistory]);
+
+  // Aggregate data by day of week and hour for selected week
   const heatmapData = useMemo(() => {
     const grid: Map<string, { sum: number; count: number }> = new Map();
+    
+    let filteredHistory = allHistory;
+    if (weekRanges.length > 0) {
+      const weekIndex = Math.min(currentWeekOffset, weekRanges.length - 1);
+      const week = weekRanges[weekIndex];
+      filteredHistory = allHistory.filter(item => {
+        const itemDate = new Date(item.date).getTime();
+        return itemDate >= week.start && itemDate < week.end;
+      });
+    }
 
-    history.forEach((item) => {
+    filteredHistory.forEach((item) => {
       const date = new Date(item.date);
       const day = date.getDay(); // 0 = Sunday, 6 = Saturday
       const hour = date.getHours();
@@ -57,7 +97,7 @@ const TimeOfDayHeatmap = ({ history, speedUnit }: TimeOfDayHeatmapProps) => {
     }
 
     return cells;
-  }, [history]);
+  }, [allHistory, currentWeekOffset, weekRanges]);
 
   // Find slowest time period
   const slowestPeriod = useMemo(() => {
@@ -111,7 +151,7 @@ const TimeOfDayHeatmap = ({ history, speedUnit }: TimeOfDayHeatmapProps) => {
     return '#ef4444'; // red
   };
 
-  const totalTests = history.length;
+  const totalTests = allHistory.length;
 
   if (totalTests < MIN_TESTS) {
     return (
@@ -136,6 +176,13 @@ const TimeOfDayHeatmap = ({ history, speedUnit }: TimeOfDayHeatmapProps) => {
   const chartWidth = cellSize * 24;
   const chartHeight = rowHeight * 7;
 
+  // Expanded view dimensions
+  const expandedCellSize = (screenWidth - 80) / 24;
+  const expandedRowHeight = expandedCellSize + 12;
+  const expandedLabelWidth = 50;
+  const expandedChartWidth = expandedCellSize * 24;
+  const expandedChartHeight = expandedRowHeight * 7;
+
   const handleCellPress = (cell: HeatmapCell) => {
     setSelectedCell(cell);
     const dayName = DAYS[cell.day];
@@ -150,17 +197,21 @@ const TimeOfDayHeatmap = ({ history, speedUnit }: TimeOfDayHeatmapProps) => {
   };
 
   return (
-    <LiquidGlass style={styles.card} borderRadius={RADIUS.lg} contentStyle={styles.content}>
-      <View style={styles.headerRow}>
-        <View>
-          <Text style={[styles.title, { color: t.textPrimary }]}>Time of Day Performance</Text>
-          {slowestPeriod && (
-            <Text style={[styles.insight, { color: t.textMuted }]}>
-              Your ISP is slowest: {slowestPeriod.start}-{slowestPeriod.end} (avg {slowestPeriod.avg} Mbps)
-            </Text>
-          )}
-        </View>
-      </View>
+    <>
+      <LiquidGlass style={styles.card} borderRadius={RADIUS.lg} contentStyle={styles.content}>
+        <TouchableOpacity onPress={() => setIsExpanded(true)} activeOpacity={0.7}>
+          <View style={styles.headerRow}>
+            <View>
+              <Text style={[styles.title, { color: t.textPrimary }]}>Time of Day Performance</Text>
+              {slowestPeriod && (
+                <Text style={[styles.insight, { color: t.textMuted }]}>
+                  Your ISP is slowest: {slowestPeriod.start}-{slowestPeriod.end} (avg {slowestPeriod.avg} Mbps)
+                </Text>
+              )}
+            </View>
+            <Text style={[styles.tapHint, { color: t.textMuted }]}>Tap to expand</Text>
+          </View>
+        </TouchableOpacity>
 
       <View style={styles.chartContainer}>
         <Svg width={labelWidth + chartWidth} height={chartHeight + 20}>
@@ -179,18 +230,18 @@ const TimeOfDayHeatmap = ({ history, speedUnit }: TimeOfDayHeatmapProps) => {
             </SvgText>
           ))}
 
-          {/* Hour labels */}
-          {[0, 6, 12, 18].map((hour) => (
+          {/* Hour labels - 0h to 24h */}
+          {[0, 4, 8, 12, 16, 20, 24].map((hour) => (
             <SvgText
               key={hour}
-              x={labelWidth + hour * cellSize + cellSize / 2}
+              x={labelWidth + (hour === 24 ? 23.5 : hour) * cellSize + cellSize / 2}
               y={chartHeight + 14}
               fontSize="9"
               fontWeight="600"
               fill={t.axisLabelSub}
               textAnchor="middle"
             >
-              {hour === 0 ? '12a' : hour === 12 ? '12p' : hour > 12 ? `${hour - 12}p` : `${hour}a`}
+              {hour}h
             </SvgText>
           ))}
 
@@ -237,30 +288,197 @@ const TimeOfDayHeatmap = ({ history, speedUnit }: TimeOfDayHeatmapProps) => {
         </View>
       </View>
 
-      {/* Legend */}
-      <View style={styles.legendRow}>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendBox, { backgroundColor: '#166534' }]} />
-          <Text style={[styles.legendText, { color: t.textSecondary }]}>200+</Text>
+        {/* Week navigation */}
+        {weekRanges.length > 1 && (
+          <View style={styles.weekNav}>
+            <TouchableOpacity
+              style={[styles.weekNavButton, currentWeekOffset === 0 && styles.weekNavButtonDisabled]}
+              onPress={() => setCurrentWeekOffset(Math.max(0, currentWeekOffset - 1))}
+              disabled={currentWeekOffset === 0}
+            >
+              <Text style={[styles.weekNavButtonText, { color: currentWeekOffset === 0 ? t.textMuted : t.accent }]}>←</Text>
+            </TouchableOpacity>
+            <Text style={[styles.weekLabel, { color: t.textSecondary }]}>
+              Week {currentWeekOffset + 1} of {weekRanges.length}
+            </Text>
+            <TouchableOpacity
+              style={[styles.weekNavButton, currentWeekOffset === weekRanges.length - 1 && styles.weekNavButtonDisabled]}
+              onPress={() => setCurrentWeekOffset(Math.min(weekRanges.length - 1, currentWeekOffset + 1))}
+              disabled={currentWeekOffset === weekRanges.length - 1}
+            >
+              <Text style={[styles.weekNavButtonText, { color: currentWeekOffset === weekRanges.length - 1 ? t.textMuted : t.accent }]}>→</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Legend */}
+        <View style={styles.legendRow}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendBox, { backgroundColor: '#166534' }]} />
+            <Text style={[styles.legendText, { color: t.textSecondary }]}>200+</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendBox, { backgroundColor: '#22c55e' }]} />
+            <Text style={[styles.legendText, { color: t.textSecondary }]}>100+</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendBox, { backgroundColor: '#eab308' }]} />
+            <Text style={[styles.legendText, { color: t.textSecondary }]}>50+</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendBox, { backgroundColor: '#f97316' }]} />
+            <Text style={[styles.legendText, { color: t.textSecondary }]}>20+</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendBox, { backgroundColor: '#ef4444' }]} />
+            <Text style={[styles.legendText, { color: t.textSecondary }]}>&lt;20</Text>
+          </View>
         </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendBox, { backgroundColor: '#22c55e' }]} />
-          <Text style={[styles.legendText, { color: t.textSecondary }]}>100+</Text>
+      </LiquidGlass>
+
+      {/* Expanded Modal */}
+      <Modal
+        visible={isExpanded}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setIsExpanded(false)}
+      >
+        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.8)' }]}>
+          <View style={[styles.modalContent, { backgroundColor: t.background }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: t.textPrimary }]}>Time of Day Performance</Text>
+              <TouchableOpacity onPress={() => setIsExpanded(false)} style={styles.closeButton}>
+                <Text style={[styles.closeButtonText, { color: t.accent }]}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.modalScroll}>
+              <View style={styles.expandedChartContainer}>
+                <Svg width={expandedLabelWidth + expandedChartWidth} height={expandedChartHeight + 30}>
+                  {/* Day labels */}
+                  {DAYS.map((day, i) => (
+                    <SvgText
+                      key={day}
+                      x={expandedLabelWidth - 8}
+                      y={i * expandedRowHeight + expandedCellSize / 2 + 4}
+                      fontSize="14"
+                      fontWeight="700"
+                      fill={t.axisLabel}
+                      textAnchor="end"
+                    >
+                      {day}
+                    </SvgText>
+                  ))}
+
+                  {/* Hour labels - 0h to 24h */}
+                  {[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24].map((hour) => (
+                    <SvgText
+                      key={hour}
+                      x={expandedLabelWidth + (hour === 24 ? 23.5 : hour) * expandedCellSize + expandedCellSize / 2}
+                      y={expandedChartHeight + 20}
+                      fontSize="11"
+                      fontWeight="700"
+                      fill={t.axisLabelSub}
+                      textAnchor="middle"
+                    >
+                      {hour}h
+                    </SvgText>
+                  ))}
+
+                  {/* Heatmap cells */}
+                  {heatmapData.map((cell) => {
+                    const x = expandedLabelWidth + cell.hour * expandedCellSize;
+                    const y = cell.day * expandedRowHeight;
+                    const color = cell.count > 0 ? getColor(cell.avgSpeed) : t.gridLine;
+                    const isSelected = selectedCell?.day === cell.day && selectedCell?.hour === cell.hour;
+
+                    return (
+                      <Rect
+                        key={`expanded-${cell.day}-${cell.hour}`}
+                        x={x}
+                        y={y}
+                        width={expandedCellSize - 2}
+                        height={expandedCellSize - 2}
+                        rx={3}
+                        fill={color}
+                        opacity={cell.count > 0 ? 1 : 0.3}
+                        stroke={isSelected ? t.accent : 'none'}
+                        strokeWidth={isSelected ? 3 : 0}
+                      />
+                    );
+                  })}
+                </Svg>
+
+                {/* Touch overlay for expanded cells */}
+                <View style={[styles.touchOverlay, { width: expandedChartWidth, height: expandedChartHeight, marginLeft: expandedLabelWidth }]}>
+                  {heatmapData.map((cell) => (
+                    <TouchableOpacity
+                      key={`expanded-touch-${cell.day}-${cell.hour}`}
+                      style={{
+                        position: 'absolute',
+                        left: cell.hour * expandedCellSize,
+                        top: cell.day * expandedRowHeight,
+                        width: expandedCellSize,
+                        height: expandedCellSize,
+                      }}
+                      onPress={() => handleCellPress(cell)}
+                      activeOpacity={0.7}
+                    />
+                  ))}
+                </View>
+              </View>
+
+              {/* Week navigation in expanded view */}
+              {weekRanges.length > 1 && (
+                <View style={styles.weekNav}>
+                  <TouchableOpacity
+                    style={[styles.weekNavButton, currentWeekOffset === 0 && styles.weekNavButtonDisabled]}
+                    onPress={() => setCurrentWeekOffset(Math.max(0, currentWeekOffset - 1))}
+                    disabled={currentWeekOffset === 0}
+                  >
+                    <Text style={[styles.weekNavButtonText, { color: currentWeekOffset === 0 ? t.textMuted : t.accent }]}>← Previous Week</Text>
+                  </TouchableOpacity>
+                  <Text style={[styles.weekLabel, { color: t.textSecondary }]}>
+                    Week {currentWeekOffset + 1} of {weekRanges.length}
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.weekNavButton, currentWeekOffset === weekRanges.length - 1 && styles.weekNavButtonDisabled]}
+                    onPress={() => setCurrentWeekOffset(Math.min(weekRanges.length - 1, currentWeekOffset + 1))}
+                    disabled={currentWeekOffset === weekRanges.length - 1}
+                  >
+                    <Text style={[styles.weekNavButtonText, { color: currentWeekOffset === weekRanges.length - 1 ? t.textMuted : t.accent }]}>Next Week →</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Legend */}
+              <View style={styles.legendRow}>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendBox, { backgroundColor: '#166534' }]} />
+                  <Text style={[styles.legendText, { color: t.textSecondary }]}>200+ Mbps</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendBox, { backgroundColor: '#22c55e' }]} />
+                  <Text style={[styles.legendText, { color: t.textSecondary }]}>100+ Mbps</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendBox, { backgroundColor: '#eab308' }]} />
+                  <Text style={[styles.legendText, { color: t.textSecondary }]}>50+ Mbps</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendBox, { backgroundColor: '#f97316' }]} />
+                  <Text style={[styles.legendText, { color: t.textSecondary }]}>20+ Mbps</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendBox, { backgroundColor: '#ef4444' }]} />
+                  <Text style={[styles.legendText, { color: t.textSecondary }]}>&lt;20 Mbps</Text>
+                </View>
+              </View>
+            </ScrollView>
+          </View>
         </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendBox, { backgroundColor: '#eab308' }]} />
-          <Text style={[styles.legendText, { color: t.textSecondary }]}>50+</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendBox, { backgroundColor: '#f97316' }]} />
-          <Text style={[styles.legendText, { color: t.textSecondary }]}>20+</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendBox, { backgroundColor: '#ef4444' }]} />
-          <Text style={[styles.legendText, { color: t.textSecondary }]}>&lt;20</Text>
-        </View>
-      </View>
-    </LiquidGlass>
+      </Modal>
+    </>
   );
 };
 
@@ -275,6 +493,13 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     marginBottom: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  tapHint: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   title: {
     fontSize: 16,
@@ -329,6 +554,62 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 10,
     fontWeight: '600',
+  },
+  weekNav: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingHorizontal: 8,
+  },
+  weekNavButton: {
+    padding: 8,
+  },
+  weekNavButtonDisabled: {
+    opacity: 0.3,
+  },
+  weekNavButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  weekLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '95%',
+    maxHeight: '90%',
+    borderRadius: RADIUS.xl,
+    padding: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  closeButtonText: {
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  modalScroll: {
+    flex: 1,
+  },
+  expandedChartContainer: {
+    position: 'relative',
+    marginVertical: 16,
   },
 });
 

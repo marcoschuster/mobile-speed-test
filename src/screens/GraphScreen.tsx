@@ -29,6 +29,7 @@ import FlashTitle from '../components/FlashTitle';
 import LiquidGlass from '../components/LiquidGlass';
 import BackgroundHistoryGraph from '../components/BackgroundHistoryGraph';
 import TimeOfDayHeatmap from '../components/TimeOfDayHeatmap';
+import { getBackgroundHistory } from '../services/BackgroundTestService';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useTabBarMotion } from '../context/TabBarMotionContext';
 import { summarizeHistory, type HistoryItem } from '../utils/history';
@@ -531,8 +532,9 @@ const GraphScreen = () => {
   const { setTabBarMode } = useTabBarMotion();
   const isDark = t.mode === 'dark';
   const [allHistory, setAllHistory] = useState<HistoryItem[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
+  const [backgroundHistory, setBackgroundHistory] = useState<HistoryItem[]>([]);
   const [timeFilter, setTimeFilter] = useState('month');
+  const [refreshing, setRefreshing] = useState(false);
   const contentFade = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
   const speedUnitLabel = getSpeedUnitLabel(settings.speedUnit as any);
@@ -540,6 +542,8 @@ const GraphScreen = () => {
   const loadSpeedHistory = useCallback(async () => {
     const history = await SpeedTestService.getHistory();
     setAllHistory(history);
+    const bgHistory = await getBackgroundHistory();
+    setBackgroundHistory(bgHistory);
   }, []);
 
   useEffect(() => {
@@ -717,7 +721,7 @@ const GraphScreen = () => {
           ))}
         </View>
         <BackgroundHistoryGraph speedUnit={settings.speedUnit} />
-        <TimeOfDayHeatmap history={allHistory} speedUnit={settings.speedUnit} />
+        <TimeOfDayHeatmap history={allHistory} backgroundHistory={backgroundHistory} speedUnit={settings.speedUnit} />
         {renderCharts()}
       </ScrollView>
     </Animated.View>
