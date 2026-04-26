@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, Modal, ScrollView, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, Modal, ScrollView, Animated, Pressable } from 'react-native';
 import Svg, { Rect, Text as SvgText } from 'react-native-svg';
 import LiquidGlass from './LiquidGlass';
 import { RADIUS, useTheme } from '../utils/theme';
@@ -299,7 +299,7 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
           {heatmapData.map((cell) => {
             const isPulsing = pulsingCell?.day === cell.day && pulsingCell?.hour === cell.hour;
             return (
-              <TouchableOpacity
+              <Pressable
                 key={`touch-${cell.day}-${cell.hour}`}
                 style={{
                   position: 'absolute',
@@ -321,7 +321,7 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
                     ]}
                   />
                 )}
-              </TouchableOpacity>
+              </Pressable>
             );
           })}
         </View>
@@ -394,8 +394,9 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
             <ScrollView 
               style={styles.modalScroll}
               contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={true}
             >
-              <View style={styles.expandedChartContainer}>
+              <View style={styles.expandedChartWrapper}>
                 <Svg width={expandedLabelWidth + expandedChartWidth} height={expandedChartHeight + 30}>
                   {/* Day labels */}
                   {DAYS.map((day, i) => (
@@ -456,7 +457,7 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
                   {heatmapData.map((cell) => {
                     const isPulsing = pulsingCell?.day === cell.day && pulsingCell?.hour === cell.hour;
                     return (
-                      <TouchableOpacity
+                      <Pressable
                         key={`expanded-touch-${cell.day}-${cell.hour}`}
                         style={{
                           position: 'absolute',
@@ -480,7 +481,7 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
                             ]}
                           />
                         )}
-                      </TouchableOpacity>
+                      </Pressable>
                     );
                   })}
                 </View>
@@ -677,8 +678,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalScrollContent: {
+    flexGrow: 1,
+  },
+  expandedChartWrapper: {
     alignItems: 'center',
-    paddingBottom: 20,
+    paddingVertical: 20,
   },
   expandedChartContainer: {
     marginVertical: 16,
