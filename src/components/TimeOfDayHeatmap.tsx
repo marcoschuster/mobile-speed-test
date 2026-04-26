@@ -199,7 +199,12 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
   return (
     <>
       <LiquidGlass style={styles.card} borderRadius={RADIUS.lg} contentStyle={styles.content}>
-        <TouchableOpacity onPress={() => setIsExpanded(true)} activeOpacity={0.7}>
+        <TouchableOpacity 
+          onPress={() => setIsExpanded(true)} 
+          activeOpacity={0.7}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={styles.headerTouchable}
+        >
           <View style={styles.headerRow}>
             <View>
               <Text style={[styles.title, { color: t.textPrimary }]}>Time of Day Performance</Text>
@@ -209,7 +214,7 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
                 </Text>
               )}
             </View>
-            <Text style={[styles.tapHint, { color: t.textMuted }]}>Tap to expand</Text>
+            <Text style={[styles.tapHint, { color: t.accent }]}>Tap to expand →</Text>
           </View>
         </TouchableOpacity>
 
@@ -496,6 +501,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  headerTouchable: {
+    width: '100%',
   },
   tapHint: {
     fontSize: 11,
