@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Dimensions, Modal, ScrollView, Animated, Pressable } from 'react-native';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, ScrollView, Animated, Pressable, PanResponder, useWindowDimensions } from 'react-native';
 import Svg, { Rect, Text as SvgText } from 'react-native-svg';
 import LiquidGlass from './LiquidGlass';
 import { RADIUS, useTheme } from '../utils/theme';
@@ -9,6 +9,9 @@ import { type HistoryItem } from '../utils/history';
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const HOURS = 24;
 const MIN_TESTS = 20;
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 4;
+const MAX_HORIZONTAL_ZOOM = 2;
 
 interface HeatmapCell {
   day: number;
@@ -18,19 +21,38 @@ interface HeatmapCell {
 }
 
 interface TimeOfDayHeatmapProps {
-  history: HistoryItem[];
-  backgroundHistory: HistoryItem[];
+  history: HistoryItem[] | null | undefined;
+  backgroundHistory: HistoryItem[] | null | undefined;
   speedUnit: any;
 }
 
+const clampZoom = (value: number, maxZoom = MAX_ZOOM) => Math.max(MIN_ZOOM, Math.min(maxZoom, value));
+
+const getTouchDistance = (touches: Array<{ pageX: number; pageY: number }>) => {
+  if (touches.length < 2) return 0;
+  const [first, second] = touches;
+  return Math.hypot(first.pageX - second.pageX, first.pageY - second.pageY);
+};
+
 const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHeatmapProps) => {
   const { t } = useTheme();
+  const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
   const [selectedCell, setSelectedCell] = useState<HeatmapCell | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
   const [pulsingCell, setPulsingCell] = useState<{ day: number; hour: number } | null>(null);
+  const [heatmapZoom, setHeatmapZoom] = useState(1);
+  const [isHeatmapRotated, setIsHeatmapRotated] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const pinchStartDistance = useRef(0);
+  const pinchStartZoom = useRef(1);
   const speedUnitLabel = getSpeedUnitLabel(speedUnit);
+  const isLandscape = viewportWidth > viewportHeight || isHeatmapRotated;
+  const maxHeatmapZoom = isLandscape ? MAX_HORIZONTAL_ZOOM : MAX_ZOOM;
+
+  useEffect(() => {
+    setHeatmapZoom((current) => clampZoom(current, maxHeatmapZoom));
+  }, [maxHeatmapZoom]);
 
   // Pulse animation
   const triggerPulse = useCallback((day: number, hour: number) => {
@@ -52,7 +74,9 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
 
   // Merge regular and background history
   const allHistory = useMemo(() => {
-    return [...history, ...backgroundHistory];
+    const speedHistory = Array.isArray(history) ? history : [];
+    const bgHistory = Array.isArray(backgroundHistory) ? backgroundHistory : [];
+    return [...speedHistory, ...bgHistory];
   }, [history, backgroundHistory]);
 
   // Get unique weeks from data
@@ -80,7 +104,11 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
   // Aggregate data by day of week and hour for selected week
   const heatmapData = useMemo(() => {
     const grid: Map<string, { sum: number; count: number }> = new Map();
-    
+
+    if (!allHistory || allHistory.length === 0) {
+      return [];
+    }
+
     let filteredHistory = allHistory;
     if (weekRanges.length > 0) {
       const weekIndex = Math.min(currentWeekOffset, weekRanges.length - 1);
@@ -171,6 +199,34 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
     return '#ef4444'; // red
   };
 
+  const pinchResponder = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponderCapture: (event) => event.nativeEvent.touches.length >= 2,
+    onStartShouldSetPanResponder: (event) => event.nativeEvent.touches.length >= 2,
+    onMoveShouldSetPanResponderCapture: (event) => event.nativeEvent.touches.length >= 2,
+    onMoveShouldSetPanResponder: (event) => event.nativeEvent.touches.length >= 2,
+    onPanResponderGrant: (event) => {
+      pinchStartDistance.current = getTouchDistance(event.nativeEvent.touches);
+      pinchStartZoom.current = heatmapZoom;
+    },
+    onPanResponderMove: (event) => {
+      const distance = getTouchDistance(event.nativeEvent.touches);
+      if (pinchStartDistance.current <= 0 || distance <= 0) return;
+      setHeatmapZoom(clampZoom(pinchStartZoom.current * (distance / pinchStartDistance.current), maxHeatmapZoom));
+    },
+    onPanResponderRelease: () => {
+      pinchStartDistance.current = 0;
+      pinchStartZoom.current = heatmapZoom;
+    },
+    onPanResponderTerminate: () => {
+      pinchStartDistance.current = 0;
+      pinchStartZoom.current = heatmapZoom;
+    },
+  }), [heatmapZoom, maxHeatmapZoom]);
+
+  const adjustZoom = (delta: number) => {
+    setHeatmapZoom((current) => clampZoom(Number((current + delta).toFixed(2)), maxHeatmapZoom));
+  };
+
   const totalTests = allHistory.length;
 
   if (totalTests < MIN_TESTS) {
@@ -189,7 +245,7 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
     );
   }
 
-  const screenWidth = Dimensions.get('window').width;
+  const screenWidth = viewportWidth;
   const cellSize = (screenWidth - 64) / 24;
   const rowHeight = cellSize + 8;
   const labelWidth = 32;
@@ -197,11 +253,15 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
   const chartHeight = rowHeight * 7;
 
   // Expanded view dimensions
-  const expandedCellSize = (screenWidth - 80) / 24;
+  const heatmapViewportWidth = isHeatmapRotated ? viewportHeight : viewportWidth;
+  const expandedViewportWidth = isLandscape ? heatmapViewportWidth * 0.86 : heatmapViewportWidth * 0.92;
+  const expandedCellSize = ((expandedViewportWidth - 60) / 24) * heatmapZoom;
   const expandedRowHeight = expandedCellSize + 12;
   const expandedLabelWidth = 50;
   const expandedChartWidth = expandedCellSize * 24;
   const expandedChartHeight = expandedRowHeight * 7;
+  const modalWidth = isHeatmapRotated ? viewportHeight * 0.92 : viewportWidth * 0.98;
+  const modalHeight = isHeatmapRotated ? viewportWidth * 0.96 : viewportHeight * 0.88;
 
   const handleCellPress = (cell: HeatmapCell) => {
     triggerPulse(cell.day, cell.hour);
@@ -383,11 +443,42 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
         onRequestClose={() => setIsExpanded(false)}
       >
         <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.8)' }]}>
-          <View style={[styles.modalContent, { backgroundColor: t.background }]}>
+          <View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: t.bg || t.background,
+                width: modalWidth,
+                height: modalHeight,
+                maxHeight: modalHeight,
+                transform: isHeatmapRotated ? [{ rotate: '90deg' }] : undefined,
+              },
+            ]}
+          >
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: t.textPrimary }]}>Time of Day Performance</Text>
               <TouchableOpacity onPress={() => setIsExpanded(false)} style={styles.closeButton}>
                 <Text style={[styles.closeButtonText, { color: t.accent }]}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.zoomRow}>
+              <TouchableOpacity
+                style={[styles.zoomButton, { borderColor: t.glassBorderStrong || t.axisLine }]}
+                onPress={() => adjustZoom(-0.25)}
+                disabled={heatmapZoom <= MIN_ZOOM}
+              >
+                <Text style={[styles.zoomButtonText, { color: heatmapZoom <= MIN_ZOOM ? t.textMuted : t.accent }]}>−</Text>
+              </TouchableOpacity>
+              <Text style={[styles.zoomLabel, { color: t.textSecondary }]}>
+                {heatmapZoom.toFixed(2).replace(/\.00$/, '')}x
+              </Text>
+              <TouchableOpacity
+                style={[styles.zoomButton, { borderColor: t.glassBorderStrong || t.axisLine }]}
+                onPress={() => adjustZoom(0.25)}
+                disabled={heatmapZoom >= maxHeatmapZoom}
+              >
+                <Text style={[styles.zoomButtonText, { color: heatmapZoom >= maxHeatmapZoom ? t.textMuted : t.accent }]}>+</Text>
               </TouchableOpacity>
             </View>
             
@@ -396,96 +487,103 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
               contentContainerStyle={styles.modalScrollContent}
               showsVerticalScrollIndicator={true}
             >
-              <View style={styles.expandedChartWrapper}>
-                <Svg width={expandedLabelWidth + expandedChartWidth} height={expandedChartHeight + 30}>
-                  {/* Day labels */}
-                  {DAYS.map((day, i) => (
-                    <SvgText
-                      key={day}
-                      x={expandedLabelWidth - 8}
-                      y={i * expandedRowHeight + expandedCellSize / 2 + 4}
-                      fontSize="14"
-                      fontWeight="700"
-                      fill={t.axisLabel}
-                      textAnchor="end"
-                    >
-                      {day}
-                    </SvgText>
-                  ))}
-
-                  {/* Hour labels - 0h to 24h */}
-                  {[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24].map((hour) => (
-                    <SvgText
-                      key={hour}
-                      x={expandedLabelWidth + (hour === 24 ? 23.5 : hour) * expandedCellSize + expandedCellSize / 2}
-                      y={expandedChartHeight + 20}
-                      fontSize="11"
-                      fontWeight="700"
-                      fill={t.axisLabelSub}
-                      textAnchor="middle"
-                    >
-                      {hour}h
-                    </SvgText>
-                  ))}
-
-                  {/* Heatmap cells */}
-                  {heatmapData.map((cell) => {
-                    const x = expandedLabelWidth + cell.hour * expandedCellSize;
-                    const y = cell.day * expandedRowHeight;
-                    const color = cell.count > 0 ? getColor(cell.avgSpeed) : t.gridLine;
-                    const isSelected = selectedCell?.day === cell.day && selectedCell?.hour === cell.hour;
-
-                    return (
-                      <Rect
-                        key={`expanded-${cell.day}-${cell.hour}`}
-                        x={x}
-                        y={y}
-                        width={expandedCellSize - 2}
-                        height={expandedCellSize - 2}
-                        rx={3}
-                        fill={color}
-                        opacity={cell.count > 0 ? 1 : 0.3}
-                        stroke={isSelected ? t.accent : 'none'}
-                        strokeWidth={isSelected ? 3 : 0}
-                      />
-                    );
-                  })}
-                </Svg>
-
-                {/* Touch overlay for expanded cells */}
-                <View style={[styles.touchOverlay, { width: expandedChartWidth, height: expandedChartHeight, marginLeft: expandedLabelWidth }]}>
-                  {heatmapData.map((cell) => {
-                    const isPulsing = pulsingCell?.day === cell.day && pulsingCell?.hour === cell.hour;
-                    return (
-                      <Pressable
-                        key={`expanded-touch-${cell.day}-${cell.hour}`}
-                        style={{
-                          position: 'absolute',
-                          left: cell.hour * expandedCellSize,
-                          top: cell.day * expandedRowHeight,
-                          width: expandedCellSize,
-                          height: expandedCellSize,
-                        }}
-                        onPress={() => handleCellPress(cell)}
+              <ScrollView
+                horizontal
+                style={styles.expandedHorizontalScroll}
+                contentContainerStyle={styles.expandedHorizontalContent}
+                showsHorizontalScrollIndicator={true}
+              >
+                <View style={styles.expandedChartWrapper} {...pinchResponder.panHandlers}>
+                  <Svg width={expandedLabelWidth + expandedChartWidth} height={expandedChartHeight + 30}>
+                    {/* Day labels */}
+                    {DAYS.map((day, i) => (
+                      <SvgText
+                        key={day}
+                        x={expandedLabelWidth - 8}
+                        y={i * expandedRowHeight + expandedCellSize / 2 + 4}
+                        fontSize={Math.min(14 * heatmapZoom, 22)}
+                        fontWeight="700"
+                        fill={t.axisLabel}
+                        textAnchor="end"
                       >
-                        {isPulsing && (
-                          <Animated.View
-                            style={[
-                              styles.pulseRing,
-                              {
-                                transform: [{ scale: pulseAnim }],
-                                borderColor: t.accent,
-                                width: expandedCellSize,
-                                height: expandedCellSize,
-                              },
-                            ]}
-                          />
-                        )}
-                      </Pressable>
-                    );
-                  })}
+                        {day}
+                      </SvgText>
+                    ))}
+
+                    {/* Hour labels - 0h to 24h */}
+                    {[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24].map((hour) => (
+                      <SvgText
+                        key={hour}
+                        x={expandedLabelWidth + (hour === 24 ? 23.5 : hour) * expandedCellSize + expandedCellSize / 2}
+                        y={expandedChartHeight + 20}
+                        fontSize={Math.min(11 * heatmapZoom, 18)}
+                        fontWeight="700"
+                        fill={t.axisLabelSub}
+                        textAnchor="middle"
+                      >
+                        {hour}h
+                      </SvgText>
+                    ))}
+
+                    {/* Heatmap cells */}
+                    {heatmapData.map((cell) => {
+                      const x = expandedLabelWidth + cell.hour * expandedCellSize;
+                      const y = cell.day * expandedRowHeight;
+                      const color = cell.count > 0 ? getColor(cell.avgSpeed) : t.gridLine;
+                      const isSelected = selectedCell?.day === cell.day && selectedCell?.hour === cell.hour;
+
+                      return (
+                        <Rect
+                          key={`expanded-${cell.day}-${cell.hour}`}
+                          x={x}
+                          y={y}
+                          width={expandedCellSize - 2}
+                          height={expandedCellSize - 2}
+                          rx={3}
+                          fill={color}
+                          opacity={cell.count > 0 ? 1 : 0.3}
+                          stroke={isSelected ? t.accent : 'none'}
+                          strokeWidth={isSelected ? 3 : 0}
+                        />
+                      );
+                    })}
+                  </Svg>
+
+                  {/* Touch overlay for expanded cells */}
+                  <View style={[styles.touchOverlay, { width: expandedChartWidth, height: expandedChartHeight, marginLeft: expandedLabelWidth }]}>
+                    {heatmapData.map((cell) => {
+                      const isPulsing = pulsingCell?.day === cell.day && pulsingCell?.hour === cell.hour;
+                      return (
+                        <Pressable
+                          key={`expanded-touch-${cell.day}-${cell.hour}`}
+                          style={{
+                            position: 'absolute',
+                            left: cell.hour * expandedCellSize,
+                            top: cell.day * expandedRowHeight,
+                            width: expandedCellSize,
+                            height: expandedCellSize,
+                          }}
+                          onPress={() => handleCellPress(cell)}
+                        >
+                          {isPulsing && (
+                            <Animated.View
+                              style={[
+                                styles.pulseRing,
+                                {
+                                  transform: [{ scale: pulseAnim }],
+                                  borderColor: t.accent,
+                                  width: expandedCellSize,
+                                  height: expandedCellSize,
+                                },
+                              ]}
+                            />
+                          )}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
                 </View>
-              </View>
+              </ScrollView>
 
               {/* Week navigation in expanded view */}
               {weekRanges.length > 1 && (
@@ -534,6 +632,19 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
                 </View>
               </View>
             </ScrollView>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.rotateButton, { borderColor: t.glassBorderStrong || t.axisLine, backgroundColor: t.glassSoft || 'rgba(255,255,255,0.06)' }]}
+                onPress={() => {
+                  setIsHeatmapRotated((value) => !value);
+                }}
+              >
+                <Text style={[styles.rotateButtonText, { color: t.accent }]}>
+                  {isHeatmapRotated ? 'Normal view' : 'Rotate view'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -652,12 +763,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    width: '98%',
     borderRadius: RADIUS.xl,
     padding: 20,
     alignItems: 'center',
   },
   modalHeader: {
+    width: '100%',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -674,20 +785,74 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
   },
+  zoomRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 10,
+  },
+  zoomButton: {
+    width: 38,
+    height: 34,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  zoomButtonText: {
+    fontSize: 20,
+    lineHeight: 22,
+    fontWeight: '900',
+  },
+  zoomLabel: {
+    minWidth: 44,
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '800',
+  },
   modalScroll: {
+    width: '100%',
     flex: 1,
   },
   modalScrollContent: {
     alignItems: 'center',
     paddingBottom: 20,
   },
+  expandedHorizontalScroll: {
+    width: '100%',
+  },
+  expandedHorizontalContent: {
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
   expandedChartWrapper: {
+    position: 'relative',
     alignItems: 'center',
     paddingVertical: 20,
     width: '100%',
   },
   expandedChartContainer: {
     marginVertical: 16,
+  },
+  modalActions: {
+    width: '100%',
+    alignItems: 'center',
+    paddingTop: 10,
+  },
+  rotateButton: {
+    minHeight: 42,
+    minWidth: 150,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  rotateButtonText: {
+    fontSize: 13,
+    fontWeight: '800',
   },
 });
 
