@@ -133,19 +133,33 @@ const InteractiveChart = ({
   formatXLabel, isDark, t, chartId,
 }: InteractiveChartProps) => {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const chartDataPoints = Array.isArray(dataPoints) ? dataPoints : [];
+  const pointCount = chartDataPoints.length;
+  const chartDatasets = Array.isArray(datasets)
+    ? datasets
+        .filter((dataset) => dataset && Array.isArray(dataset.values))
+        .map((dataset) => ({
+          ...dataset,
+          values: Array.from({ length: pointCount }, (_, index) => {
+            const value = dataset.values[index];
+            return Number.isFinite(value) ? value : 0;
+          }),
+        }))
+    : [];
+  const chartLegends = Array.isArray(legends) ? legends : [];
 
   const yLabelWidth = 48;
   const xLabelHeight = 50;
   const paddingTop = 20;
   const paddingRight = 16;
   const paddingBottom = 8;
-  const chartAreaWidth = Math.max(screenWidth - 32 - yLabelWidth - paddingRight, dataPoints.length * 60);
+  const chartAreaWidth = Math.max(screenWidth - 32 - yLabelWidth - paddingRight, pointCount * 60);
   const chartHeight = 200;
   const totalWidth = yLabelWidth + chartAreaWidth + paddingRight;
   const totalHeight = paddingTop + chartHeight + xLabelHeight + paddingBottom;
 
   let globalMax = 0;
-  datasets.forEach((ds) => { ds.values.forEach((v) => { if (v > globalMax) globalMax = v; }); });
+  chartDatasets.forEach((ds) => { ds.values.forEach((v) => { if (v > globalMax) globalMax = v; }); });
 
   const getNiceTicks = (maxVal: number, tickCount: number = 5): { ticks: number[]; max: number } => {
     if (maxVal <= 0) maxVal = 10;
@@ -167,13 +181,13 @@ const InteractiveChart = ({
   const { ticks, max: yMax } = getNiceTicks(globalMax);
 
   const xPos = (index: number): number => {
-    if (dataPoints.length === 1) return yLabelWidth + chartAreaWidth / 2;
-    return yLabelWidth + (index / (dataPoints.length - 1)) * chartAreaWidth;
+    if (pointCount === 1) return yLabelWidth + chartAreaWidth / 2;
+    return yLabelWidth + (index / (pointCount - 1)) * chartAreaWidth;
   };
   const yPos = (value: number): number => paddingTop + chartHeight - (value / yMax) * chartHeight;
 
   const maxXLabels = 6;
-  const step = Math.max(1, Math.ceil(dataPoints.length / maxXLabels));
+  const step = Math.max(1, Math.ceil(pointCount / maxXLabels));
   const baselineY = paddingTop + chartHeight;
 
   const chartTintBg = t.accentTintSoft;
@@ -191,10 +205,10 @@ const InteractiveChart = ({
   };
 
   // Build tooltip content for selected index
-  const tooltipData = selectedIndex !== null ? (() => {
-    const dp = dataPoints[selectedIndex];
+  const tooltipData = selectedIndex !== null && chartDataPoints[selectedIndex] ? (() => {
+    const dp = chartDataPoints[selectedIndex];
     const cx = xPos(selectedIndex);
-    const values = datasets.map((ds) => ({
+    const values = chartDatasets.map((ds) => ({
       label: ds.label,
       value: ds.values[selectedIndex],
       color: ds.color,
@@ -228,6 +242,8 @@ const InteractiveChart = ({
   // Hit target size for each dot
   const HIT_SIZE = 36;
 
+  if (pointCount === 0 || chartDatasets.length === 0) return null;
+
   return (
     <LiquidGlass style={cStyles.chartCard} borderRadius={RADIUS.lg} contentStyle={cStyles.chartCardContent}>
       <View style={[cStyles.gradientTint, { backgroundColor: chartTintBg }]} />
@@ -235,7 +251,7 @@ const InteractiveChart = ({
         <FlashTitle text={title.toUpperCase()} size="small" interval={5000} center disableFlash />
       </View>
       <View style={cStyles.legendRow}>
-        {legends.map((leg, i) => (
+        {chartLegends.map((leg, i) => (
           <View key={i} style={cStyles.legendItem}>
             <View style={[cStyles.legendDot, { backgroundColor: leg.color }]} />
             <Text style={[cStyles.legendText, { color: t.textSecondary, fontFamily: FONT_FAMILY }]}>{leg.label}</Text>
@@ -276,7 +292,7 @@ const InteractiveChart = ({
             <Line x1={yLabelWidth} y1={baselineY} x2={yLabelWidth + chartAreaWidth} y2={baselineY} stroke={t.axisLine} strokeWidth="1" />
 
             {/* Area fills */}
-            {datasets.map((ds, dsIndex) => {
+            {chartDatasets.map((ds, dsIndex) => {
               if (!areaGradients || !areaGradients[dsIndex]) return null;
               const pts = ds.values.map((val, i) => ({ x: xPos(i), y: yPos(val) }));
               const areaD = buildAreaPath(pts, baselineY);
@@ -286,8 +302,8 @@ const InteractiveChart = ({
             })}
 
             {/* X-axis labels */}
-            {dataPoints.map((item, i) => {
-              if (i % step !== 0 && i !== dataPoints.length - 1) return null;
+            {chartDataPoints.map((item, i) => {
+              if (i % step !== 0 && i !== pointCount - 1) return null;
               const x = xPos(i);
               const lbl = formatXLabel(item.date);
               const parts = lbl.split(' ');
@@ -309,7 +325,7 @@ const InteractiveChart = ({
             })}
 
             {/* Spline lines */}
-            {datasets.map((ds, dsIndex) => {
+            {chartDatasets.map((ds, dsIndex) => {
               const pts = ds.values.map((val, i) => ({ x: xPos(i), y: yPos(val) }));
               const splineD = buildSplinePath(pts);
               return (
@@ -318,7 +334,7 @@ const InteractiveChart = ({
             })}
 
             {/* Data dots — dimmed when another dot is selected */}
-            {datasets.map((ds, dsIndex) =>
+            {chartDatasets.map((ds, dsIndex) =>
               ds.values.map((val, i) => {
                 const isSelected = selectedIndex === i;
                 const hasSelection = selectedIndex !== null;
@@ -422,11 +438,11 @@ const InteractiveChart = ({
           </Svg>
 
           {/* Native touch targets overlaid on each data point */}
-          {dataPoints.map((_, i) => {
+          {chartDataPoints.map((_, i) => {
             const cx = xPos(i);
             // Use the topmost dot position as the center of the hit area
-            const minCy = Math.min(...datasets.map((ds) => yPos(ds.values[i])));
-            const maxCy = Math.max(...datasets.map((ds) => yPos(ds.values[i])));
+            const minCy = Math.min(...chartDatasets.map((ds) => yPos(ds.values[i])));
+            const maxCy = Math.max(...chartDatasets.map((ds) => yPos(ds.values[i])));
             const centerY = (minCy + maxCy) / 2;
             const hitH = Math.max(HIT_SIZE, maxCy - minCy + HIT_SIZE);
 
@@ -541,9 +557,9 @@ const GraphScreen = () => {
 
   const loadSpeedHistory = useCallback(async () => {
     const history = await SpeedTestService.getHistory();
-    setAllHistory(history);
+    setAllHistory(Array.isArray(history) ? history : []);
     const bgHistory = await getBackgroundHistory();
-    setBackgroundHistory(bgHistory);
+    setBackgroundHistory(Array.isArray(bgHistory) ? bgHistory : []);
   }, []);
 
   useEffect(() => {
@@ -564,7 +580,7 @@ const GraphScreen = () => {
     if (offsetY <= 12) {
       setTabBarMode('expanded');
     } else if (delta > 6) {
-      setTabBarMode('compact');
+      setTabBarMode('hidden');
     } else if (delta < -6) {
       setTabBarMode('expanded');
     }

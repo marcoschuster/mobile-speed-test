@@ -623,7 +623,7 @@ const HistoryScreen = () => {
     if (offsetY <= 12) {
       setTabBarMode('expanded');
     } else if (delta > 6) {
-      setTabBarMode('compact');
+      setTabBarMode('hidden');
     } else if (delta < -6) {
       setTabBarMode('expanded');
     }

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
-import { View, Animated, StyleSheet, Platform, Easing } from 'react-native';
+import { View, Pressable, Animated, StyleSheet, Platform, Easing } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Polygon } from 'react-native-svg';
@@ -222,17 +222,26 @@ const CustomHeader = ({ title, navigation, routeName }) => {
 };
 
 // ── Custom Tab Bar with gradient fade ──────────────────────────────────────
-const CustomTabBar = ({ state, descriptors, navigation }) => {
+const CustomTabBar = ({ state, navigation }) => {
   const { t } = useTheme();
   const insets = useSafeAreaInsets();
   const { tabBarTranslateY, tabBarScale, tabBarOpacity, tabBarMode } = useTabBarMotion();
   const isCompact = tabBarMode === 'compact';
+  const navAccent = t.accent || '#F5C400';
+  const navAccentDark = t.accentDark || navAccent;
+  const navAccentLight = t.accentLight || '#FFFFFF';
+  const navBase = t.mode === 'dark' ? '#0A1420' : '#F8FAFC';
 
   return (
     <View pointerEvents="box-none" style={[tabStyles.tabBarShell, { paddingBottom: Math.max(insets.bottom, 10) }]}>
       <Animated.View
         style={[
-          tabStyles.tabRow,
+          tabStyles.tabBarFrame,
+          {
+            backgroundColor: withAlpha(navBase, t.mode === 'dark' ? 0.96 : 0.94),
+            borderColor: withAlpha(navAccent, t.mode === 'dark' ? 0.34 : 0.24),
+            shadowColor: navAccentDark,
+          },
           {
             transform: [
               { translateY: tabBarTranslateY },
@@ -242,71 +251,65 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
           },
         ]}
       >
-        {state.routes.map((route, index) => {
-          const { options } = descriptors[route.key];
-          const isFocused = state.index === index;
+        <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: withAlpha(navBase, t.mode === 'dark' ? 0.96 : 0.94) }]} />
+        <View pointerEvents="none" style={[tabStyles.tabBarTopLine, { backgroundColor: withAlpha(navAccentLight, t.mode === 'dark' ? 0.2 : 0.16) }]} />
+        <View pointerEvents="none" style={[tabStyles.tabBarWash, { backgroundColor: withAlpha(navAccent, isCompact ? 0.04 : 0.06) }]} />
+        <View style={tabStyles.tabRow}>
+          {state.routes.map((route, index) => {
+            const isFocused = state.index === index;
 
-          const onPress = () => {
-            const event = navigation.emit({
-              type: 'tabPress',
-              target: route.key,
-              canPreventDefault: true,
-            });
+            const onPress = () => {
+              const event = navigation.emit({
+                type: 'tabPress',
+                target: route.key,
+                canPreventDefault: true,
+              });
 
-            if (!isFocused && !event.defaultPrevented) {
-              SoundEngine.playNavTick();
-              navigation.navigate(route.name);
-            }
-          };
+              if (!isFocused && !event.defaultPrevented) {
+                SoundEngine.playNavTick();
+                navigation.navigate(route.name);
+              }
+            };
 
-          return (
-            <LiquidGlass
-              key={index}
-              onPress={onPress}
-              borderRadius={22}
-              blurIntensity={28}
-              glow={false}
-              style={[
-                tabStyles.tabButtonShell,
-                {
-                  opacity: isFocused ? 1 : 0.72,
-                  backgroundColor: isCompact
-                    ? 'transparent'
-                    : isFocused
-                      ? withAlpha(t.surfaceElevated || t.glassStrong || '#08111a', 0.98)
-                      : withAlpha(t.glassStrong || '#08111a', 0.92),
-                  borderColor: isCompact ? withAlpha('#FFFFFF', 0.08) : withAlpha('#FFFFFF', 0.16),
-                  shadowColor: isFocused ? t.accent : t.accentDark,
-                  shadowOffset: { width: 0, height: 0 },
-                  shadowOpacity: isFocused ? 0.34 : 0.14,
-                  shadowRadius: isFocused ? 38 : 16,
-                  elevation: isFocused ? 18 : 4,
-                },
-              ]}
-              contentStyle={tabStyles.tabButtonContent}
-            >
-              <Animated.View
-                style={[
-                  tabStyles.tabInner,
-                  isFocused && {
-                    shadowColor: t.accent,
-                    shadowOffset: { width: 0, height: 0 },
-                    shadowOpacity: isCompact ? 0.4 : 0.62,
-                    shadowRadius: isCompact ? 28 : 38,
-                    elevation: isCompact ? 12 : 18,
-                    transform: [{ scale: 1.05 }],
+            return (
+              <Pressable
+                key={route.key}
+                onPress={onPress}
+                accessibilityRole="tab"
+                accessibilityLabel={route.name}
+                accessibilityState={{ selected: isFocused }}
+                android_ripple={{ color: withAlpha(navAccentLight, 0.18), borderless: false }}
+                style={({ pressed }) => [
+                  tabStyles.tabButtonShell,
+                  {
+                    opacity: pressed ? 0.82 : (isFocused ? 1 : 0.74),
+                    transform: [{ scale: pressed ? 0.96 : 1 }],
                   },
                 ]}
               >
-                <TabIcon
-                  focused={isFocused}
-                  iconType={getTabIconType(route.name)}
-                  color={isFocused ? '#FFFFFF' : t.navInactive}
-                />
-              </Animated.View>
-            </LiquidGlass>
-          );
-        })}
+                <Animated.View
+                  style={[
+                    tabStyles.tabInner,
+                    isFocused && [
+                      tabStyles.tabInnerActive,
+                      {
+                        backgroundColor: navAccent,
+                        borderColor: withAlpha('#FFFFFF', 0.58),
+                        shadowColor: navAccent,
+                      },
+                    ],
+                  ]}
+                >
+                  <TabIcon
+                    focused={isFocused}
+                    iconType={getTabIconType(route.name)}
+                    color={isFocused ? '#07111f' : (t.mode === 'dark' ? withAlpha('#FFFFFF', 0.78) : withAlpha('#07111f', 0.62))}
+                  />
+                </Animated.View>
+              </Pressable>
+            );
+          })}
+        </View>
       </Animated.View>
     </View>
   );
@@ -521,34 +524,61 @@ const tabStyles = StyleSheet.create({
   },
   tabBarShell: {
     position: 'absolute',
-    left: 12,
-    right: 12,
+    left: 18,
+    right: 18,
     bottom: 0,
     minHeight: 80,
+  },
+  tabBarFrame: {
+    height: 68,
+    borderRadius: 34,
+    borderWidth: 1,
+    overflow: 'hidden',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.28,
+    shadowRadius: 28,
+    elevation: 16,
+  },
+  tabBlurFallback: {
+    flex: 1,
+  },
+  tabBarWash: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  tabBarTopLine: {
+    position: 'absolute',
+    right: 0,
+    left: 0,
+    top: 0,
+    height: 1,
   },
   tabRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 80,
+    height: 68,
     justifyContent: 'center',
-    paddingHorizontal: 4,
-    gap: 10,
+    paddingHorizontal: 8,
+    gap: 6,
   },
   tabButtonShell: {
     flex: 1,
-    minHeight: 56,
-  },
-  tabButtonContent: {
-    flex: 1,
-    padding: 0,
     alignItems: 'center',
     justifyContent: 'center',
+    height: 56,
+    borderRadius: 28,
   },
   tabInner: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  tabInnerActive: {
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.55,
+    shadowRadius: 26,
+    elevation: 14,
   },
 });
