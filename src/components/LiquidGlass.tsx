@@ -1,6 +1,7 @@
-import React, { ReactNode, useMemo, useRef, useState } from 'react';
+import React, { ReactNode, useRef, useState } from 'react';
 import {
   Animated,
+  Easing,
   GestureResponderEvent,
   LayoutChangeEvent,
   Pressable,
@@ -11,7 +12,6 @@ import {
   ViewStyle,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import { useTheme, withAlpha } from '../utils/theme';
 
 export const GLASS = {
@@ -45,6 +45,7 @@ interface LiquidGlassProps extends Omit<PressableProps, 'style'> {
   borderRadius?: number;
   blurIntensity?: number;
   glow?: boolean;
+  enableRipple?: boolean;
 }
 
 const LiquidGlass = ({
@@ -54,6 +55,7 @@ const LiquidGlass = ({
   borderRadius = GLASS.radius,
   blurIntensity = GLASS.blur,
   glow = true,
+  enableRipple = true,
   onPress,
   onPressIn,
   disabled,
@@ -63,10 +65,8 @@ const LiquidGlass = ({
   const [ripples, setRipples] = useState<Ripple[]>([]);
   const [layout, setLayout] = useState({ width: 0, height: 0 });
   const rippleId = useRef(0);
+  const ripplesRef = useRef<Ripple[]>([]);
   const pressableRef = useRef<View>(null);
-  const gradientId = useMemo(() => `liquid-ripple-${Math.random().toString(36).slice(2, 10)}`, []);
-  const hazeIdPrimary = useMemo(() => `liquid-haze-primary-${Math.random().toString(36).slice(2, 10)}`, []);
-  const hazeIdSecondary = useMemo(() => `liquid-haze-secondary-${Math.random().toString(36).slice(2, 10)}`, []);
   const surfaceTone = t.glass || GLASS.bg;
   const borderTone = t.glassBorderAccent || GLASS.border;
   const blurFallbackColor = t.glassStrong || 'rgba(255, 255, 255, 0.04)';
@@ -82,27 +82,32 @@ const LiquidGlass = ({
   const handlePressIn = (event: GestureResponderEvent) => {
     const { locationX, locationY } = event.nativeEvent;
 
-    if (layout.width > 0 && layout.height > 0) {
-      const size = Math.max(layout.width, layout.height) * 2;
+    if (enableRipple && layout.width > 0 && layout.height > 0) {
+      const size = Math.max(layout.width, layout.height) * 1.35;
       const scale = new Animated.Value(0);
-      const opacity = new Animated.Value(0.6);
+      const opacity = new Animated.Value(0.72);
       const id = rippleId.current += 1;
+      const newRipple = { id, x: locationX, y: locationY, size, scale, opacity };
 
-      setRipples((prev) => [...prev, { id, x: locationX, y: locationY, size, scale, opacity }]);
+      ripplesRef.current = [...ripplesRef.current, newRipple];
+      setRipples([...ripplesRef.current]);
 
       Animated.parallel([
         Animated.timing(scale, {
-          toValue: 3,
-          duration: 600,
+          toValue: 1,
+          duration: 520,
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(opacity, {
           toValue: 0,
-          duration: 600,
+          duration: 520,
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
       ]).start(() => {
-        setRipples((prev) => prev.filter((ripple) => ripple.id !== id));
+        ripplesRef.current = ripplesRef.current.filter((ripple) => ripple.id !== id);
+        setRipples([...ripplesRef.current]);
       });
     }
 
@@ -158,25 +163,13 @@ const LiquidGlass = ({
                 left: ripple.x - ripple.size / 2,
                 top: ripple.y - ripple.size / 2,
                 opacity: ripple.opacity,
+                borderRadius: ripple.size / 2,
+                borderColor: t.accent,
+                backgroundColor: withAlpha(t.accent, t.mode === 'dark' ? 0.12 : 0.08),
                 transform: [{ scale: ripple.scale }],
               },
             ]}
-          >
-            <Svg width={ripple.size} height={ripple.size}>
-              <Defs>
-                <RadialGradient id={gradientId} cx="50%" cy="50%" r="50%">
-                  <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.8" />
-                  <Stop offset="100%" stopColor={t.accentLight || t.accent} stopOpacity="0" />
-                </RadialGradient>
-              </Defs>
-              <Circle
-                cx={ripple.size / 2}
-                cy={ripple.size / 2}
-                r={ripple.size / 2}
-                fill={`url(#${gradientId})`}
-              />
-            </Svg>
-          </Animated.View>
+          />
         ))}
       </View>
 
@@ -232,6 +225,7 @@ const styles = StyleSheet.create({
   },
   rippleWrap: {
     position: 'absolute',
+    borderWidth: 1.5,
   },
 });
 
