@@ -37,6 +37,7 @@ const getTouchDistance = (touches: Array<{ pageX: number; pageY: number }>) => {
 const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHeatmapProps) => {
   const { t } = useTheme();
   const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
+  const [selectedCell, setSelectedCell] = useState<HeatmapCell | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
   const [pulsingCell, setPulsingCell] = useState<{ day: number; hour: number } | null>(null);
@@ -264,6 +265,7 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
 
   const handleCellPress = (cell: HeatmapCell) => {
     triggerPulse(cell.day, cell.hour);
+    setSelectedCell(cell);
     const dayName = DAYS[cell.day];
     const hourStr = cell.hour === 0 ? '12am' : cell.hour === 12 ? '12pm' : cell.hour > 12 ? `${cell.hour - 12}pm` : `${cell.hour}am`;
     const avgSpeed = convertSpeedFromMbps(cell.avgSpeed, speedUnit).toFixed(1);
@@ -271,7 +273,7 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
     Alert.alert(
       `${dayName}s ${hourStr}`,
       `Avg ${avgSpeed} ${speedUnitLabel} (${cell.count} test${cell.count !== 1 ? 's' : ''})`,
-      [{ text: 'OK' }]
+      [{ text: 'OK', onPress: () => setSelectedCell(null) }]
     );
   };
 
@@ -333,6 +335,7 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
             const x = labelWidth + cell.hour * cellSize;
             const y = cell.day * rowHeight;
             const color = cell.count > 0 ? getColor(cell.avgSpeed) : t.gridLine;
+            const isSelected = selectedCell?.day === cell.day && selectedCell?.hour === cell.hour;
 
             return (
               <Rect
@@ -344,6 +347,8 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
                 rx={2}
                 fill={color}
                 opacity={cell.count > 0 ? 1 : 0.3}
+                stroke={isSelected ? t.accent : 'none'}
+                strokeWidth={isSelected ? 2 : 0}
               />
             );
           })}
@@ -525,6 +530,7 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
                       const x = expandedLabelWidth + cell.hour * expandedCellSize;
                       const y = cell.day * expandedRowHeight;
                       const color = cell.count > 0 ? getColor(cell.avgSpeed) : t.gridLine;
+                      const isSelected = selectedCell?.day === cell.day && selectedCell?.hour === cell.hour;
 
                       return (
                         <Rect
@@ -536,6 +542,8 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
                           rx={3}
                           fill={color}
                           opacity={cell.count > 0 ? 1 : 0.3}
+                          stroke={isSelected ? t.accent : 'none'}
+                          strokeWidth={isSelected ? 3 : 0}
                         />
                       );
                     })}
