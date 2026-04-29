@@ -35,9 +35,8 @@ const getTouchDistance = (touches: Array<{ pageX: number; pageY: number }>) => {
 };
 
 const formatHourLabel = (hour: number) => {
-  if (hour === 0) return '12am';
-  if (hour === 12) return '12pm';
-  return hour > 12 ? `${hour - 12}pm` : `${hour}am`;
+  const displayHour = hour === 0 ? 24 : hour;
+  return `${displayHour}:00`;
 };
 
 const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHeatmapProps) => {
@@ -199,9 +198,8 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
 
     const endHour = (startHour + 2) % HOURS;
     const formatHour = (h: number) => {
-      if (h === 0) return '12am';
-      if (h === 12) return '12pm';
-      return h > 12 ? `${h - 12}pm` : `${h}am`;
+      const displayHour = h === 0 ? 24 : h;
+      return `${displayHour}:00`;
     };
 
     return {
@@ -272,19 +270,19 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
   }
 
   const screenWidth = viewportWidth;
-  const cellSize = (screenWidth - 64) / 25;
+  const cellSize = (screenWidth - 64) / 24;
   const rowHeight = cellSize + 8;
   const labelWidth = 32;
-  const chartWidth = cellSize * 25;
+  const chartWidth = cellSize * 24;
   const chartHeight = rowHeight * 7;
 
   // Expanded view dimensions
   const heatmapViewportWidth = isHeatmapRotated ? viewportHeight : viewportWidth;
   const expandedViewportWidth = isLandscape ? heatmapViewportWidth * 0.86 : heatmapViewportWidth * 0.92;
-  const expandedCellSize = ((expandedViewportWidth - 60) / 25) * heatmapZoom;
+  const expandedCellSize = ((expandedViewportWidth - 60) / 24) * heatmapZoom;
   const expandedRowHeight = expandedCellSize + 12;
   const expandedLabelWidth = 50;
-  const expandedChartWidth = expandedCellSize * 25;
+  const expandedChartWidth = expandedCellSize * 24;
   const expandedChartHeight = expandedRowHeight * 7;
   const modalWidth = isHeatmapRotated ? viewportHeight * 0.92 : viewportWidth * 0.98;
   const modalHeight = isHeatmapRotated ? viewportWidth * 0.96 : viewportHeight * 0.88;
@@ -360,20 +358,23 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
             </SvgText>
           ))}
 
-          {/* Hour labels - 0h to 24h */}
-          {[0, 4, 8, 12, 16, 20, 24].map((hour) => (
-            <SvgText
-              key={hour}
-              x={labelWidth + (hour === 24 ? 24 : hour) * cellSize + (hour === 24 ? 0 : cellSize / 2)}
-              y={chartHeight + 14}
-              fontSize="9"
-              fontWeight="600"
-              fill={t.axisLabelSub}
-              textAnchor={hour === 24 ? 'end' : 'middle'}
-            >
-              {hour}h
-            </SvgText>
-          ))}
+          {/* Hour labels - 1h to 24h */}
+          {[1, 5, 9, 13, 17, 21, 24].map((displayHour) => {
+            const dataHour = displayHour === 24 ? 0 : displayHour;
+            return (
+              <SvgText
+                key={displayHour}
+                x={labelWidth + dataHour * cellSize + cellSize / 2}
+                y={chartHeight + 14}
+                fontSize="9"
+                fontWeight="600"
+                fill={t.axisLabelSub}
+                textAnchor="middle"
+              >
+                {displayHour}h
+              </SvgText>
+            );
+          })}
 
           {/* Heatmap cells */}
           {heatmapData.map((cell) => {
@@ -529,20 +530,23 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
                       </SvgText>
                     ))}
 
-                    {/* Hour labels - 0h to 24h */}
-                    {[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24].map((hour) => (
-                      <SvgText
-                        key={hour}
-                        x={expandedLabelWidth + (hour === 24 ? 24 : hour) * expandedCellSize + (hour === 24 ? 0 : expandedCellSize / 2)}
-                        y={expandedChartHeight + 20}
-                        fontSize={Math.min(11 * heatmapZoom, 18)}
-                        fontWeight="700"
-                        fill={t.axisLabelSub}
-                        textAnchor={hour === 24 ? 'end' : 'middle'}
-                      >
-                        {hour}h
-                      </SvgText>
-                    ))}
+                    {/* Hour labels - 1h to 24h */}
+                    {[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 24].map((displayHour) => {
+                      const dataHour = displayHour === 24 ? 0 : displayHour;
+                      return (
+                        <SvgText
+                          key={displayHour}
+                          x={expandedLabelWidth + dataHour * expandedCellSize + expandedCellSize / 2}
+                          y={expandedChartHeight + 20}
+                          fontSize={Math.min(11 * heatmapZoom, 18)}
+                          fontWeight="700"
+                          fill={t.axisLabelSub}
+                          textAnchor="middle"
+                        >
+                          {displayHour}h
+                        </SvgText>
+                      );
+                    })}
 
                     {/* Heatmap cells */}
                     {heatmapData.map((cell) => {
