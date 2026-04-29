@@ -27,9 +27,11 @@ export const BACKGROUND_INTERVALS = [
 ];
 
 const QUICK_DOWNLOAD_MS = 4000;
+const QUICK_UPLOAD_MS = 4000;
 const HISTORY_LIMIT = 500;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_INTERVAL_SECONDS = 30 * 60;
+const QUICK_UPLOAD_CHUNK_BYTES = 2 * 1024 * 1024;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -195,6 +197,97 @@ const runQuickDownload = async () => {
   };
 };
 
+const createUploadPayload = (size) => {
+  if (typeof Uint8Array !== 'undefined') {
+    return new Uint8Array(size);
+  }
+
+  return '0'.repeat(size);
+};
+
+const runSingleUploadChunk = (payload, timeoutMs) => (
+  new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    let lastLoaded = 0;
+    let totalBytes = 0;
+    let settled = false;
+    const startedAt = Date.now();
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      const elapsedSeconds = Math.max((Date.now() - startedAt) / 1000, 0.001);
+      resolve({ totalBytes, elapsedSeconds });
+    };
+
+    const timeoutId = setTimeout(() => {
+      try {
+        xhr.abort();
+      } catch (_error) {}
+      finish();
+    }, timeoutMs);
+
+    xhr.open('POST', `https://speed.cloudflare.com/__up?_=${Date.now()}`);
+    xhr.timeout = timeoutMs + 1000;
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+    xhr.setRequestHeader('Cache-Control', 'no-cache');
+
+    xhr.upload.onprogress = (event) => {
+      if (event.loaded > lastLoaded) {
+        totalBytes += event.loaded - lastLoaded;
+        lastLoaded = event.loaded;
+      }
+    };
+    xhr.onload = () => {
+      clearTimeout(timeoutId);
+      finish();
+    };
+    xhr.onerror = () => {
+      clearTimeout(timeoutId);
+      finish();
+    };
+    xhr.ontimeout = () => {
+      clearTimeout(timeoutId);
+      finish();
+    };
+
+    try {
+      xhr.send(payload);
+    } catch (_error) {
+      clearTimeout(timeoutId);
+      finish();
+    }
+  })
+);
+
+const runQuickUpload = async () => {
+  const startedAt = Date.now();
+  const deadline = startedAt + QUICK_UPLOAD_MS;
+  const payload = createUploadPayload(QUICK_UPLOAD_CHUNK_BYTES);
+  let totalBytes = 0;
+
+  while (Date.now() < deadline) {
+    const remainingMs = deadline - Date.now();
+    if (remainingMs < 500) break;
+
+    const result = await runSingleUploadChunk(payload, remainingMs);
+    totalBytes += result.totalBytes;
+
+    if (result.totalBytes <= 0) {
+      break;
+    }
+  }
+
+  const elapsedSeconds = Math.max((Date.now() - startedAt) / 1000, 0.001);
+  const speed = (totalBytes * 8) / (elapsedSeconds * 1000000);
+
+  return {
+    speed: Math.round(speed * 100) / 100,
+    totalBytes,
+    elapsedMs: Math.round(elapsedSeconds * 1000),
+  };
+};
+
 export const getBackgroundHistory = async () => {
   try {
     const stored = await AsyncStorage.getItem(BACKGROUND_TEST_HISTORY_KEY);
@@ -206,6 +299,9 @@ export const getBackgroundHistory = async () => {
     const byId = new Map();
 
     [...jsHistory, ...nativeHistory].forEach((item) => {
+      if (!item || typeof item !== 'object' || !item.date) {
+        return;
+      }
       const key = item.id || `${item.date}-${item.source || 'background'}`;
       byId.set(key, item);
     });
@@ -222,7 +318,7 @@ const saveBackgroundResult = async (result) => {
   const history = await getBackgroundHistory();
   const cutoff = Date.now() - (7 * DAY_MS);
   const nextHistory = [result, ...history]
-    .filter((item) => new Date(item.date).getTime() >= cutoff)
+    .filter((item) => item && typeof item === 'object' && new Date(item.date).getTime() >= cutoff)
     .slice(0, HISTORY_LIMIT);
 
   await AsyncStorage.setItem(BACKGROUND_TEST_HISTORY_KEY, JSON.stringify(nextHistory));
@@ -277,9 +373,10 @@ const maybeRecordDropAlert = async (result, previousHistory) => {
 
 export const runBackgroundTestNow = async () => {
   const previousHistory = await getBackgroundHistory();
-  const [ping, download] = await Promise.all([
+  const [ping, download, upload] = await Promise.all([
     runQuickPing(),
     runQuickDownload(),
+    runQuickUpload(),
   ]);
 
   const result = {
@@ -288,9 +385,13 @@ export const runBackgroundTestNow = async () => {
     timestamp: Date.now(),
     download: download.speed,
     ping,
-    upload: 0,
-    totalBytes: download.totalBytes,
-    durationMs: download.elapsedMs,
+    upload: upload.speed,
+    totalBytes: download.totalBytes + upload.totalBytes,
+    downloadBytes: download.totalBytes,
+    uploadBytes: upload.totalBytes,
+    durationMs: Math.max(download.elapsedMs, upload.elapsedMs),
+    downloadDurationMs: download.elapsedMs,
+    uploadDurationMs: upload.elapsedMs,
     source: 'background',
   };
 
