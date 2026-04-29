@@ -9,7 +9,16 @@ export interface HistoryItem {
   mosScore: number;
   bufferbloatGrade: string;
   bufferbloatMs: number;
-  testProvider: string;
+  serverHost?: string | null;
+  provider?: string;
+  testProvider?: string;
+  networkType?: string | null;
+  carrierName?: string | null;
+  rsrp?: number | null;
+  rsrq?: number | null;
+  band?: string | null;
+  earfcn?: number | null;
+  cellId?: string | null;
 }
 
 export const buildHistoryCsv = (history: HistoryItem[]): string => {
@@ -17,9 +26,9 @@ export const buildHistoryCsv = (history: HistoryItem[]): string => {
     return '';
   }
 
-  const header = 'Date,Download (Mbps),Upload (Mbps),Ping (ms),Jitter (ms),Packet Loss (%),MOS Score,Bufferbloat Grade,Bufferbloat (ms),Provider';
+  const header = 'Date,Download (Mbps),Upload (Mbps),Ping (ms),Jitter (ms),Packet Loss (%),MOS Score,Bufferbloat Grade,Bufferbloat (ms),Provider,Network Type,Carrier,RSRP (dBm),RSRQ (dB),Band,EARFCN,Cell ID';
   const rows = history.map(item =>
-    `${item.date},${item.download.toFixed(2)},${item.upload.toFixed(2)},${item.ping.toFixed(2)},${item.jitter.toFixed(2)},${item.packetLoss.toFixed(2)},${item.mosScore.toFixed(2)},${item.bufferbloatGrade},${item.bufferbloatMs.toFixed(2)},${item.testProvider}`
+    `${item.date},${item.download.toFixed(2)},${item.upload.toFixed(2)},${item.ping.toFixed(2)},${item.jitter.toFixed(2)},${item.packetLoss.toFixed(2)},${item.mosScore.toFixed(2)},${item.bufferbloatGrade},${item.bufferbloatMs.toFixed(2)},${item.provider || item.testProvider || ''},${item.networkType || ''},${item.carrierName || ''},${item.rsrp ?? ''},${item.rsrq ?? ''},${item.band || ''},${item.earfcn ?? ''},${item.cellId || ''}`
   );
 
   return [header, ...rows].join('\n');
