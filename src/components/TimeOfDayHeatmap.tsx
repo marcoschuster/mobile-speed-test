@@ -297,7 +297,8 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
     targetCellSize: number,
     targetRowHeight: number,
   ) => {
-    const hour = Math.max(0, Math.min(HOURS - 1, Math.floor(locationX / targetCellSize)));
+    const hourIndex = Math.floor(locationX / targetCellSize);
+    const hour = Math.max(1, Math.min(HOURS, hourIndex + 1));
     const day = Math.max(0, Math.min(DAYS.length - 1, Math.floor(locationY / targetRowHeight)));
     const cell = heatmapData.find((item) => item.day === day && item.hour === hour);
     if (cell) handleCellPress(cell);
