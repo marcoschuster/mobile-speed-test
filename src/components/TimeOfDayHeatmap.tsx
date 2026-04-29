@@ -272,19 +272,19 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
   }
 
   const screenWidth = viewportWidth;
-  const cellSize = (screenWidth - 64) / 24;
+  const cellSize = (screenWidth - 64) / 25;
   const rowHeight = cellSize + 8;
   const labelWidth = 32;
-  const chartWidth = cellSize * 24;
+  const chartWidth = cellSize * 25;
   const chartHeight = rowHeight * 7;
 
   // Expanded view dimensions
   const heatmapViewportWidth = isHeatmapRotated ? viewportHeight : viewportWidth;
   const expandedViewportWidth = isLandscape ? heatmapViewportWidth * 0.86 : heatmapViewportWidth * 0.92;
-  const expandedCellSize = ((expandedViewportWidth - 60) / 24) * heatmapZoom;
+  const expandedCellSize = ((expandedViewportWidth - 60) / 25) * heatmapZoom;
   const expandedRowHeight = expandedCellSize + 12;
   const expandedLabelWidth = 50;
-  const expandedChartWidth = expandedCellSize * 24;
+  const expandedChartWidth = expandedCellSize * 25;
   const expandedChartHeight = expandedRowHeight * 7;
   const modalWidth = isHeatmapRotated ? viewportHeight * 0.92 : viewportWidth * 0.98;
   const modalHeight = isHeatmapRotated ? viewportWidth * 0.96 : viewportHeight * 0.88;
@@ -364,12 +364,12 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
           {[0, 4, 8, 12, 16, 20, 24].map((hour) => (
             <SvgText
               key={hour}
-              x={labelWidth + (hour === 24 ? 23.5 : hour) * cellSize + cellSize / 2}
+              x={labelWidth + (hour === 24 ? 24 : hour) * cellSize + (hour === 24 ? 0 : cellSize / 2)}
               y={chartHeight + 14}
               fontSize="9"
               fontWeight="600"
               fill={t.axisLabelSub}
-              textAnchor="middle"
+              textAnchor={hour === 24 ? 'end' : 'middle'}
             >
               {hour}h
             </SvgText>
@@ -533,12 +533,12 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
                     {[0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24].map((hour) => (
                       <SvgText
                         key={hour}
-                        x={expandedLabelWidth + (hour === 24 ? 23.5 : hour) * expandedCellSize + expandedCellSize / 2}
+                        x={expandedLabelWidth + (hour === 24 ? 24 : hour) * expandedCellSize + (hour === 24 ? 0 : expandedCellSize / 2)}
                         y={expandedChartHeight + 20}
                         fontSize={Math.min(11 * heatmapZoom, 18)}
                         fontWeight="700"
                         fill={t.axisLabelSub}
-                        textAnchor="middle"
+                        textAnchor={hour === 24 ? 'end' : 'middle'}
                       >
                         {hour}h
                       </SvgText>
