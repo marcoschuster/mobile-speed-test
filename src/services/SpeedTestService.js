@@ -140,7 +140,8 @@ class SpeedTestService {
 
     try {
 
-      const history = await this.getHistory();
+      const loadedHistory = await this.getHistory();
+      const history = Array.isArray(loadedHistory) ? loadedHistory : [];
 
       history.unshift(testResult);
 
@@ -168,7 +169,11 @@ class SpeedTestService {
 
       const stored = await AsyncStorage.getItem('speedTestHistory');
 
-      return stored ? JSON.parse(stored) : [];
+      const parsed = stored ? JSON.parse(stored) : [];
+
+      return Array.isArray(parsed)
+        ? parsed.filter((item) => item && typeof item === 'object' && item.date)
+        : [];
 
     } catch (e) {
 
@@ -240,7 +245,8 @@ class SpeedTestService {
 
     try {
 
-      const history = await this.getHistory();
+      const loadedHistory = await this.getHistory();
+      const history = Array.isArray(loadedHistory) ? loadedHistory : [];
 
       const index = history.findIndex((item) => this._historyItemsMatch(item, targetEntry));
 
