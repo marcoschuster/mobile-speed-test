@@ -736,9 +736,9 @@ const GraphScreen = () => {
             </LiquidGlass>
           ))}
         </View>
+        {renderCharts()}
         <BackgroundHistoryGraph speedUnit={settings.speedUnit} />
         <TimeOfDayHeatmap history={allHistory} backgroundHistory={backgroundHistory} speedUnit={settings.speedUnit} />
-        {renderCharts()}
       </ScrollView>
     </Animated.View>
   );
