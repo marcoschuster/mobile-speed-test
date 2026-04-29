@@ -154,6 +154,56 @@ const buildServices = ({ canStream4K, canStreamHd, canStreamSd }) => {
   }));
 };
 
+const getStreamingGrade = ({
+  quality,
+  measuredDownloadMbps,
+  sustainableProfile,
+  canStream4K,
+  canStreamHd,
+  canStreamSd,
+}) => {
+  const ttf = sustainableProfile?.timeToFirstFrameMs;
+  const rebuffers = sustainableProfile?.rebufferCount ?? Number.POSITIVE_INFINITY;
+
+  if (
+    quality === '4K60' &&
+    measuredDownloadMbps >= 60 &&
+    typeof ttf === 'number' &&
+    ttf <= 1000 &&
+    rebuffers === 0
+  ) {
+    return 'S';
+  }
+
+  if (
+    canStream4K &&
+    measuredDownloadMbps >= 35 &&
+    typeof ttf === 'number' &&
+    ttf <= 1500 &&
+    rebuffers === 0
+  ) {
+    return 'A+';
+  }
+
+  if (canStream4K) {
+    return 'A';
+  }
+
+  if (canStreamHd && measuredDownloadMbps >= 10 && rebuffers <= 1) {
+    return 'B';
+  }
+
+  if (canStreamHd || canStreamSd) {
+    return 'C';
+  }
+
+  if (measuredDownloadMbps >= 1) {
+    return 'D';
+  }
+
+  return 'F';
+};
+
 const buildAssessment = (tests, measuredDownloadMbps = 0) => {
   const normalizedDownloadMbps = normalizeMetric(measuredDownloadMbps, 1) || 0;
   const sustainableProfile = tests.find((test) => test.canSustain) || null;
@@ -172,8 +222,17 @@ const buildAssessment = (tests, measuredDownloadMbps = 0) => {
   ));
   const canStreamHd = !canStream4K && hasStableHd;
   const canStreamSd = QUALITY_RANK[quality] >= QUALITY_RANK['480p'];
+  const grade = getStreamingGrade({
+    quality,
+    measuredDownloadMbps: normalizedDownloadMbps,
+    sustainableProfile,
+    canStream4K,
+    canStreamHd,
+    canStreamSd,
+  });
 
   return {
+    grade,
     quality,
     playbackQuality,
     bandwidthQualityCap,
