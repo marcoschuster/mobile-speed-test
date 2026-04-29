@@ -358,8 +358,8 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
             </SvgText>
           ))}
 
-          {/* Hour labels - 1h to 24h */}
-          {[1, 5, 9, 13, 17, 21, 24].map((hour) => (
+          {/* Hour labels - 1h to 23h */}
+          {[1, 5, 9, 13, 17, 21].map((hour) => (
             <SvgText
               key={hour}
               x={labelWidth + (hour - 1) * cellSize + cellSize / 2}
@@ -528,8 +528,8 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
                       </SvgText>
                     ))}
 
-                    {/* Hour labels - 1h to 24h */}
-                    {[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 24].map((hour) => (
+                    {/* Hour labels - 1h to 23h */}
+                    {[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23].map((hour) => (
                       <SvgText
                         key={hour}
                         x={expandedLabelWidth + (hour - 1) * expandedCellSize + expandedCellSize / 2}
