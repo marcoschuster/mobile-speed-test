@@ -18,6 +18,7 @@ type ProbeMetrics = {
 };
 
 export type VideoStreamingAssessment = {
+  grade?: string;
   quality: string;
   playbackQuality?: string;
   bandwidthQualityCap?: string;
@@ -41,6 +42,13 @@ const formatTtf = (value: number | null | undefined) => {
   return `${(value / 1000).toFixed(1)}s`;
 };
 
+const getGradeColor = (grade: string | undefined, t: any) => {
+  if (grade === 'S' || grade === 'A+') return t.success;
+  if (grade === 'A' || grade === 'B') return t.accent;
+  if (grade === 'C' || grade === 'D') return '#FF9830';
+  return t.danger;
+};
+
 const VideoQualityCard = ({ result }: { result: VideoStreamingAssessment | null }) => {
   const { t } = useTheme();
 
@@ -55,11 +63,13 @@ const VideoQualityCard = ({ result }: { result: VideoStreamingAssessment | null 
       : result.canStreamSd
         ? 'SD streaming looks supported'
         : 'Streaming is not stable on this result';
-  const accentColor = result.canStream4K || result.canStreamHd
-    ? t.success
-    : result.canStreamSd
-      ? t.accent
-      : t.danger;
+  const accentColor = result.grade
+    ? getGradeColor(result.grade, t)
+    : result.canStream4K || result.canStreamHd
+      ? t.success
+      : result.canStreamSd
+        ? t.accent
+        : t.danger;
 
   return (
     <LiquidGlass style={styles.card} contentStyle={styles.content}>
@@ -74,11 +84,16 @@ const VideoQualityCard = ({ result }: { result: VideoStreamingAssessment | null 
             },
           ]}
         >
-          <Text style={[styles.qualityPillText, { color: accentColor }]}>{result.quality}</Text>
+          <Text style={[styles.qualityPillText, { color: accentColor }]}>{result.grade || result.quality}</Text>
         </View>
       </View>
 
       <Text style={[styles.headline, { color: t.textPrimary }]}>{headline}</Text>
+      {result.grade ? (
+        <Text style={[styles.gradeDetail, { color: t.textMuted }]}>
+          Grade {result.grade} • Max stable profile: {result.quality}
+        </Text>
+      ) : null}
       <Text style={[styles.summary, { color: t.textSecondary }]}>{result.summary}</Text>
 
       {result.playbackQuality && result.bandwidthQualityCap && result.playbackQuality !== result.quality ? (
@@ -193,6 +208,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     marginBottom: 10,
+  },
+  gradeDetail: {
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: '700',
+    marginTop: -2,
+    marginBottom: 8,
   },
   limitNote: {
     fontSize: 11,
