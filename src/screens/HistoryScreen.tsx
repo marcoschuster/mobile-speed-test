@@ -159,7 +159,9 @@ const Calendar = ({ history, selectedDate, onSelectDate, onClearSelection }: Cal
   // Build a Set of date keys that have test history
   const testDays = useMemo(() => {
     const set = new Set<string>();
-    history.forEach((item) => {
+    const safeHistory = Array.isArray(history) ? history : [];
+    safeHistory.forEach((item) => {
+      if (!item?.date) return;
       const d = new Date(item.date);
       set.add(toDateKey(d));
     });
@@ -602,7 +604,7 @@ const HistoryScreen = () => {
 
   const loadHistory = useCallback(async () => {
     const historyData = await SpeedTestService.getHistory();
-    setHistory(historyData);
+    setHistory(Array.isArray(historyData) ? historyData : []);
   }, []);
 
   useEffect(() => {
