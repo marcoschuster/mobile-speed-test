@@ -493,6 +493,32 @@ const AppSettingsScreen = () => {
         <SettingsRow label="Saved tests">
           <Text style={[styles.infoText, { color: t.textSecondary }]}>{historyCount}</Text>
         </SettingsRow>
+        <SettingsRow label="Detailed cellular radio">
+          <Switch
+            value={settings.detailedCellularRadioEnabled}
+            onValueChange={(value) => {
+              if (!value) {
+                updateSettings({ detailedCellularRadioEnabled: false });
+                return;
+              }
+
+              Alert.alert(
+                'Enable detailed cellular stats',
+                'This Android-only feature reads serving-cell radio details like RSRP, RSRQ, band, and cell ID during tests. Android may describe this as phone access and also request location because these radio APIs are permission-gated.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Enable', onPress: () => updateSettings({ detailedCellularRadioEnabled: true }) },
+                ],
+              );
+            }}
+            trackColor={{ false: t.switchTrackOff, true: t.accent }}
+            thumbColor={settings.detailedCellularRadioEnabled ? COLORS.white : t.switchThumbOff}
+            ios_backgroundColor={t.switchTrackOff}
+          />
+        </SettingsRow>
+        <Text style={[styles.helperText, { color: t.textMuted }]}>
+          Off by default. When enabled, Android may request phone and location permissions to read serving-cell radio data.
+        </Text>
         <SettingsRow label="Privacy documents" isLast>
           <TouchableOpacity onPress={() => openLegalSection('privacy')} activeOpacity={0.7}>
             <Text style={[styles.linkText, { color: t.accent }]}>Open</Text>
@@ -623,6 +649,13 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 13,
     fontWeight: '600',
+  },
+  helperText: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: -4,
+    marginBottom: 14,
+    paddingHorizontal: 20,
   },
   linkText: {
     fontSize: 13,
