@@ -63,124 +63,85 @@ export const formatBytes = (value: number): string => {
 
 export const formatPing = (value: number): string => `${Math.round(Number.isFinite(value) ? value : 0)} ms`;
 
+const getLatencyNote = (ping: number): string => {
+  if (!Number.isFinite(ping) || ping <= 0) return 'Latency was not measured.';
+  if (ping <= 30) return 'Latency is responsive enough for calls and gaming.';
+  if (ping <= 60) return 'Latency is normal for streaming, calls, and casual gaming.';
+  if (ping <= 100) return 'Latency is noticeable but fine for video and everyday use.';
+  if (ping <= 150) return 'Latency is high, so games and live calls may feel delayed.';
+  return 'Latency is very high, so real-time gaming and calls may feel unstable.';
+};
+
 export const getConnectionQuality = ({ download = 0, upload = 0, ping = 0 }: ConnectionQualityParams): ConnectionQualityResult => {
-  // Tier 1: Gigabit fiber - Ultra premium
-  if (download >= 1000 && upload >= 500 && ping <= 10) {
+  const latencyNote = getLatencyNote(ping);
+
+  if (download >= 1000 && upload >= 300) {
     return {
-      label: 'Ultra Premium',
-      summary: 'Gigabit fiber: Perfect for 8K streaming, VR, and massive parallel downloads.',
+      label: ping <= 30 ? 'Ultra Premium' : 'Ultra Bandwidth',
+      summary: `Gigabit-class connection: excellent for 8K/4K streaming, huge downloads, cloud backups, and many devices. ${latencyNote}`,
     };
   }
 
-  // Tier 2: High-end fiber - Outstanding
-  if (download >= 500 && upload >= 200 && ping <= 15) {
+  if (download >= 500 && upload >= 100) {
     return {
-      label: 'Outstanding',
-      summary: 'High-speed fiber: Ideal for 4K HDR streaming, cloud gaming, and large file transfers.',
+      label: ping <= 40 ? 'Outstanding' : 'Outstanding Bandwidth',
+      summary: `Very fast connection: great for 4K HDR streaming, cloud gaming when latency is low, and large uploads. ${latencyNote}`,
     };
   }
 
-  // Tier 3: Premium fiber - Excellent
-  if (download >= 300 && upload >= 100 && ping <= 20) {
+  if (download >= 300 && upload >= 50) {
     return {
-      label: 'Excellent',
-      summary: 'Premium fiber: Great for 4K streaming, video conferencing, and heavy multi-tasking.',
+      label: ping <= 50 ? 'Excellent' : 'Excellent Bandwidth',
+      summary: `Excellent for 4K streaming, video calls, large downloads, and busy households. ${latencyNote}`,
     };
   }
 
-  // Tier 4: High cable - Very Good
-  if (download >= 200 && upload >= 50 && ping <= 25) {
+  if (download >= 150 && upload >= 25) {
     return {
-      label: 'Very Good',
-      summary: 'High-speed cable: Smooth 4K streaming, fast downloads, and solid remote work.',
+      label: ping <= 60 ? 'Very Good' : 'Very Good Bandwidth',
+      summary: `Very good for 4K streaming, work calls, gaming downloads, and several active devices. ${latencyNote}`,
     };
   }
 
-  // Tier 5: Good cable - Great
-  if (download >= 150 && upload >= 30 && ping <= 30) {
+  if (download >= 75 && upload >= 10) {
     return {
-      label: 'Great',
-      summary: 'Fast cable: Excellent for HD streaming, gaming, and family use.',
+      label: ping <= 80 ? 'Good' : 'Good Bandwidth',
+      summary: `Good everyday connection: handles HD/4K streaming, video calls, browsing, and normal multi-device use. ${latencyNote}`,
     };
   }
 
-  // Tier 6: Solid cable - Very Good
-  if (download >= 100 && upload >= 20 && ping <= 40) {
+  if (download >= 50 && upload >= 5) {
     return {
-      label: 'Very Good',
-      summary: 'Solid connection: Good for video calls, streaming, and most online activities.',
+      label: ping <= 100 ? 'Solid' : 'Solid Bandwidth',
+      summary: `Solid connection: 50 Mbps down is enough for HD streaming, typical 4K streaming, calls, browsing, and downloads. Uploads are fine for calls and light cloud work. ${latencyNote}`,
     };
   }
 
-  // Tier 7: Good connection - Good
-  if (download >= 75 && upload >= 15 && ping <= 50) {
+  if (download >= 25 && upload >= 3) {
     return {
-      label: 'Good',
-      summary: 'Reliable: Comfortable for HD streaming, browsing, and work from home.',
+      label: 'Decent',
+      summary: `Decent for HD streaming, browsing, and video calls. 4K may work on one device but has less headroom. ${latencyNote}`,
     };
   }
 
-  // Tier 8: Decent connection - Good
-  if (download >= 50 && upload >= 10 && ping <= 60) {
+  if (download >= 10 && upload >= 1) {
     return {
-      label: 'Good',
-      summary: 'Decent: Handles HD streaming, video calls, and multiple devices well.',
+      label: 'Basic',
+      summary: `Basic but usable: browsing, messaging, music, and one SD/HD stream should work, but multitasking and uploads are limited. ${latencyNote}`,
     };
   }
 
-  // Tier 9: Solid WiFi - Above Average
-  if (download >= 40 && upload >= 8 && ping <= 70) {
+  if (download >= 5 && upload >= 0.5) {
     return {
-      label: 'Above Average',
-      summary: 'Solid WiFi: Good for streaming, browsing, and light work from home.',
+      label: 'Limited',
+      summary: `Limited connection: browsing and low-resolution streaming may work, but calls, downloads, and multiple devices will struggle. ${latencyNote}`,
     };
   }
 
-  // Tier 10: Average connection - Average
-  if (download >= 30 && upload >= 5 && ping <= 80) {
+  if (download >= 1 && upload >= 0.1) {
     return {
-      label: 'Average',
-      summary: 'Standard: Suitable for SD/HD streaming and general daily use.',
-    };
-  }
-
-  // Tier 11: Moderate connection - Fair
-  if (download >= 20 && upload >= 3 && ping <= 100) {
-    return {
-      label: 'Fair',
-      summary: 'Moderate: Usable for streaming and browsing, but may slow with multiple users.',
-    };
-  }
-
-  // Tier 12: Basic connection - Fair
-  if (download >= 15 && upload >= 2 && ping <= 120) {
-    return {
-      label: 'Fair',
-      summary: 'Basic: Works for browsing and light streaming, uploads will be slow.',
-    };
-  }
-
-  // Tier 13: Limited connection - Poor
-  if (download >= 10 && upload >= 1 && ping <= 150) {
-    return {
-      label: 'Poor',
-      summary: 'Limited: Suitable for light browsing, video may buffer, uploads very slow.',
-    };
-  }
-
-  // Tier 14: Weak connection - Very Poor
-  if (download >= 5 && upload >= 0.5 && ping <= 200) {
-    return {
-      label: 'Very Poor',
-      summary: 'Weak: Only basic browsing, streaming not recommended.',
-    };
-  }
-
-  // Tier 15: Minimal connection - Extremely Poor
-  if (download >= 1 && upload >= 0.1 && ping <= 300) {
-    return {
-      label: 'Extremely Poor',
-      summary: 'Minimal: Only text browsing possible, very slow experience.',
+      label: 'Very Limited',
+      summary: `Very limited: messaging and light pages may load, but video and calls are likely unreliable. ${latencyNote}`,
     };
   }
 
