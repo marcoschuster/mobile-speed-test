@@ -46,3 +46,7 @@ bun.lockb
 # generated native folders
 /ios
 /android
+
+# module build directories
+modules/*/android/build/
+modules/*/ios/build/
