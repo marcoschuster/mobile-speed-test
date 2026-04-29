@@ -35,8 +35,7 @@ const getTouchDistance = (touches: Array<{ pageX: number; pageY: number }>) => {
 };
 
 const formatHourLabel = (hour: number) => {
-  const displayHour = hour === 0 ? 24 : hour;
-  return `${displayHour}:00`;
+  return `${hour}:00`;
 };
 
 const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHeatmapProps) => {
@@ -144,14 +143,16 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
       const hour = date.getHours();
       const speed = item.download || 0;
 
-      const key = `${day}-${hour}`;
+      // Shift hour from 0-23 to 1-24
+      const displayHour = hour === 0 ? 24 : hour;
+      const key = `${day}-${displayHour}`;
       const existing = grid.get(key) || { sum: 0, count: 0 };
       grid.set(key, { sum: existing.sum + speed, count: existing.count + 1 });
     });
 
     const cells: HeatmapCell[] = [];
     for (let day = 0; day < 7; day++) {
-      for (let hour = 0; hour < HOURS; hour++) {
+      for (let hour = 1; hour <= HOURS; hour++) {
         const key = `${day}-${hour}`;
         const data = grid.get(key);
         cells.push({
@@ -168,8 +169,8 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
 
   // Find slowest time period
   const slowestPeriod = useMemo(() => {
-    const hourAverages: number[] = new Array(HOURS).fill(0);
-    const hourCounts: number[] = new Array(HOURS).fill(0);
+    const hourAverages: number[] = new Array(HOURS + 1).fill(0);
+    const hourCounts: number[] = new Array(HOURS + 1).fill(0);
 
     const safeHeatmapData = Array.isArray(heatmapData) ? heatmapData : [];
     safeHeatmapData.forEach((cell) => {
@@ -179,15 +180,17 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
       }
     });
 
-    const avgByHour = hourAverages.map((sum, i) => 
+    const avgByHour = hourAverages.map((sum, i) =>
       hourCounts[i] > 0 ? sum / hourCounts[i] : 0
     );
 
-    // Find slowest 3-hour window
+    // Find slowest 3-hour window (1-24 range)
     let minAvg = Infinity;
-    let startHour = 0;
-    for (let i = 0; i < HOURS; i++) {
-      const windowAvg = (avgByHour[i] + avgByHour[(i + 1) % HOURS] + avgByHour[(i + 2) % HOURS]) / 3;
+    let startHour = 1;
+    for (let i = 1; i <= HOURS; i++) {
+      const next1 = i === HOURS ? 1 : i + 1;
+      const next2 = i === HOURS - 1 ? 1 : i === HOURS ? 2 : i + 2;
+      const windowAvg = (avgByHour[i] + avgByHour[next1] + avgByHour[next2]) / 3;
       if (windowAvg < minAvg && windowAvg > 0) {
         minAvg = windowAvg;
         startHour = i;
@@ -196,11 +199,8 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
 
     if (minAvg === Infinity) return null;
 
-    const endHour = (startHour + 2) % HOURS;
-    const formatHour = (h: number) => {
-      const displayHour = h === 0 ? 24 : h;
-      return `${displayHour}:00`;
-    };
+    const endHour = startHour === HOURS - 1 ? 24 : startHour === HOURS ? 1 : startHour + 2;
+    const formatHour = (h: number) => `${h}:00`;
 
     return {
       start: formatHour(startHour),
@@ -359,26 +359,24 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
           ))}
 
           {/* Hour labels - 1h to 24h */}
-          {[1, 5, 9, 13, 17, 21, 24].map((displayHour) => {
-            const dataHour = displayHour === 24 ? 0 : displayHour;
-            return (
-              <SvgText
-                key={displayHour}
-                x={labelWidth + dataHour * cellSize + cellSize / 2}
-                y={chartHeight + 14}
-                fontSize="9"
-                fontWeight="600"
-                fill={t.axisLabelSub}
-                textAnchor="middle"
-              >
-                {displayHour}h
-              </SvgText>
-            );
-          })}
+          {[1, 5, 9, 13, 17, 21, 24].map((hour) => (
+            <SvgText
+              key={hour}
+              x={labelWidth + (hour - 1) * cellSize + cellSize / 2}
+              y={chartHeight + 14}
+              fontSize="9"
+              fontWeight="600"
+              fill={t.axisLabelSub}
+              textAnchor="middle"
+              letterSpacing="-0.5"
+            >
+              {`${hour}h`}
+            </SvgText>
+          ))}
 
           {/* Heatmap cells */}
           {heatmapData.map((cell) => {
-            const x = labelWidth + cell.hour * cellSize;
+            const x = labelWidth + (cell.hour - 1) * cellSize;
             const y = cell.day * rowHeight;
             const color = cell.count > 0 ? getColor(cell.avgSpeed) : t.gridLine;
             const isSelected = selectedCell?.day === cell.day && selectedCell?.hour === cell.hour;
@@ -531,26 +529,24 @@ const TimeOfDayHeatmap = ({ history, backgroundHistory, speedUnit }: TimeOfDayHe
                     ))}
 
                     {/* Hour labels - 1h to 24h */}
-                    {[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 24].map((displayHour) => {
-                      const dataHour = displayHour === 24 ? 0 : displayHour;
-                      return (
-                        <SvgText
-                          key={displayHour}
-                          x={expandedLabelWidth + dataHour * expandedCellSize + expandedCellSize / 2}
-                          y={expandedChartHeight + 20}
-                          fontSize={Math.min(11 * heatmapZoom, 18)}
-                          fontWeight="700"
-                          fill={t.axisLabelSub}
-                          textAnchor="middle"
-                        >
-                          {displayHour}h
-                        </SvgText>
-                      );
-                    })}
+                    {[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 24].map((hour) => (
+                      <SvgText
+                        key={hour}
+                        x={expandedLabelWidth + (hour - 1) * expandedCellSize + expandedCellSize / 2}
+                        y={expandedChartHeight + 20}
+                        fontSize={Math.min(11 * heatmapZoom, 18)}
+                        fontWeight="700"
+                        fill={t.axisLabelSub}
+                        textAnchor="middle"
+                        letterSpacing="-0.5"
+                      >
+                        {`${hour}h`}
+                      </SvgText>
+                    ))}
 
                     {/* Heatmap cells */}
                     {heatmapData.map((cell) => {
-                      const x = expandedLabelWidth + cell.hour * expandedCellSize;
+                      const x = expandedLabelWidth + (cell.hour - 1) * expandedCellSize;
                       const y = cell.day * expandedRowHeight;
                       const color = cell.count > 0 ? getColor(cell.avgSpeed) : t.gridLine;
                       const isSelected = selectedCell?.day === cell.day && selectedCell?.hour === cell.hour;
