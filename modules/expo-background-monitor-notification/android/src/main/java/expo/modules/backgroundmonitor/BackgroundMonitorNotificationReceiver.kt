@@ -16,6 +16,7 @@ class BackgroundMonitorNotificationReceiver : BroadcastReceiver() {
       .getSharedPreferences(ExpoBackgroundMonitorNotificationModule.PREFERENCES_NAME, Context.MODE_PRIVATE)
       .edit()
       .putBoolean(ExpoBackgroundMonitorNotificationModule.DISABLED_KEY, true)
+      .remove(ExpoBackgroundMonitorNotificationModule.NEXT_RUN_AT_KEY)
       .apply()
 
     val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager

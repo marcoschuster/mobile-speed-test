@@ -6,6 +6,7 @@ import androidx.work.WorkerParameters
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.Instant
@@ -23,7 +24,9 @@ class BackgroundMonitorWorker(
     return try {
       val ping = runPing()
       val download = runDownload()
-      saveResult(ping, download)
+      val upload = runUpload()
+      saveResult(ping, download, upload)
+      ExpoBackgroundMonitorNotificationModule.updateNextRunEstimate(applicationContext)
       Result.success()
     } catch (_: Throwable) {
       Result.retry()
@@ -95,7 +98,44 @@ class BackgroundMonitorWorker(
     )
   }
 
-  private fun saveResult(ping: Int, download: DownloadResult) {
+  private fun runUpload(): TransferResult {
+    val startedAt = System.currentTimeMillis()
+    val deadline = startedAt + UPLOAD_WINDOW_MS
+    var totalBytes = 0L
+    val buffer = ByteArray(64 * 1024)
+
+    try {
+      val connection = URL("https://speed.cloudflare.com/__up?_=$startedAt")
+        .openConnection() as HttpURLConnection
+      connection.requestMethod = "POST"
+      connection.connectTimeout = 3000
+      connection.readTimeout = 1500
+      connection.doOutput = true
+      connection.useCaches = false
+      connection.setRequestProperty("Content-Type", "application/octet-stream")
+      connection.setChunkedStreamingMode(64 * 1024)
+
+      BufferedOutputStream(connection.outputStream).use { output ->
+        while (System.currentTimeMillis() < deadline) {
+          output.write(buffer)
+          totalBytes += buffer.size
+        }
+        output.flush()
+      }
+      connection.responseCode
+      connection.disconnect()
+    } catch (_: Throwable) {}
+
+    val elapsedSeconds = max((System.currentTimeMillis() - startedAt).toDouble() / 1000.0, 0.001)
+    val mbps = (totalBytes.toDouble() * 8.0) / (elapsedSeconds * 1_000_000.0)
+    return TransferResult(
+      speed = Math.round(mbps * 100.0) / 100.0,
+      totalBytes = totalBytes,
+      elapsedMs = (elapsedSeconds * 1000.0).toInt(),
+    )
+  }
+
+  private fun saveResult(ping: Int, download: DownloadResult, upload: TransferResult) {
     val prefs = applicationContext.getSharedPreferences(
       ExpoBackgroundMonitorNotificationModule.PREFERENCES_NAME,
       Context.MODE_PRIVATE,
@@ -112,9 +152,13 @@ class BackgroundMonitorWorker(
       .put("timestamp", now)
       .put("download", download.speed)
       .put("ping", ping)
-      .put("upload", 0)
-      .put("totalBytes", download.totalBytes)
-      .put("durationMs", download.elapsedMs)
+      .put("upload", upload.speed)
+      .put("totalBytes", download.totalBytes + upload.totalBytes)
+      .put("downloadBytes", download.totalBytes)
+      .put("uploadBytes", upload.totalBytes)
+      .put("durationMs", max(download.elapsedMs, upload.elapsedMs))
+      .put("downloadDurationMs", download.elapsedMs)
+      .put("uploadDurationMs", upload.elapsedMs)
       .put("source", "android-native-background")
 
     next.put(result)
@@ -138,8 +182,15 @@ class BackgroundMonitorWorker(
     val elapsedMs: Int,
   )
 
+  private data class TransferResult(
+    val speed: Double,
+    val totalBytes: Long,
+    val elapsedMs: Int,
+  )
+
   companion object {
     private const val DOWNLOAD_WINDOW_MS = 4000L
+    private const val UPLOAD_WINDOW_MS = 4000L
     private const val HISTORY_LIMIT = 500
     private const val HISTORY_RETENTION_MS = 7L * 24L * 60L * 60L * 1000L
   }
