@@ -550,7 +550,6 @@ const Speedometer = ({
               style={[
                 styles.stopButton,
                 {
-                  borderColor: t.accent,
                   shadowColor: t.accent,
                 },
               ]}
@@ -624,7 +623,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 999,
-    borderWidth: 1,
+    borderWidth: 0,
     backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
@@ -637,6 +636,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1.8,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 12,
+    textShadowColor: 'rgba(245, 196, 0, 0.85)',
   },
 });
 
