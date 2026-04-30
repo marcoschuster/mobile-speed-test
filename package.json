@@ -21,6 +21,8 @@
     "expo-cellular": "~55.0.13",
     "expo-haptics": "~55.0.14",
     "expo-linear-gradient": "~55.0.13",
+    "expo-print": "^55.0.13",
+    "expo-sharing": "^55.0.18",
     "expo-status-bar": "~55.0.5",
     "expo-task-manager": "~55.0.14",
     "expo-video": "~55.0.15",

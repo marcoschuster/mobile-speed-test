@@ -17,6 +17,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Polygon, Path } from 'react-native-svg';
 import SpeedTestService from '../services/SpeedTestService';
+import { generateAndSharePDF } from '../services/ReportGenerator';
 import LiquidGlass from '../components/LiquidGlass';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { useTabBarMotion } from '../context/TabBarMotionContext';
@@ -597,6 +598,7 @@ const HistoryScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [exportPickerVisible, setExportPickerVisible] = useState(false);
   const contentFade = useRef(new Animated.Value(0)).current;
   const calHeight = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
@@ -646,18 +648,54 @@ const HistoryScreen = () => {
     ]);
   };
 
-  const exportHistory = async () => {
+  const openExportPicker = () => {
     if (!history.length) {
       Alert.alert('No history', 'Run a speed test before exporting results.');
       return;
     }
 
+    setExportPickerVisible(true);
+  };
+
+  const exportHistoryCsv = async () => {
     try {
+      setExportPickerVisible(false);
       await Share.share({
         title: 'Flash speed history',
         message: buildHistoryCsv(history),
       });
     } catch (error) {
+      Alert.alert('Export failed', 'Could not open the share sheet on this device.');
+    }
+  };
+
+  const exportISPReport = async () => {
+    if (!history.length) {
+      Alert.alert('No history', 'Run a speed test before exporting ISP report.');
+      return;
+    }
+
+    try {
+      setExportPickerVisible(false);
+      await generateAndSharePDF(history, settings.speedUnit, speedUnitLabel);
+    } catch (error) {
+      Alert.alert('Export failed', error.message || 'Could not generate PDF report.');
+    }
+  };
+
+  const exportHistoryJson = async () => {
+    try {
+      setExportPickerVisible(false);
+      await Share.share({
+        title: 'Flash speed history backup',
+        message: JSON.stringify({
+          exportedAt: new Date().toISOString(),
+          app: 'Flash Speed Test',
+          schema: 'speed-history-v1',
+          history,
+        }, null, 2),
+      });
+    } catch (_error) {
       Alert.alert('Export failed', 'Could not open the share sheet on this device.');
     }
   };
@@ -761,12 +799,12 @@ const HistoryScreen = () => {
           {history.length > 0 && (
             <LiquidGlass
               style={[styles.exportHeaderButton, { borderColor: t.glassBorderAccent, backgroundColor: t.glass }]}
-              onPress={exportHistory}
+              onPress={openExportPicker}
               borderRadius={RADIUS.pill}
               blurIntensity={24}
               contentStyle={styles.headerActionContent}
             >
-              <Text style={[styles.exportHeaderButtonText, { color: t.accent }]}>Export CSV</Text>
+              <Text style={[styles.exportHeaderButtonText, { color: t.accent }]}>Export</Text>
             </LiquidGlass>
           )}
           <LiquidGlass
@@ -849,6 +887,38 @@ const HistoryScreen = () => {
           </>
         )}
       </ScrollView>
+
+      {exportPickerVisible && (
+        <View style={styles.exportModalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setExportPickerVisible(false)} />
+          <LiquidGlass
+            style={styles.exportModalCard}
+            borderRadius={RADIUS.xl}
+            blurIntensity={30}
+            contentStyle={styles.exportModalContent}
+          >
+            <Text style={[styles.exportModalTitle, { color: t.textPrimary }]}>Export history</Text>
+            <Text style={[styles.exportModalSubtitle, { color: t.textMuted }]}>Choose a format</Text>
+
+            <TouchableOpacity style={[styles.exportOption, { borderColor: t.glassBorderAccent }]} onPress={exportISPReport}>
+              <Text style={[styles.exportOptionTitle, { color: t.textPrimary }]}>PDF report</Text>
+              <Text style={[styles.exportOptionMeta, { color: t.textMuted }]}>Readable ISP performance report</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.exportOption, { borderColor: t.glassBorderAccent }]} onPress={exportHistoryCsv}>
+              <Text style={[styles.exportOptionTitle, { color: t.textPrimary }]}>CSV</Text>
+              <Text style={[styles.exportOptionMeta, { color: t.textMuted }]}>Spreadsheet-friendly test rows</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.exportOption, { borderColor: t.glassBorderAccent }]} onPress={exportHistoryJson}>
+              <Text style={[styles.exportOptionTitle, { color: t.textPrimary }]}>JSON backup</Text>
+              <Text style={[styles.exportOptionMeta, { color: t.textMuted }]}>Raw data for restore or debugging</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.exportCancelButton} onPress={() => setExportPickerVisible(false)}>
+              <Text style={[styles.exportCancelText, { color: t.accent }]}>Cancel</Text>
+            </TouchableOpacity>
+          </LiquidGlass>
+        </View>
+      )}
     </Animated.View>
   );
 };
@@ -909,6 +979,56 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.danger, backgroundColor: 'transparent',
   },
   clearButtonText: { color: COLORS.danger, fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
+  exportModalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    backgroundColor: 'rgba(0,0,0,0.58)',
+  },
+  exportModalCard: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: RADIUS.xl,
+  },
+  exportModalContent: {
+    padding: 18,
+  },
+  exportModalTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  exportModalSubtitle: {
+    marginTop: 4,
+    marginBottom: 14,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  exportOption: {
+    borderWidth: 1,
+    borderRadius: RADIUS.md,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 10,
+  },
+  exportOptionTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  exportOptionMeta: {
+    marginTop: 3,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  exportCancelButton: {
+    alignItems: 'center',
+    paddingVertical: 9,
+  },
+  exportCancelText: {
+    fontSize: 13,
+    fontWeight: '900',
+  },
   listContainer: { padding: 16, paddingBottom: 32 },
 
   historyItem: {
