@@ -122,6 +122,7 @@ const Speedometer = ({
   const lastInputSpeedRef = useRef(speed);
   const displaySpeedRef = useRef(speed);
   const frameRef = useRef<number | null>(null);
+  const stopFloat = useRef(new Animated.Value(0)).current;
   const [displaySpeed, setDisplaySpeed] = useState(speed);
   const waveScales = useRef([
     new Animated.Value(1),
@@ -169,6 +170,35 @@ const Speedometer = ({
       contentFade.setValue(0);
     }
   }, [isRunning]);
+
+  useEffect(() => {
+    if (!isRunning) {
+      stopFloat.stopAnimation();
+      stopFloat.setValue(0);
+      return;
+    }
+
+    const floatingLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(stopFloat, {
+          toValue: 1,
+          duration: 1150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(stopFloat, {
+          toValue: 0,
+          duration: 1150,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    floatingLoop.start();
+    return () => {
+      floatingLoop.stop();
+      stopFloat.setValue(0);
+    };
+  }, [isRunning, stopFloat]);
 
   const speedToAngle = (val: number): number => {
     const clamped = Math.max(0, Math.min(val, maxValue));
@@ -368,6 +398,10 @@ const Speedometer = ({
   const hubInner = t.mode === 'dark' ? '#04111C' : '#FFFFFF';
   const unitLabel = t.textMuted;
   const resolvedNeedleColor = needleColor || t.accent;
+  const stopFloatY = stopFloat.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -6],
+  });
 
   return (
     <View style={styles.container}>
@@ -509,20 +543,21 @@ const Speedometer = ({
         )}
 
         {isRunning && onStop ? (
-          <TouchableOpacity
-            onPress={onStop}
-            activeOpacity={0.82}
-            style={[
-              styles.stopButton,
-              {
-                backgroundColor: t.surfaceElevated,
-                borderColor: t.glassBorderTop,
-                shadowColor: t.accent,
-              },
-            ]}
-          >
-            <Text style={[styles.stopButtonText, { color: t.textPrimary }]}>STOP</Text>
-          </TouchableOpacity>
+          <Animated.View style={[styles.stopButtonFloat, { transform: [{ translateY: stopFloatY }] }]}>
+            <TouchableOpacity
+              onPress={onStop}
+              activeOpacity={0.82}
+              style={[
+                styles.stopButton,
+                {
+                  borderColor: t.accent,
+                  shadowColor: t.accent,
+                },
+              ]}
+            >
+              <Text style={[styles.stopButtonText, { color: t.accent }]}>STOP</Text>
+            </TouchableOpacity>
+          </Animated.View>
         ) : null}
       </TouchableOpacity>
     </View>
@@ -579,21 +614,24 @@ const styles = StyleSheet.create({
     shadowRadius: 15,
     shadowOpacity: 0.8,
   },
-  stopButton: {
+  stopButtonFloat: {
     position: 'absolute',
-    bottom: 16,
+    bottom: 50,
     alignSelf: 'center',
+  },
+  stopButton: {
     minWidth: 78,
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 999,
     borderWidth: 1,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.24,
-    shadowRadius: 18,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.38,
+    shadowRadius: 14,
+    elevation: 6,
   },
   stopButtonText: {
     fontSize: 11,
