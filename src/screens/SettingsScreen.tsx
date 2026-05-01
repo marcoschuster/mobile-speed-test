@@ -21,6 +21,7 @@ import SoundEngine from '../services/SoundEngine';
 import FlashTitle from '../components/FlashTitle';
 import ColorPickerWheel from '../components/ColorPickerWheel';
 import LiquidGlass from '../components/LiquidGlass';
+import WiFiAnalyzerScreen from './WiFiAnalyzerScreen';
 import { useTabBarMotion } from '../context/TabBarMotionContext';
 import { useAppSettings } from '../context/AppSettingsContext';
 import BackgroundTestService, { BACKGROUND_INTERVALS } from '../services/BackgroundTestService';
@@ -220,6 +221,7 @@ const SettingsScreen = () => {
   const [alertThreshold, setAlertThreshold] = useState('');
   const [intervalOpen, setIntervalOpen] = useState(false);
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
+  const [wifiAnalyzerVisible, setWifiAnalyzerVisible] = useState(false);
 
   // Sound & Haptics state
   const [sfxMuted, setSfxMuted] = useState(SoundEngine.muted);
@@ -340,6 +342,10 @@ const SettingsScreen = () => {
     SoundEngine.playToggleOn();
     enableContinuousMonitoring();
   };
+
+  if (wifiAnalyzerVisible) {
+    return <WiFiAnalyzerScreen onBack={() => setWifiAnalyzerVisible(false)} />;
+  }
 
   return (
     <Animated.ScrollView
@@ -520,6 +526,11 @@ const SettingsScreen = () => {
       {/* DATA */}
       <FlashTitle text="DATA" size="small" interval={7000} center style={styles.sectionHeader} />
       <LiquidGlass style={styles.sectionCard} borderRadius={RADIUS.lg} contentStyle={styles.sectionCardContent}>
+        <SettingsRow label="WiFi Diagnostics">
+          <TouchableOpacity style={styles.diagnosticsButton} onPress={() => setWifiAnalyzerVisible(true)} activeOpacity={0.7}>
+            <Text style={[styles.changeLink, { fontFamily: FONT_FAMILY, color: t.accent }]}>Open</Text>
+          </TouchableOpacity>
+        </SettingsRow>
         <SettingsRow label="Detailed cellular radio">
           <Switch
             value={settings.detailedCellularRadioEnabled}
@@ -594,6 +605,10 @@ const styles = StyleSheet.create({
   accentLabel: { fontSize: 13, fontWeight: '600' },
 
   serverRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  diagnosticsButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
   serverText: { fontSize: 13, fontWeight: '500' },
   changeLink: {
     fontSize: 13,
