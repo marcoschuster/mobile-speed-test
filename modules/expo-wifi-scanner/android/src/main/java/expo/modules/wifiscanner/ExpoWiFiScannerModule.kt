@@ -47,8 +47,8 @@ class ExpoWiFiScannerModule : Module() {
     } catch (_: SecurityException) {
       println("WiFiScanner: Security exception during scan")
       return emptyList()
-    } catch (_: Throwable) {
-      println("WiFiScanner: Other exception during scan: ${_}")
+    } catch (e: Throwable) {
+      println("WiFiScanner: Other exception during scan: $e")
       // Android may throttle or reject active scans. Stale scanResults are still useful.
     }
 
@@ -65,8 +65,8 @@ class ExpoWiFiScannerModule : Module() {
     } catch (_: SecurityException) {
       println("WiFiScanner: Security exception during mapping")
       emptyList()
-    } catch (_: Throwable) {
-      println("WiFiScanner: Other exception during mapping: ${_}")
+    } catch (e: Throwable) {
+      println("WiFiScanner: Other exception during mapping: $e")
       emptyList()
     }
   }
