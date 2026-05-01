@@ -33,6 +33,7 @@ class ExpoWiFiScannerModule : Module() {
   private fun scanNetworks(): List<Map<String, Any?>> {
     val context = appContext.reactContext ?: return emptyList()
     if (!hasScanPermission(context)) {
+      println("WiFiScanner: No scan permission")
       return emptyList()
     }
 
@@ -42,22 +43,30 @@ class ExpoWiFiScannerModule : Module() {
     // Try to trigger a fresh scan, but don't fail if throttled
     try {
       wifiManager.startScan()
+      println("WiFiScanner: Scan triggered successfully")
     } catch (_: SecurityException) {
+      println("WiFiScanner: Security exception during scan")
       return emptyList()
     } catch (_: Throwable) {
+      println("WiFiScanner: Other exception during scan: ${_}")
       // Android may throttle or reject active scans. Stale scanResults are still useful.
     }
 
     // Wait for scan results to be available (up to 5 seconds)
     val scanResults = waitForScanResults(context, wifiManager)
+    println("WiFiScanner: Got ${scanResults.size} scan results")
 
     return try {
-      scanResults
+      val mapped = scanResults
         .filterNotNull()
         .map { result -> result.toNetworkMap() }
+      println("WiFiScanner: Mapped to ${mapped.size} network maps")
+      mapped
     } catch (_: SecurityException) {
+      println("WiFiScanner: Security exception during mapping")
       emptyList()
     } catch (_: Throwable) {
+      println("WiFiScanner: Other exception during mapping: ${_}")
       emptyList()
     }
   }

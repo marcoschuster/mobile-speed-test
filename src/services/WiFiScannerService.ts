@@ -35,6 +35,14 @@ const getBand = (frequency: number): WiFiBand => {
   return 'Other';
 };
 
+const frequencyToChannel = (frequency: number): number => {
+  if (frequency === 2484) return 14;
+  if (frequency >= 2412 && frequency <= 2472) return (frequency - 2407) / 5;
+  if (frequency >= 4910 && frequency <= 5895) return (frequency - 5000) / 5;
+  if (frequency >= 5955 && frequency <= 7115) return (frequency - 5950) / 5;
+  return 0;
+};
+
 const requestAndroidPermissions = async () => {
   if (Platform.OS !== 'android') return false;
 
@@ -74,6 +82,10 @@ export const scanWiFiNetworks = async (): Promise<{ networks: WiFiNetwork[]; cur
     NativeWiFiScanner.scanAsync(),
     NativeWiFiScanner.getCurrentNetworkAsync(),
   ]);
+  
+  console.log('WiFi scan debug - raw results:', rawNetworks?.length || 0, 'networks');
+  console.log('WiFi scan debug - current network:', current);
+  
   const currentBssid = typeof current?.bssid === 'string' ? current.bssid.toLowerCase() : null;
   const currentSsid = typeof current?.ssid === 'string' ? current.ssid : null;
 
@@ -83,18 +95,25 @@ export const scanWiFiNetworks = async (): Promise<{ networks: WiFiNetwork[]; cur
       const bssid = String(network.bssid || '').toLowerCase();
       const ssid = String(network.ssid || 'Hidden network');
       const frequency = Number(network.frequency || 0);
+      let channel = Number(network.channel || 0);
+      
+      // Calculate channel from frequency if not provided
+      if (channel === 0 && frequency > 0) {
+        channel = frequencyToChannel(frequency);
+      }
+      
       return {
         ssid,
         bssid,
         frequency,
-        channel: Number(network.channel || 0),
+        channel,
         rssi: Number(network.rssi || -100),
         capabilities: String(network.capabilities || ''),
         band: getBand(frequency),
         isCurrent: Boolean((currentBssid && bssid === currentBssid) || (!currentBssid && currentSsid && ssid === currentSsid)),
       };
     })
-    .filter((network) => network.channel > 0);
+    .filter((network) => network.channel > 0 && network.ssid !== 'Hidden network');
 
   return {
     networks,
