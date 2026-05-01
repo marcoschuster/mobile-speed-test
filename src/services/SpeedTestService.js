@@ -1,4 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+
+let NativeTestModule = null;
+if (Platform.OS === 'android') {
+  try {
+    NativeTestModule = require('../../modules/expo-native-network-test').default;
+  } catch (e) {
+    console.log('NativeTestModule not available');
+  }
+}
 
 
 
@@ -1651,8 +1661,39 @@ class SpeedTestService {
 
 
   async runUdpTest() {
+    if (Platform.OS === 'android' && NativeTestModule) {
+      try {
+        console.log('Using native UDP jitter test');
+        // Use the selected server host if available, otherwise fallback to a common public DNS
+        const host = this.selectedServer?.machine ? this.selectedServer.machine.split(':')[0] : '1.1.1.1';
+
+        // Run native UDP test (60 packets)
+        const result = await NativeTestModule.runUdpJitterTest(host, 53, 60);
+
+        if (result.error) {
+          throw new Error(result.error);
+        }
+
+        // Calculate MOS score
+        const avgLatency = result.avgRtt || 0;
+        const packetLoss = result.packetLoss || 0;
+        const lossRate = packetLoss / 100;
+        const h = packetLoss < 2 ? 0 : lossRate;
+        const mosScore = Math.max(0, 4.34 - 0.024 * avgLatency - 0.11 * (avgLatency * h));
+
+        return {
+          packetLoss: Math.round(packetLoss * 100) / 100,
+          jitter: Math.round(result.jitter * 100) / 100,
+          mosScore: Math.round(mosScore * 100) / 100,
+          native: true
+        };
+      } catch (e) {
+        console.log('Native UDP test failed, falling back to JS:', e.message);
+      }
+    }
 
     const PACKET_SIZE = 64;
+
 
     const PACKET_COUNT = 100;
 

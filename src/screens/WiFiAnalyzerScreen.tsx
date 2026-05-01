@@ -11,6 +11,7 @@ import {
 import LiquidGlass from '../components/LiquidGlass';
 import {
   groupNetworksByBand,
+  isLocationEnabled,
   isWiFiScannerAvailable,
   scanWiFiNetworks,
   type WiFiBand,
@@ -112,10 +113,21 @@ const WiFiAnalyzerScreen = ({ onBack }: WiFiAnalyzerScreenProps) => {
     setLoading(true);
     setError(null);
     try {
+      const locationEnabled = await isLocationEnabled();
+      if (!locationEnabled) {
+        setError('Location services (GPS) are disabled. Android requires Location to be ON for WiFi scanning to return results.');
+        // Still try to scan, maybe it works on some devices
+      }
+
       const result = await scanWiFiNetworks();
       setNetworks(result.networks);
+      
       if (result.networks.length === 0) {
-        setError('No WiFi networks found. Make sure location/WiFi permissions are allowed and WiFi is enabled.');
+        if (!locationEnabled) {
+          setError('No WiFi networks found. WiFi scanning is blocked because Location services are disabled.');
+        } else {
+          setError('No WiFi networks found. Make sure WiFi is enabled and the app has permissions.');
+        }
       }
     } catch (scanError: any) {
       setError(scanError?.message || 'Could not scan WiFi networks.');
@@ -124,6 +136,7 @@ const WiFiAnalyzerScreen = ({ onBack }: WiFiAnalyzerScreenProps) => {
       setLoading(false);
     }
   }, []);
+
 
   const currentNetwork = networks.find((network) => network.isCurrent);
 

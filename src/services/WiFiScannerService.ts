@@ -16,6 +16,8 @@ export type WiFiNetwork = {
 export type CurrentWiFiNetwork = {
   ssid: string | null;
   bssid: string | null;
+  rssi?: number;
+  frequency?: number;
 };
 
 let NativeWiFiScanner: any = null;
@@ -37,9 +39,12 @@ const getBand = (frequency: number): WiFiBand => {
 
 const frequencyToChannel = (frequency: number): number => {
   if (frequency === 2484) return 14;
-  if (frequency >= 2412 && frequency <= 2472) return (frequency - 2407) / 5;
-  if (frequency >= 4910 && frequency <= 5895) return (frequency - 5000) / 5;
-  if (frequency >= 5955 && frequency <= 7115) return (frequency - 5950) / 5;
+  // 2.4 GHz
+  if (frequency >= 2412 && frequency <= 2472) return Math.round((frequency - 2407) / 5);
+  // 5 GHz (Channels 36-177)
+  if (frequency >= 5170 && frequency <= 5900) return Math.round((frequency - 5000) / 5);
+  // 6 GHz (Channels 1-233)
+  if (frequency >= 5945 && frequency <= 7125) return Math.round((frequency - 5940) / 5);
   return 0;
 };
 
@@ -49,13 +54,16 @@ const requestAndroidPermissions = async () => {
   const androidVersion = typeof Platform.Version === 'number' ? Platform.Version : Number(Platform.Version);
   const nearbyWifiPermission = (PermissionsAndroid.PERMISSIONS as any).NEARBY_WIFI_DEVICES;
 
-  // On Android 13+: NEARBY_WIFI_DEVICES alone is sufficient for WiFi scanning
+  // On Android 13+: NEARBY_WIFI_DEVICES is preferred
   if (androidVersion >= 33 && nearbyWifiPermission) {
-    const result = await PermissionsAndroid.requestMultiple([nearbyWifiPermission]);
-    if (result[nearbyWifiPermission] === PermissionsAndroid.RESULTS.GRANTED) {
-      return true;
-    }
-    // Fall through to try location permission as fallback
+    const result = await PermissionsAndroid.requestMultiple([
+      nearbyWifiPermission,
+      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+    ]);
+    return (
+      result[nearbyWifiPermission] === PermissionsAndroid.RESULTS.GRANTED ||
+      result[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION] === PermissionsAndroid.RESULTS.GRANTED
+    );
   }
 
   const result = await PermissionsAndroid.requestMultiple([PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION]);
@@ -63,6 +71,15 @@ const requestAndroidPermissions = async () => {
 };
 
 export const isWiFiScannerAvailable = () => Platform.OS === 'android' && Boolean(NativeWiFiScanner);
+
+export const isLocationEnabled = async (): Promise<boolean> => {
+  if (Platform.OS !== 'android' || !NativeWiFiScanner) return true;
+  try {
+    return await NativeWiFiScanner.isLocationEnabledAsync();
+  } catch (_e) {
+    return true;
+  }
+};
 
 export const scanWiFiNetworks = async (): Promise<{ networks: WiFiNetwork[]; current: CurrentWiFiNetwork }> => {
   if (Platform.OS !== 'android') {
@@ -75,21 +92,18 @@ export const scanWiFiNetworks = async (): Promise<{ networks: WiFiNetwork[]; cur
 
   const hasPermission = await requestAndroidPermissions();
   if (!hasPermission) {
-    throw new Error('Location and nearby WiFi permission are required to scan WiFi networks.');
+    throw new Error('Location or nearby WiFi permission is required to scan WiFi networks.');
   }
 
   const [rawNetworks, current] = await Promise.all([
-    NativeWiFiScanner.scanAsync(),
-    NativeWiFiScanner.getCurrentNetworkAsync(),
+    NativeWiFiScanner.scanAsync().catch(() => []),
+    NativeWiFiScanner.getCurrentNetworkAsync().catch(() => ({ ssid: null, bssid: null })),
   ]);
-  
-  console.log('WiFi scan debug - raw results:', rawNetworks?.length || 0, 'networks');
-  console.log('WiFi scan debug - current network:', current);
   
   const currentBssid = typeof current?.bssid === 'string' ? current.bssid.toLowerCase() : null;
   const currentSsid = typeof current?.ssid === 'string' ? current.ssid : null;
 
-  const networks = (Array.isArray(rawNetworks) ? rawNetworks : [])
+  let networks = (Array.isArray(rawNetworks) ? rawNetworks : [])
     .filter((network) => network && typeof network === 'object')
     .map((network) => {
       const bssid = String(network.bssid || '').toLowerCase();
@@ -97,7 +111,6 @@ export const scanWiFiNetworks = async (): Promise<{ networks: WiFiNetwork[]; cur
       const frequency = Number(network.frequency || 0);
       let channel = Number(network.channel || 0);
       
-      // Calculate channel from frequency if not provided
       if (channel === 0 && frequency > 0) {
         channel = frequencyToChannel(frequency);
       }
@@ -110,19 +123,43 @@ export const scanWiFiNetworks = async (): Promise<{ networks: WiFiNetwork[]; cur
         rssi: Number(network.rssi || -100),
         capabilities: String(network.capabilities || ''),
         band: getBand(frequency),
-        isCurrent: Boolean((currentBssid && bssid === currentBssid) || (!currentBssid && currentSsid && ssid === currentSsid)),
+        isCurrent: Boolean((currentBssid && bssid === currentBssid) || (!currentBssid && currentSsid && ssid === currentSsid && ssid !== 'Connected (SSID hidden)')),
       };
-    })
-    .filter((network) => network.channel > 0 && network.ssid !== 'Hidden network');
+    });
+
+  // If we are connected but the current network is not in the scan results, add it syntheticly
+  const hasCurrentInList = networks.some((n) => n.isCurrent);
+  if (!hasCurrentInList && (currentSsid || currentBssid)) {
+    const frequency = Number(current?.frequency || 0);
+    const channel = frequencyToChannel(frequency);
+    
+    // Even if frequency is 0, we add it if we know we are connected
+    networks.push({
+      ssid: currentSsid || 'Connected network',
+      bssid: currentBssid || '',
+      frequency: frequency,
+      channel: channel || 0,
+      rssi: Number(current?.rssi || -50),
+      capabilities: '[CURRENT]',
+      band: frequency > 0 ? getBand(frequency) : 'Other',
+      isCurrent: true,
+    });
+  }
+
+  // Filter out invalid channels, but KEEP "Hidden networks" because they still cause congestion!
+  networks = networks.filter((network) => (network.channel > 0 || network.isCurrent));
 
   return {
     networks,
     current: {
       ssid: currentSsid,
       bssid: currentBssid,
+      rssi: current?.rssi,
+      frequency: current?.frequency,
     },
   };
 };
+
 
 export const groupNetworksByBand = (networks: WiFiNetwork[]) => (
   networks.reduce<Record<WiFiBand, WiFiNetwork[]>>((groups, network) => {

@@ -28,67 +28,51 @@ class ExpoWiFiScannerModule : Module() {
     AsyncFunction("getCurrentNetworkAsync") {
       getCurrentNetwork()
     }
+
+    AsyncFunction("isLocationEnabledAsync") {
+      val context = appContext.reactContext ?: return@AsyncFunction false
+      val lm = context.getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager
+      lm?.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER) == true ||
+        lm?.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER) == true
+    }
   }
 
   private fun scanNetworks(): List<Map<String, Any?>> {
     val context = appContext.reactContext ?: return emptyList()
     if (!hasScanPermission(context)) {
-      println("WiFiScanner: No scan permission")
       return emptyList()
     }
 
     val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
       ?: return emptyList()
 
-    // Try to trigger a fresh scan, but don't fail if throttled
+    // Try to trigger a fresh scan
     try {
       wifiManager.startScan()
-      println("WiFiScanner: Scan triggered successfully")
-    } catch (_: SecurityException) {
-      println("WiFiScanner: Security exception during scan")
-      return emptyList()
-    } catch (e: Throwable) {
-      println("WiFiScanner: Other exception during scan: $e")
-      // Android may throttle or reject active scans. Stale scanResults are still useful.
-    }
+    } catch (_: Throwable) {}
 
-    // Wait for scan results to be available (up to 5 seconds)
+    // Wait for scan results (up to 5 seconds)
     val scanResults = waitForScanResults(context, wifiManager)
-    println("WiFiScanner: Got ${scanResults.size} scan results")
 
-    return try {
-      val mapped = scanResults
+    return scanResults
         .filterNotNull()
-        .map { result -> result.toNetworkMap() }
-      println("WiFiScanner: Mapped to ${mapped.size} network maps")
-      mapped
-    } catch (_: SecurityException) {
-      println("WiFiScanner: Security exception during mapping")
-      emptyList()
-    } catch (e: Throwable) {
-      println("WiFiScanner: Other exception during mapping: $e")
-      emptyList()
-    }
+        .map { it.toNetworkMap() }
   }
 
   private fun waitForScanResults(context: Context, wifiManager: WifiManager): List<ScanResult> {
-    // First check if there are already fresh results available
-    val initial = try { wifiManager.scanResults } catch (_: SecurityException) { null } catch (_: Throwable) { null }
+    // Check for existing results first
+    val initial = try { wifiManager.scanResults } catch (_: Throwable) { null }
     if (initial != null && initial.isNotEmpty()) {
       return initial.filterNotNull()
     }
 
-    // Register a receiver and wait for the scan to complete
     val latch = java.util.concurrent.CountDownLatch(1)
     var receivedResults: List<ScanResult>? = null
 
     val receiver = object : BroadcastReceiver() {
       override fun onReceive(ctx: Context, intent: Intent) {
         if (intent.action == WifiManager.SCAN_RESULTS_AVAILABLE_ACTION) {
-          val success = intent.getBooleanExtra(WifiManager.EXTRA_RESULTS_UPDATED, false)
-          if (success) {
-            receivedResults = try { wifiManager.scanResults } catch (_: Throwable) { null }
-          }
+          receivedResults = try { wifiManager.scanResults } catch (_: Throwable) { null }
           latch.countDown()
         }
       }
@@ -100,23 +84,15 @@ class ExpoWiFiScannerModule : Module() {
       } else {
         context.registerReceiver(receiver, IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION))
       }
-    } catch (_: Throwable) {
-      // Can't register receiver, return whatever we have
-      return initial?.filterNotNull() ?: emptyList()
-    }
-
-    // Trigger another scan now that we're listening
-    try {
+      
+      // Trigger scan after registering receiver
       wifiManager.startScan()
-    } catch (_: Throwable) { /* already tried above */ }
-
-    try {
+      
       latch.await(5, TimeUnit.SECONDS)
-    } catch (_: InterruptedException) { /* timeout */ }
-
-    try {
       context.unregisterReceiver(receiver)
-    } catch (_: Throwable) { /* already unregistered */ }
+    } catch (_: Throwable) {
+      latch.countDown()
+    }
 
     return receivedResults?.filterNotNull()
       ?: try { wifiManager.scanResults?.filterNotNull() } catch (_: Throwable) { emptyList() }
@@ -129,30 +105,24 @@ class ExpoWiFiScannerModule : Module() {
       return emptyCurrent()
     }
 
-    // On Android 10+ (API 29+), WifiManager.getConnectionInfo() returns "<unknown ssid>"
-    // unless the app has location permission AND location services are enabled.
-    // Use ConnectivityManager as a fallback to detect WiFi connectivity.
     val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
-
-    // Try the modern ConnectivityManager approach first (API 23+)
+    
+    // Try ConnectivityManager for modern Android (API 23+)
     val cmResult = getCurrentNetworkFromConnectivityManager(context)
     if (cmResult != null) return cmResult
 
-    // Fallback to WifiManager for older devices
-    if (wifiManager != null) {
-      return try {
-        val info = wifiManager.connectionInfo ?: return emptyCurrent()
-        val ssid = info.ssid?.cleanSsid()?.takeUnless { it.isBlank() || it == "<unknown ssid>" }
-        val bssid = info.bssid?.lowercase()?.takeUnless { it == "02:00:00:00:00:00" || it.isBlank() }
-        if (ssid != null || bssid != null) {
-          mapOf("ssid" to ssid, "bssid" to bssid)
-        } else {
-          emptyCurrent()
-        }
-      } catch (_: SecurityException) {
-        emptyCurrent()
-      } catch (_: Throwable) {
-        emptyCurrent()
+    // Fallback to connectionInfo
+    val info = wifiManager?.connectionInfo
+    if (info != null) {
+      val ssid = info.ssid?.cleanSsid()?.takeUnless { it.isBlank() || it == "<unknown ssid>" }
+      val bssid = info.bssid?.lowercase()?.takeUnless { it == "02:00:00:00:00:00" || it.isBlank() }
+      if (ssid != null || bssid != null) {
+        return mapOf(
+          "ssid" to ssid,
+          "bssid" to bssid,
+          "rssi" to info.rssi,
+          "frequency" to info.frequency
+        )
       }
     }
 
@@ -166,20 +136,16 @@ class ExpoWiFiScannerModule : Module() {
     val network = cm.activeNetwork ?: return null
     val caps = cm.getNetworkCapabilities(network) ?: return null
 
-    // Check if the active network is WiFi
     if (!caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
       return null
     }
 
-    // On API 29+, we can get WifiInfo from the network
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-      // Try to get link properties / wifi info through the network
       val wifiInfo = try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-          // On API 30+, use the transport info
-          val transportInfo = caps.transportInfo as? android.net.wifi.WifiInfo
-          transportInfo
+          caps.transportInfo as? android.net.wifi.WifiInfo
         } else {
+          // On API 29, transportInfo might not be WifiInfo directly or needs different handling
           null
         }
       } catch (_: Throwable) { null }
@@ -188,17 +154,20 @@ class ExpoWiFiScannerModule : Module() {
         val ssid = wifiInfo.ssid?.cleanSsid()?.takeUnless { it.isBlank() || it == "<unknown ssid>" }
         val bssid = wifiInfo.bssid?.lowercase()?.takeUnless { it == "02:00:00:00:00:00" || it.isBlank() }
         if (ssid != null || bssid != null) {
-          return mapOf("ssid" to ssid, "bssid" to bssid)
+          return mapOf(
+            "ssid" to ssid,
+            "bssid" to bssid,
+            "rssi" to wifiInfo.rssi,
+            "frequency" to wifiInfo.frequency
+          )
         }
       }
-
-      // Even if we can't get the SSID, we know WiFi is connected
-      // Return a marker so the JS side knows WiFi is active
-      return mapOf("ssid" to "Connected (SSID hidden)", "bssid" to null)
     }
 
-    return null
+    // If we are here, we are connected to WiFi but couldn't get SSID
+    return mapOf("ssid" to "Connected (SSID hidden)", "bssid" to null)
   }
+
 
   private fun hasScanPermission(context: Context): Boolean {
     val hasLocation = ContextCompat.checkSelfPermission(
