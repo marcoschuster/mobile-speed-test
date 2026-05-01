@@ -40,12 +40,13 @@ const requestAndroidPermissions = async () => {
 
   const permissions = [PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION];
   const nearbyWifiPermission = (PermissionsAndroid.PERMISSIONS as any).NEARBY_WIFI_DEVICES;
-  if (Platform.Version >= 33 && nearbyWifiPermission) {
+  const androidVersion = typeof Platform.Version === 'number' ? Platform.Version : Number(Platform.Version);
+  if (androidVersion >= 33 && nearbyWifiPermission) {
     permissions.push(nearbyWifiPermission);
   }
 
   const result = await PermissionsAndroid.requestMultiple(permissions);
-  return permissions.some((permission) => result[permission] === PermissionsAndroid.RESULTS.GRANTED);
+  return permissions.every((permission) => result[permission] === PermissionsAndroid.RESULTS.GRANTED);
 };
 
 export const isWiFiScannerAvailable = () => Platform.OS === 'android' && Boolean(NativeWiFiScanner);
@@ -61,7 +62,7 @@ export const scanWiFiNetworks = async (): Promise<{ networks: WiFiNetwork[]; cur
 
   const hasPermission = await requestAndroidPermissions();
   if (!hasPermission) {
-    throw new Error('Location or nearby WiFi permission is required to scan WiFi networks.');
+    throw new Error('Location and nearby WiFi permission are required to scan WiFi networks.');
   }
 
   const [rawNetworks, current] = await Promise.all([

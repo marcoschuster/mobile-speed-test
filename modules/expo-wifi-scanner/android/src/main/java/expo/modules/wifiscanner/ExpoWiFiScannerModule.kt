@@ -86,7 +86,7 @@ class ExpoWiFiScannerModule : Module() {
         Manifest.permission.NEARBY_WIFI_DEVICES,
       ) == PackageManager.PERMISSION_GRANTED
 
-    return hasLocation || hasNearbyWifi
+    return hasLocation && hasNearbyWifi
   }
 
   private fun ScanResult.toNetworkMap(): Map<String, Any?> {

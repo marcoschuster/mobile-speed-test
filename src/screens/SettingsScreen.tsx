@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   TextInput,
   Alert,
   Animated,
+  Linking,
   Platform,
   LayoutAnimation,
   UIManager,
@@ -51,6 +52,50 @@ interface SettingsRowProps {
   children: React.ReactNode;
   isLast?: boolean;
 }
+
+type PermissionState = 'granted' | 'denied' | 'blocked' | 'unavailable';
+
+type PermissionKey = 'location' | 'nearbyWifi' | 'notifications' | 'phoneState';
+
+type PermissionItem = {
+  key: PermissionKey;
+  label: string;
+  description: string;
+  permission?: string;
+  minAndroid?: number;
+};
+
+const getAndroidPermissionItems = (): PermissionItem[] => {
+  const permissions = PermissionsAndroid.PERMISSIONS as any;
+  return [
+    {
+      key: 'location',
+      label: 'Location',
+      description: 'Required by Android to see nearby WiFi names and BSSIDs.',
+      permission: PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+    },
+    {
+      key: 'nearbyWifi',
+      label: 'Nearby WiFi',
+      description: 'Required on Android 13+ for WiFi diagnostics.',
+      permission: permissions.NEARBY_WIFI_DEVICES,
+      minAndroid: 33,
+    },
+    {
+      key: 'notifications',
+      label: 'Notifications',
+      description: 'Shows continuous monitoring status and alerts.',
+      permission: PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+      minAndroid: 33,
+    },
+    {
+      key: 'phoneState',
+      label: 'Phone State',
+      description: 'Allows detailed cellular radio diagnostics.',
+      permission: PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
+    },
+  ];
+};
 
 // ── Pill Segmented Control with sliding indicator ───────────────────────────
 const SegmentedControl = ({ options, selected, onSelect }: SegmentedControlProps) => {
@@ -222,6 +267,12 @@ const SettingsScreen = () => {
   const [intervalOpen, setIntervalOpen] = useState(false);
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
   const [wifiAnalyzerVisible, setWifiAnalyzerVisible] = useState(false);
+  const [permissionStates, setPermissionStates] = useState<Record<PermissionKey, PermissionState>>({
+    location: 'unavailable',
+    nearbyWifi: 'unavailable',
+    notifications: 'unavailable',
+    phoneState: 'unavailable',
+  });
 
   // Sound & Haptics state
   const [sfxMuted, setSfxMuted] = useState(SoundEngine.muted);
@@ -230,10 +281,37 @@ const SettingsScreen = () => {
 
   const contentFade = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
+  const permissionItems = useMemo(() => getAndroidPermissionItems(), []);
+  const androidVersion = typeof Platform.Version === 'number' ? Platform.Version : Number(Platform.Version);
+
+  const refreshPermissionStates = React.useCallback(async () => {
+    if (Platform.OS !== 'android') {
+      setPermissionStates({
+        location: 'unavailable',
+        nearbyWifi: 'unavailable',
+        notifications: 'unavailable',
+        phoneState: 'unavailable',
+      });
+      return;
+    }
+
+    const nextStates = await permissionItems.reduce(async (statePromise, item) => {
+      const state = await statePromise;
+      if (!item.permission || (item.minAndroid && androidVersion < item.minAndroid)) {
+        return { ...state, [item.key]: 'unavailable' as PermissionState };
+      }
+
+      const granted = await PermissionsAndroid.check(item.permission as any).catch(() => false);
+      return { ...state, [item.key]: granted ? 'granted' as PermissionState : 'denied' as PermissionState };
+    }, Promise.resolve({} as Record<PermissionKey, PermissionState>));
+
+    setPermissionStates((current) => ({ ...current, ...nextStates }));
+  }, [androidVersion, permissionItems]);
 
   useEffect(() => {
     Animated.timing(contentFade, { toValue: 1, duration: 300, useNativeDriver: false }).start();
-  }, []);
+    void refreshPermissionStates();
+  }, [contentFade, refreshPermissionStates]);
 
   useEffect(() => {
     setTabBarMode('expanded');
@@ -243,7 +321,46 @@ const SettingsScreen = () => {
   useFocusEffect(React.useCallback(() => {
     setTabBarMode('expanded');
     lastScrollY.current = 0;
-  }, [setTabBarMode]));
+    void refreshPermissionStates();
+  }, [refreshPermissionStates, setTabBarMode]));
+
+  const requestPermission = async (item: PermissionItem) => {
+    if (Platform.OS !== 'android') return;
+    if (!item.permission || (item.minAndroid && androidVersion < item.minAndroid)) return;
+
+    const result = await PermissionsAndroid.request(item.permission as any).catch(() => PermissionsAndroid.RESULTS.DENIED);
+    setPermissionStates((current) => ({
+      ...current,
+      [item.key]: result === PermissionsAndroid.RESULTS.GRANTED
+        ? 'granted'
+        : result === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN
+          ? 'blocked'
+          : 'denied',
+    }));
+  };
+
+  const getPermissionStatusLabel = (state: PermissionState) => {
+    if (state === 'granted') return 'Enabled';
+    if (state === 'blocked') return 'Blocked';
+    if (state === 'unavailable') return 'Not needed';
+    return 'Off';
+  };
+
+  const getPermissionActionLabel = (state: PermissionState) => {
+    if (state === 'granted') return 'Enabled';
+    if (state === 'blocked') return 'Open Settings';
+    if (state === 'unavailable') return 'N/A';
+    return 'Allow';
+  };
+
+  const handlePermissionAction = async (item: PermissionItem, state: PermissionState) => {
+    if (state === 'blocked') {
+      await Linking.openSettings();
+      return;
+    }
+
+    await requestPermission(item);
+  };
 
   const handleScroll = (event: any) => {
     const offsetY = event.nativeEvent.contentOffset.y;
@@ -579,6 +696,85 @@ const SettingsScreen = () => {
         </View>
       </LiquidGlass>
 
+      {/* PERMISSIONS */}
+      <FlashTitle text="PERMISSIONS" size="small" interval={7200} center style={styles.sectionHeader} />
+      <LiquidGlass style={styles.sectionCard} borderRadius={RADIUS.lg} contentStyle={styles.sectionCardContent}>
+        {Platform.OS === 'android' ? (
+          <>
+            <Text style={[styles.permissionHelperText, { color: t.textMuted, fontFamily: FONT_FAMILY }]}>
+              WiFi diagnostics needs Location, and Android 13+ also needs Nearby WiFi, before Android will return nearby network names and channels.
+            </Text>
+            {permissionItems.map((item, index) => {
+              const state = permissionStates[item.key];
+              const isGranted = state === 'granted';
+              const isBlocked = state === 'blocked';
+              const isUnavailable = state === 'unavailable';
+              const statusColor = isGranted
+                ? COLORS.success
+                : isBlocked
+                  ? COLORS.danger
+                  : isUnavailable
+                    ? t.textMuted
+                    : COLORS.warning;
+
+              return (
+                <View
+                  key={item.key}
+                  style={[
+                    styles.permissionRow,
+                    index < permissionItems.length - 1 && { borderBottomColor: t.separator, borderBottomWidth: StyleSheet.hairlineWidth },
+                  ]}
+                >
+                  <View style={styles.permissionTextColumn}>
+                    <View style={styles.permissionTitleRow}>
+                      <Text style={[styles.permissionLabel, { color: t.textPrimary, fontFamily: FONT_FAMILY }]}>{item.label}</Text>
+                      <View style={[styles.permissionStatusPill, { borderColor: statusColor, backgroundColor: `${statusColor}22` }]}>
+                        <Text style={[styles.permissionStatusText, { color: statusColor, fontFamily: FONT_FAMILY }]}>
+                          {getPermissionStatusLabel(state)}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.permissionDescription, { color: t.textMuted, fontFamily: FONT_FAMILY }]}>
+                      {item.description}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.permissionButton,
+                      {
+                        borderColor: isGranted || isUnavailable ? t.controlBorder : t.accent,
+                        backgroundColor: isGranted || isUnavailable ? t.controlBg : t.accentTintSelected,
+                        opacity: isUnavailable ? 0.55 : 1,
+                      },
+                    ]}
+                    onPress={() => handlePermissionAction(item, state)}
+                    disabled={isGranted || isUnavailable}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[
+                      styles.permissionButtonText,
+                      {
+                        color: isGranted || isUnavailable ? t.textMuted : t.accent,
+                        fontFamily: FONT_FAMILY,
+                      },
+                    ]}>
+                      {getPermissionActionLabel(state)}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+          </>
+        ) : (
+          <View style={styles.permissionUnavailableBox}>
+            <Text style={[styles.permissionLabel, { color: t.textPrimary, fontFamily: FONT_FAMILY }]}>Android WiFi permissions</Text>
+            <Text style={[styles.permissionDescription, { color: t.textMuted, fontFamily: FONT_FAMILY }]}>
+              Not available on iOS. Apple does not expose nearby WiFi scans to this app.
+            </Text>
+          </View>
+        )}
+      </LiquidGlass>
+
       <Text style={[styles.versionText, { color: t.textMuted, fontFamily: FONT_FAMILY, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1.5 }]}>Flash v1.1.0</Text>
 
       <ColorPickerWheel
@@ -647,6 +843,68 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.4)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
+  },
+
+  permissionHelperText: {
+    fontSize: 12,
+    lineHeight: 18,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 4,
+  },
+  permissionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  permissionTextColumn: {
+    flex: 1,
+    minWidth: 0,
+  },
+  permissionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 4,
+  },
+  permissionLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  permissionDescription: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  permissionStatusPill: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  permissionStatusText: {
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  permissionButton: {
+    minWidth: 92,
+    borderWidth: 1.5,
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    alignItems: 'center',
+  },
+  permissionButtonText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  permissionUnavailableBox: {
+    padding: 16,
+    gap: 6,
   },
 
   volumeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
