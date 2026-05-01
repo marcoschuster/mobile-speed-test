@@ -38,15 +38,20 @@ const getBand = (frequency: number): WiFiBand => {
 const requestAndroidPermissions = async () => {
   if (Platform.OS !== 'android') return false;
 
-  const permissions = [PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION];
-  const nearbyWifiPermission = (PermissionsAndroid.PERMISSIONS as any).NEARBY_WIFI_DEVICES;
   const androidVersion = typeof Platform.Version === 'number' ? Platform.Version : Number(Platform.Version);
+  const nearbyWifiPermission = (PermissionsAndroid.PERMISSIONS as any).NEARBY_WIFI_DEVICES;
+
+  // On Android 13+: NEARBY_WIFI_DEVICES alone is sufficient for WiFi scanning
   if (androidVersion >= 33 && nearbyWifiPermission) {
-    permissions.push(nearbyWifiPermission);
+    const result = await PermissionsAndroid.requestMultiple([nearbyWifiPermission]);
+    if (result[nearbyWifiPermission] === PermissionsAndroid.RESULTS.GRANTED) {
+      return true;
+    }
+    // Fall through to try location permission as fallback
   }
 
-  const result = await PermissionsAndroid.requestMultiple(permissions);
-  return permissions.every((permission) => result[permission] === PermissionsAndroid.RESULTS.GRANTED);
+  const result = await PermissionsAndroid.requestMultiple([PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION]);
+  return result[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION] === PermissionsAndroid.RESULTS.GRANTED;
 };
 
 export const isWiFiScannerAvailable = () => Platform.OS === 'android' && Boolean(NativeWiFiScanner);
