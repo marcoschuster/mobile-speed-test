@@ -137,7 +137,7 @@ class ExpoBackgroundMonitorNotificationModule : Module() {
     const val NOTIFICATION_ID = 42031
     const val WORK_NAME = "background_speed_monitoring"
 
-    fun showMonitoringNotification(context: Context, intervalLabel: String? = null): Boolean {
+    fun showMonitoringNotification(context: Context, intervalLabel: String? = null, nextRunAtOverride: Long? = null): Boolean {
       if (!canPostNotifications(context)) {
         return false
       }
@@ -147,11 +147,12 @@ class ExpoBackgroundMonitorNotificationModule : Module() {
       val prefs = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
       val intervalMinutes = prefs.getInt(INTERVAL_MINUTES_KEY, 30).coerceAtLeast(15)
       val resolvedIntervalLabel = intervalLabel ?: "every ${intervalMinutes} min"
-      val nextRunAt = prefs.getLong(NEXT_RUN_AT_KEY, 0L)
-        .takeIf { it > System.currentTimeMillis() }
-        ?: (System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(intervalMinutes.toLong())).also {
-          prefs.edit().putLong(NEXT_RUN_AT_KEY, it).apply()
-        }
+      val nextRunAt = nextRunAtOverride
+        ?: prefs.getLong(NEXT_RUN_AT_KEY, 0L)
+          .takeIf { it > System.currentTimeMillis() }
+          ?: (System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(intervalMinutes.toLong())).also {
+            prefs.edit().putLong(NEXT_RUN_AT_KEY, it).apply()
+          }
 
       val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
         ?: Intent()
@@ -197,10 +198,11 @@ class ExpoBackgroundMonitorNotificationModule : Module() {
     fun updateNextRunEstimate(context: Context) {
       val prefs = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
       val intervalMinutes = prefs.getInt(INTERVAL_MINUTES_KEY, 30).coerceAtLeast(15)
+      val nextRunAt = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(intervalMinutes.toLong())
       prefs.edit()
-        .putLong(NEXT_RUN_AT_KEY, System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(intervalMinutes.toLong()))
+        .putLong(NEXT_RUN_AT_KEY, nextRunAt)
         .apply()
-      showMonitoringNotification(context)
+      showMonitoringNotification(context, null, nextRunAt)
     }
 
     private fun ensureChannel(context: Context) {
